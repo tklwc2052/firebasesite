@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ilkspacedtcm</title>
+    <style>
+        /* Modern Reset & Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #0f172a; /* Deep smooth navy/black */
+            color: #e2e8f0; /* Soft white for text */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Main Container */
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* Header / Hero Section */
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #818cf8, #c084fc); /* Purple/Indigo Gradient */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            /* Added for typing effect on gradient text */
+            display: inline-block;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-bottom: 1rem;
+        }
+
+        .bio {
+            color: #cbd5e1;
+            max-width: 600px;
+        }
+
+        /* Projects Section */
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #fff;
+            margin-top: 1rem;
+        }
+
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        /* Project Cards */
+        .card {
+            background-color: #1e293b; /* Lighter dark for cards */
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Helper to add spacing after standalone cards */
+        .mb-large {
+            margin-bottom: 3rem;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border-color: #818cf8;
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: #818cf8;
+        }
+
+        .card p {
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+
+        .tag {
+            display: inline-block;
+            background-color: #0f172a;
+            color: #94a3b8;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Links & Buttons */
+        a {
+            text-decoration: none;
+            color: inherit;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .btn-link {
+            display: inline-block;
+            margin-top: auto; /* Pushes button to bottom */
+            padding-top: 1rem;
+            color: #818cf8;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-top: 4rem;
+        }
+        
+        footer a {
+            color: #94a3b8;
+            transition: color 0.2s;
+        }
+        
+        footer a:hover {
+            color: #fff;
+        }
+
+        /* --- ANIMATION STYLES --- */
+        /* Hides text before it types */
+        .waiting-to-type {
+            opacity: 0;
+        }
+
+        /* The blinking cursor effect */
+        .typing-active::after {
+            content: '_';
+            display: inline-block;
+            margin-left: 3px;
+            color: #818cf8;
+            animation: blink 0.9s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <h1 class="type-me">ilkspacedtcm</h1>
+            <p class="subtitle type-me">call me kl/chair, or whatever works really.</p>
+            <h2 class="type-me">about me</h2>
+            <p class="subtitle type-me"> i like trains cars and planes, as well as navy boats, so anything that moves tbh. also into this whole website thing, theres a few websites below but i have made a ton of others on difrent hosts. </p>
+        </header>
+
+        <section>
+            <h2 class="type-me">(not really) Active Projects</h2>
+                        <p class="subtitle type-me">things that i was working on before my school switched to a ai blocker </p>
+
+            <div class="project-grid">
+                
+                <div class="card">
+                    <a href="https://cccorpchat.onrender.com" target="_blank">
+                        <div>
+                            <h3 class="type-me">C&C Corp Chat</h3>
+                            <p class="type-me">weve got main chat, dms, voicechat, screensharing, and more.</p>
+                            <div class="tags">
+                                <span class="tag type-me">Web App</span>
+                                <span class="tag type-me">Communication</span>
+                                <span class="tag type-me">In Progress</span>
+                            </div>
+                        </div>
+                        <span class="btn-link type-me">View Project &rarr;</span>
+                    </a>
+                </div>
+
+                <div class="card">
+                    <a href="https://chaos-craft-multiplayer-testing.onrender.com/" target="_blank">
+                        <div>
+                            <h3 class="type-me">fuh fuh fuh fuh forrkkliffttt</h3>
+                            <p class="type-me">this isnt done, but its just going to be a simple online forklift sim.</p>
+                            <div class="tags">
+                                <span class="tag type-me">In Progress</span>
+                                <span class="tag type-me">forklift</span>
+                                <span class="tag type-me">multiplayer</span>
+                            </div>
+                        </div>
+                        <span class="btn-link type-me">View Project &rarr;</span>
+                    </a>
+                </div>
+                
+            </div>
+
+             <div class="card mb-large">
+                <a href="https://ilikespacedotcom.is-a.dev/ut13" target="_blank">
+                    <div>
+                        <h3 class="type-me">Retard Client UT13</h3>
+                        <p class="type-me">i was asked to add a few things to T*ff client by a friend. never going to say no to a small change that frezes my computer when i try to edit files... T*ffNET did NOT hire me. if they ever try i WILL say no. Bring Shaun back
+                        <div class="tags">
+                            <span class="tag type-me">eagler1.12.2</span>
+                            <span class="tag type-me">#save shaun</span>
+                            <span class="tag type-me">In Progress but works.</span>
+                        </div>
+                    </div>
+                    <span class="btn-link type-me">View Project &rarr;</span>
+                </a>
+            </div>
+
+
+
+            <h2 class="type-me">Minecraft</h2>
+            <div class="card mb-large">
+                <a href="https://ilikespacedotcom.is-a.dev/ut13" target="_blank">
+                    <div>
+                        <h3 class="type-me">JASS2</h3>
+                        <p class="type-me">JASS is short for Just Another Survival Server, its been up for a few weeks and is full of plugins. the community is great.</p>
+                        <div class="tags">
+                            <span class="tag type-me">wss://server.speedslicer.dev</span>
+                            <span class="tag type-me">Java</span>
+                            <span class="tag type-me">Eagler</span>
+                        </div>
+                    </div>
+                    <span class="btn-link type-me">this is the same as Retard Client ut13 link &rarr;</span>
+                </a>
+            </div>
+
+
+        <h2 class="type-me">other things</h2>
+            <div class="card mb-large">
+                
+                    <div>
+                        <h3 class="type-me">The C&C Corparation</h3>
+                        <p class="type-me">i use the C&C corp title for alot of diffrent things, its a fictional coparation conpised of the C&C railroad company, the C&C games industry and the C&C digital programs. theres probably a few others im frogeting. it was founded in 2021 with my best friend after starting a book..</p>
+                        <div class="tags">
+                            <span class="tag type-me">rah</span>
+                            <span class="tag type-me">wee</span>
+                            <span class="tag type-me">woo</span>
+                        </div>
+                    </div>
+                    
+                
+            </div>
+            <div class="card mb-large">
+                
+                    <div>
+                        <h3 class="type-me">The 777 express</h3>
+                        <p class="type-me">the 777 express is a train based book my and some of my friends made. its peak eyars were 2021-23, progress as haluted for some reason. it folows a group of teenagers who boreded a space train that had landed randomly on earth. as they make their way to the front of the 10 mile long trin they are met with various chalenges they need to overcome.</p>
+                        <div class="tags">
+                            <span class="tag type-me">trains</span>
+                            <span class="tag type-me">even more trains</span>
+                            <span class="tag type-me">magic</span>
+                        </div>
+                    </div>
+                    
+                
+            </div>
+
+            <h2 class="type-me">Friends</h2>
+            <div class="card mb-large">
+                <a href="https://github.com/LuckyDuck745" target="_blank">
+                    <div>
+                        <h3 class="type-me">Lucky Duck</h3>
+                        <p class="type-me">my friend luckyducks site, it has links to his projects and such</p>
+                        <div class="tags">
+                            <span class="tag type-me">ducks</span>
+                            <span class="tag type-me">quack</span>
+                            <span class="tag type-me">cool guy</span>
+                        </div>
+                    </div>
+                    <span class="btn-link type-me">view his profile &rarr;</span>
+                </a>
+            </div>
+
+        </section>
+<footer>
+    <p class="type-me">lookie at my profile <a href="https://github.com/tklwc2052" target="_blank">@tklwc2052</a></p>
+    <p class="type-me">
+        <a href="https://scratch.mit.edu/users/ilkspacedtcm/" target="_blank">Scratch</a> • 
+        <a href="https://discord.com/users/1245118568031588503" target="_blank">Discord</a> • 
+        
+    </p>
+</footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = document.querySelectorAll('.type-me');
+            
+            // --- SETTINGS ---
+            const typeSpeed = 0; // Speed in ms
+            const pauseTime = 0; // Pause between lines in ms
+            // ----------------
+
+            const queue = [];
+            
+            elements.forEach(el => {
+                // 1. LOCK DIMENSIONS
+                // We calculate the height and width of the element *before* we empty it.
+                // This ensures the layout stays "popped open" and doesn't shift around.
+                el.style.minHeight = el.offsetHeight + 'px';
+                el.style.minWidth = el.offsetWidth + 'px';
+
+                // 2. Prepare Data
+                queue.push({
+                    el: el,
+                    originalHtml: el.innerHTML,
+                    plainText: el.innerText
+                });
+                
+                // 3. Clear content and hide
+                el.innerHTML = ''; 
+                el.classList.add('waiting-to-type'); 
+            });
+
+            async function typeWriter() {
+                for (const item of queue) {
+                    const { el, plainText, originalHtml } = item;
+                    
+                    // Reveal element and add cursor
+                    el.classList.remove('waiting-to-type');
+                    el.classList.add('typing-active');
+                    
+                    // Type text char by char
+                    for (let i = 0; i < plainText.length; i++) {
+                        el.textContent += plainText.charAt(i);
+                        await new Promise(res => setTimeout(res, typeSpeed));
+                    }
+
+                    // Restore original HTML (re-enables links and spans)
+                    el.innerHTML = originalHtml;
+                    el.classList.remove('typing-active');
+                    
+                    await new Promise(res => setTimeout(res, pauseTime));
+                }
+            }
+
+            typeWriter();
+        });
+    </script>
+
+</body>
+</html>
