@@ -1,11 +1,21 @@
 {
   "hosting": {
-"site": "ilkspacedtcm",   
- "public": "public",
+    "site": "ilkspacedtcm",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/chat",
+        "destination": "/chat/index.html"
+      },
+      {
+        "source": "/about",
+        "destination": "/about/index.html"
+      }
     ]
   }
 }
