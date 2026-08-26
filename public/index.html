@@ -114,10 +114,106 @@
   pointer-events: auto;
   cursor: default;
 }
+
+
+    .top-popup-image {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      width: 220px;
+      max-height: 180px;
+      object-fit: contain;
+      z-index: 200;
+      cursor: pointer;
+      opacity: 0;
+      transform: translate(-50%, -110%);
+      transition: transform 0.55s ease, opacity 0.35s ease;
+    }
+
+    .top-popup-image.visible {
+      opacity: 1;
+      transform: translate(-50%, 14px);
+    }
+
+    .message-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.48);
+    }
+
+    .message-overlay.open {
+      display: flex;
+    }
+
+    .message-box {
+      position: relative;
+      width: min(460px, 100%);
+      max-height: 80vh;
+      overflow: auto;
+      padding: 30px 28px 25px;
+      border: 1px solid #d8d8d8;
+      border-radius: 10px;
+      background: white;
+      color: #111;
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.3);
+    }
+
+    .message-box h2 {
+      margin: 0 35px 15px 0;
+      font-size: 21px;
+    }
+
+    .message-box p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .message-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: #333;
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .message-close:hover {
+      background: #eeeeee;
+    }
   </style>
 </head>
 <body>
   <main id="desktop"></main>
+
+
+
+  <img
+    id="topPopupImage"
+    class="top-popup-image"
+    src=""
+    alt="Open message"
+  >
+
+  <div id="messageOverlay" class="message-overlay" aria-hidden="true">
+    <section class="message-box" role="dialog" aria-modal="true" aria-labelledby="friendMessageTitle">
+      <button id="messageClose" class="message-close" type="button" aria-label="Close message" title="Close">&times;</button>
+      <h2 id="friendMessageTitle"></h2>
+      <p id="friendMessageText"></p>
+    </section>
+  </div>
 
   <script>
     /* ============================================================
@@ -168,6 +264,23 @@
         }
       */
     ];
+
+
+
+    const TOP_POPUP_SETTINGS = {
+      // Direct image URL for the image that slides down from the top.
+      imageUrl: "https://i.ibb.co/NgGYX7mg/dogecoin-removebg-preview.png",
+
+      // Wait 5 seconds before the image slides down.
+      appearDelay: 5000,
+
+      // Keep the image visible for 5 seconds before it slides away.
+      visibleDuration: 5000,
+
+      // The title and message shown when the image is clicked.
+      title: "doge; the dogesest of doges",
+      message: `Your address has been leaked to a dog, specifically YOUR dog, now there is nothing you can do, you have been cursed with 30 dogs who will wipe there ass on all your carpets.`
+    };
 
     /* ============================================================
        DO NOT EDIT BELOW THIS LINE UNLESS YOU WANT TO CHANGE THE CODE
@@ -252,6 +365,59 @@
     cornerImage.addEventListener("mouseleave", function () {
       window.clearTimeout(hoverTimer);
     });
+
+    // Sets up the image that slides down from the top of the screen.
+    if (
+      TOP_POPUP_SETTINGS.imageUrl.trim() &&
+      !TOP_POPUP_SETTINGS.imageUrl.startsWith("PASTE_")
+    ) {
+      topPopupImage.src = TOP_POPUP_SETTINGS.imageUrl;
+
+      topPopupImage.addEventListener("load", () => {
+        window.setTimeout(() => {
+          // Slide the image down after the initial delay.
+          topPopupImage.classList.add("visible");
+
+          window.setTimeout(() => {
+            // Slide the image back above the screen.
+            // An open text popup is not affected and stays visible.
+            topPopupImage.classList.remove("visible");
+          }, TOP_POPUP_SETTINGS.visibleDuration);
+        }, TOP_POPUP_SETTINGS.appearDelay);
+      });
+    } else {
+      topPopupImage.style.display = "none";
+    }
+
+    friendMessageTitle.textContent = TOP_POPUP_SETTINGS.title;
+    friendMessageText.textContent = TOP_POPUP_SETTINGS.message;
+
+    function openFriendMessage() {
+      messageOverlay.classList.add("open");
+      messageOverlay.setAttribute("aria-hidden", "false");
+      messageClose.focus();
+    }
+
+    function closeFriendMessage() {
+      messageOverlay.classList.remove("open");
+      messageOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    topPopupImage.addEventListener("click", openFriendMessage);
+    messageClose.addEventListener("click", closeFriendMessage);
+
+    messageOverlay.addEventListener("click", (event) => {
+      if (event.target === messageOverlay) {
+        closeFriendMessage();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeFriendMessage();
+      }
+    });
+
   </script>
 </body>
 </html>
