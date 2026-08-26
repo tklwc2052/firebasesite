@@ -2370,16 +2370,15 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
 
     <script>
+        // Firebase-optimized build: child-level profile sync, per-user DM indexes, slower presence heartbeat.
         const firebaseConfig = {
             databaseURL: "https://ilikespacedotcom-default-rtdb.firebaseio.com",
             storageBucket: "ilikespacedotcom.appspot.com"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const storage = firebase.storage();
         let sessionUser = { username: "", pfp: "", banner: "", pronouns: "", bio: "", status: "", nickname: "", rank: "Member" };
         let activeChannel = "announcements"; let isDmMode = false; let isForumMode = false; let activeForumPost = null; let activeForumPostData = null; let forumListRef = null; let forumPostCache = {}; let forumSearchQuery = ""; let openForumMenuKey = null; let activeRef = null; let activeChannelListenerCleanup = null; let pendingBase64Image = null; let activeReplyData = null;
         let typingTimer; let isTyping = false; let activeTypingRef = null;
@@ -2898,7 +2897,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             appSessionInitialized = true;
 
             if (!presenceHeartbeatInterval) {
-                presenceHeartbeatInterval = setInterval(updatePresenceHeartbeat, 25000);
+                presenceHeartbeatInterval = setInterval(updatePresenceHeartbeat, 60000);
             }
 
             bindRolesSync();
@@ -4456,7 +4455,17 @@ RECOVERING_INTERFACE... PLEASE WAIT</div>
             const outboundRef = db.ref(getChannelDatabasePath()).push();
  outboundRef.set(outboundPacket).then(() => {
             handleCountingBotMessage(outboundPacket, outboundRef.key);
-            db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).update({ lastMessageAt: outboundPacket.timestamp, lastMessageChannel: activeChannel, lastSeen: Date.now(), presenceState: 'online' });
+            const senderLower = sessionUser.username.toLowerCase();
+            const profileUpdate = db.ref('chat_profiles/' + senderLower).update({ lastMessageAt: outboundPacket.timestamp, lastMessageChannel: activeChannel, lastSeen: Date.now(), presenceState: 'online' });
+            if (isDmMode) {
+                const otherLower = activeChannel.toLowerCase();
+                const preview = String(outboundPacket.msg || (outboundPacket.image ? '[Image Attachment]' : '[Attachment]')).slice(0, 120);
+                const indexUpdates = {};
+                indexUpdates[`dm_inbox/${senderLower}/${otherLower}`] = { lastMessageAt: outboundPacket.timestamp, lastSender: senderLower, preview };
+                indexUpdates[`dm_inbox/${otherLower}/${senderLower}`] = { lastMessageAt: outboundPacket.timestamp, lastSender: senderLower, preview };
+                return Promise.all([profileUpdate, db.ref().update(indexUpdates)]);
+            }
+            return profileUpdate;
         });
         lastMessageSentAt = Date.now();
             
@@ -4598,33 +4607,29 @@ function applyDmRecentOrder() {
     items.sort((a,b) => Number(b.dataset.lastDmAt || 0) - Number(a.dataset.lastDmAt || 0) || String(a.dataset.dmName || '').localeCompare(String(b.dataset.dmName || '')));
     items.forEach(item => container.appendChild(item));
 }
+function refreshDmRecencyUi(otherUser, timestamp) {
+    const cleanUser = String(otherUser || '').toLowerCase();
+    if (!cleanUser) return;
+    dmRecentActivity[cleanUser] = Number(timestamp || 0);
+    const item = document.getElementById(`dm-node-${cleanUser}`);
+    if (item) {
+        item.dataset.lastDmAt = String(dmRecentActivity[cleanUser]);
+        const time = item.querySelector('.dm-list-time');
+        if (time) time.innerText = formatDmListTime(dmRecentActivity[cleanUser]);
+    }
+    applyDmRecentOrder();
+}
 function startDmRecencySync() {
     if (dmRecencyListenerStarted || !sessionUser.username) return;
     dmRecencyListenerStarted = true;
-    db.ref('dms').on('value', snapshot => {
-        const next = {};
-        snapshot.forEach(threadSnap => {
-            const otherUser = getOtherUserForDmThread(threadSnap.key);
-            if (!otherUser) return;
-            let latest = 0;
-            threadSnap.forEach(messageSnap => { latest = Math.max(latest, Number((messageSnap.val() || {}).timestamp || 0)); });
-            next[otherUser] = latest;
-        });
-        dmRecentActivity = next;
-        document.querySelectorAll('.dm-list-item').forEach(item => {
-            const name = item.dataset.dmName || '';
-            const stamp = Number(dmRecentActivity[name] || 0);
-            item.dataset.lastDmAt = String(stamp);
-            const time = item.querySelector('.dm-list-time');
-            if (time) time.innerText = formatDmListTime(stamp);
-        });
-        applyDmRecentOrder();
-    });
+    const myName = sessionUser.username.toLowerCase();
+    const inboxRef = db.ref(`dm_inbox/${myName}`);
+    inboxRef.on('child_added', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
+    inboxRef.on('child_changed', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
+    inboxRef.on('child_removed', snap => { delete dmRecentActivity[snap.key]; refreshDmRecencyUi(snap.key, 0); });
 }
 
-function bindPresenceSync() {
-    db.ref('chat_profiles').on('value', (snapshot) => {
-        globalProfiles = snapshot.val() || {};
+function renderPresenceFromCache() {
         const onlineContainer = document.getElementById('online-list'),
               offlineContainer = document.getElementById('offline-list'),
               dmContainer = document.getElementById('dm-list-container');
@@ -4637,7 +4642,7 @@ function bindPresenceSync() {
         
         Object.keys(globalProfiles).forEach(key => {
             const profile = globalProfiles[key];
-            const isRecentlyConnected = (Date.now() - (profile.lastSeen || 0)) < 70000;
+            const isRecentlyConnected = (Date.now() - (profile.lastSeen || 0)) < 150000;
             const isIdle = isRecentlyConnected && (profile.presenceState === 'idle' || Date.now() - (profile.lastActiveAt || profile.lastSeen || 0) >= IDLE_AFTER_MS);
             const isOnline = isRecentlyConnected;
             let actualUsername = key.toUpperCase(), rawLowerName = key.toLowerCase();
@@ -4707,6 +4712,18 @@ function bindPresenceSync() {
         const dmCountBadge = document.getElementById('dm-count');
         if (dmCountBadge) dmCountBadge.innerText = Math.max(0, Object.keys(globalProfiles).length - 1);
         applyDmListCollapsedState();
+    }
+function bindPresenceSync() {
+    const profilesRef = db.ref('chat_profiles');
+    const applyProfile = snap => {
+        globalProfiles[snap.key] = snap.val() || {};
+        renderPresenceFromCache();
+    };
+    profilesRef.on('child_added', applyProfile);
+    profilesRef.on('child_changed', applyProfile);
+    profilesRef.on('child_removed', snap => {
+        delete globalProfiles[snap.key];
+        renderPresenceFromCache();
     });
 }
 
@@ -5076,7 +5093,7 @@ function bindChannelSync() {
         }
         function getPresenceText(data) {
             if (!data || !data.lastSeen) return 'Never';
-            const connected = Date.now() - data.lastSeen < 70000;
+            const connected = Date.now() - data.lastSeen < 150000;
             const idle = connected && (data.presenceState === 'idle' || Date.now() - (data.lastActiveAt || data.lastSeen) >= IDLE_AFTER_MS);
             if (idle) return `Idle · active ${formatRelativeTime(data.lastActiveAt || data.lastSeen)}`;
             if (connected) return 'Online now';
@@ -5127,7 +5144,7 @@ function bindChannelSync() {
                 
                 const popStatusDot = document.getElementById('pop-status-dot'); 
                 if (data && data.lastSeen) {
-                    const connected = Date.now() - data.lastSeen < 70000;
+                    const connected = Date.now() - data.lastSeen < 150000;
                     const idle = connected && (data.presenceState === 'idle' || Date.now() - (data.lastActiveAt || data.lastSeen) >= IDLE_AFTER_MS);
                     popStatusDot.className = `status-dot ${idle ? 'status-idle' : (connected ? 'status-online' : 'status-offline')}`;
                 } else popStatusDot.className = 'status-dot status-offline';
@@ -5397,8 +5414,8 @@ function bindChannelSync() {
                 .sort((a, b) => {
                     const aProfile = globalProfiles[a] || {};
                     const bProfile = globalProfiles[b] || {};
-                    const aOnline = (Date.now() - (aProfile.lastSeen || 0)) < 60000 ? 0 : 1;
-                    const bOnline = (Date.now() - (bProfile.lastSeen || 0)) < 60000 ? 0 : 1;
+                    const aOnline = (Date.now() - (aProfile.lastSeen || 0)) < 150000 ? 0 : 1;
+                    const bOnline = (Date.now() - (bProfile.lastSeen || 0)) < 150000 ? 0 : 1;
                     if (aOnline !== bOnline) return aOnline - bOnline;
                     return a.localeCompare(b);
                 })
@@ -5649,13 +5666,15 @@ function bindChannelSync() {
                 attachMentionListener('channels/' + channelName, channelName, false);
             });
 
-            // Existing and future DM threads. child_added fires once for current children and again for new ones.
-            db.ref('dms').on('child_added', (dmSnap) => {
-                const threadKey = dmSnap.key || '';
-                const otherUser = getOtherUserFromDmThreadKey(threadKey, myNameLower);
-                if (!otherUser || [myNameLower, otherUser].sort().join('_') !== String(threadKey).toLowerCase()) return;
-                attachMentionListener('dms/' + threadKey, otherUser, true);
-            });
+            // Watch only DM paths that can belong to the current user. Never subscribe to the full /dms tree.
+            const attachDmForUser = otherUser => {
+                const cleanOther = String(otherUser || '').toLowerCase();
+                if (!cleanOther || cleanOther === myNameLower) return;
+                const threadKey = [myNameLower, cleanOther].sort().join('_');
+                attachMentionListener('dms/' + threadKey, cleanOther, true);
+            };
+            Object.keys(globalProfiles || {}).forEach(attachDmForUser);
+            db.ref('chat_profiles').on('child_added', snap => attachDmForUser(snap.key));
         }
 
     
