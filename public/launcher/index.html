@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>runner</title>
+    <style>
+        :root {
+            /* Semi-transparent Palette */
+            --bg-overlay: rgba(0, 0, 0, 0.4);
+            --panel: rgba(20, 20, 20, 0.4); 
+            --text-primary: #ffffff;
+            --text-secondary: #d0d0d0;
+            --border: rgba(255, 255, 255, 0.15);
+            --accent: #e0e0e0;
+            --splash-yellow: #ffff00;
+            --danger: #ff5555;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: var(--text-primary);
+            
+            background: linear-gradient(var(--bg-overlay), var(--bg-overlay)), 
+                        url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwhcTQJJWkrvVXc94g1rw2c6XRiTFCZjkMt_L0sQGHexG1EiU:https://images.steamusercontent.com/ugc/1761440193337949240/CAD56D004BEF359BB4D7567D12C208CB8D1C15E2/%3Fimw%3D637%26imh%3D358%26ima%3Dfit%26impolicy%3DLetterbox%26imcolor%3D%2523000000%26letterbox%3Dtrue&s'); 
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* --- Top Left Status --- */
+        .top-left-status {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            font-weight: 200;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 100;
+        }
+
+        #digital-clock { font-size: 1.8rem; }
+        .status-subtext { font-size: 0.8rem; text-transform: uppercase; opacity: 0.8; display: flex; flex-direction: column; gap: 4px; }
+        #school-period { color: var(--accent); font-weight: 400; letter-spacing: 0.5px; text-transform: none; }
+
+        .progress-container { width: 150px; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+        #period-progress-fill { width: 0%; height: 100%; background: var(--accent); transition: width 1s linear; }
+
+        /* --- Sleek Dock Container --- */
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 850px;
+            max-width: 90vw;
+            background: var(--panel);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px; 
+            padding: 10px; 
+            box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid var(--border);
+        }
+
+        /* Library Bar Styles */
+        .library-bar {
+            background: transparent; 
+            padding: 1rem;
+            display: flex;
+            gap: 25px;
+            overflow-x: auto;
+            min-height: 110px;
+            align-items: flex-start; /* Aligned to top so tiles look uniform */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+
+        .library-bar::-webkit-scrollbar { height: 6px; }
+        .library-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .library-bar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        .library-item {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+            transition: all 0.2s ease; width: 80px; flex-shrink: 0;
+        }
+
+        .library-item:hover { transform: translateY(-5px); }
+        .library-item:hover .library-favicon { border-color: rgba(255,255,255,0.4); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        .library-favicon {
+            width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center;
+            justify-content: center; margin-bottom: 8px; object-fit: contain; transition: all 0.2s ease;
+        }
+
+        .library-title { font-size: 0.7rem; color: var(--text-secondary); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+
+        .system-tile .library-favicon { background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.3); color: rgba(255,255,255,0.5); }
+        .system-tile:hover .library-favicon { background: rgba(255,255,255,0.1); border-style: solid; color: #fff; }
+
+        /* Custom Context Menu */
+        #customMenu {
+            position: fixed; display: none; background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 8px;
+            padding: 5px 0; z-index: 3000; box-shadow: 0 15px 30px rgba(0,0,0,0.6); min-width: 120px;
+        }
+
+        .menu-item { padding: 10px 15px; font-size: 0.75rem; color: white; cursor: pointer; transition: background 0.1s; }
+        .menu-item:hover { background: rgba(255,255,255,0.1); }
+        .menu-item.danger { color: var(--danger); }
+        .menu-item.danger:hover { background: var(--danger); color: white; }
+
+        /* --- Minecraft Pulse Splash --- */
+        #splash-container { position: absolute; top: 25px; right: 25px; margin: 0; z-index: 10; transform: rotate(15deg); animation: minecraft-pulse 0.5s infinite alternate ease-in-out; }
+        #splash-link { color: var(--splash-yellow); text-decoration: none; font-weight: 900; font-size: 1.3rem; text-shadow: 2px 2px 0px #3f3f00; display: inline-block; white-space: nowrap; cursor: pointer; }
+        @keyframes minecraft-pulse { from { transform: rotate(15deg) scale(1); } to { transform: rotate(15deg) scale(1.15); } }
+
+        /* --- In-Page Modal Styles --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center;
+            z-index: 2000; opacity: 0; transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active { display: flex; opacity: 1; }
+
+        .modal-content {
+            background: rgba(25, 25, 25, 0.9);
+            border: 1px solid var(--border); border-radius: 16px;
+            width: 500px; max-width: 90vw; max-height: 80vh; overflow-y: auto;
+            position: relative; padding: 30px; box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+            transform: translateY(20px); transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+
+        .close-btn {
+            position: absolute; top: 15px; right: 20px; font-size: 28px;
+            color: var(--text-secondary); cursor: pointer; transition: color 0.2s;
+        }
+
+        .close-btn:hover { color: var(--danger); }
+
+        /* Modal Internal Styling */
+        #modalBody h2 { margin-top: 0; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        #modalBody ul { line-height: 1.6; padding-left: 20px; color: #d0d0d0; }
+        #modalBody li { margin-bottom: 10px; }
+        #modalBody .highlight { color: var(--splash-yellow); font-weight: bold; }
+        #modalBody .box { background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+
+    </style>
+</head>
+<body>
+
+<div class="top-left-status">
+    <div id="digital-clock">00:00:00</div>
+    <div class="status-subtext">
+        <div id="date-display">Loading date...</div>
+        <div id="school-period">Checking...</div>
+        <div class="progress-container">
+            <div id="period-progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<div id="splash-container">
+    <a id="splash-link" href="#" target="_blank" rel="noopener">...</a>
+</div>
+
+<div id="customMenu">
+    <div class="menu-item" id="menuUrl">Insert URL</div>
+    <div class="menu-item" id="menuUpload">Upload Icon</div>
+    <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0;"></div>
+    <div class="menu-item danger" id="menuDelete">Delete</div>
+</div>
+
+<div id="inPageModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-btn" id="closeModalBtn">&times;</span>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<input type="file" id="iconUploader" accept="image/*" style="display:none">
+<input type="file" id="htmlUploader" accept=".html,.htm" style="display:none">
+
+<div class="container">
+    <div class="library-bar" id="libraryList">
+        </div>
+</div>
+
+<script>
+    const htmlUploader = document.getElementById('htmlUploader');
+    const libraryList = document.getElementById('libraryList');
+    const customMenu = document.getElementById('customMenu');
+    const iconUploader = document.getElementById('iconUploader');
+    
+    // Modal Elements
+    const modalOverlay = document.getElementById('inPageModal');
+    const modalBody = document.getElementById('modalBody');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
+    let db;
+    let savedFile = null;
+    let activeItem = null;
+
+    // --- Modal Logic ---
+    function openModal(contentHtml) {
+        modalBody.innerHTML = contentHtml;
+        modalOverlay.style.display = 'flex';
+        setTimeout(() => modalOverlay.classList.add('active'), 10);
+    }
+
+    function closeModal() {
+        modalOverlay.classList.remove('active');
+        setTimeout(() => modalOverlay.style.display = 'none', 200);
+    }
+
+    closeModalBtn.onclick = closeModal;
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+    });
+
+    // --- Built-in Modal Contents ---
+    const settingsHTML = `
+        <h2>⚙️ Settings & How To Use</h2>
+        <ul>
+            <li><span class="highlight">Upload Files:</span> Click the "+" tile to add your own HTML game or utility files directly into your library.</li>
+            <li><span class="highlight">Launch:</span> Click any uploaded tile to open it safely in a hidden background page (bypassing limits).</li>
+            <li><span class="highlight">Customize:</span> Right-click any tile to give it a custom icon URL, upload a local image, or delete it from the library.</li>
+        </ul>
+    `;
+
+    const mcInfoHTML = `
+        <h2 style="color: #ffff;">server info </h2>
+        <p style="color: #aaa; margin-top: -10px; margin-bottom: 20px;">cuz i want people to stop asking</p>
+        <div class="box">
+            <h3 style="margin-top: 0; color: #fff; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 5px;">Server ip</h3>
+            <ul>
+                <li><strong><a href="https://youtube.com" title="project server">server ip:</a></strong> "wss://super-guide-x5x79v7xwxj92v7gx-8081.app.github.dev" </li>
+            </ul>
+            <h3 style="color: #fff; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 5px;">info</h3>
+            <ul>
+                <li></li>
+                <li>Press 'M' to open the minimap settings.</li>
+                <li>Press 'C' to zoom (Requires Optifine or Zoomify).</li>
+            </ul>
+        </div>
+    `;
+
+    const splashes = [
+        { text: "also try: RAH!", url: "https://script.google.com/a/macros/students.wcpss.net/s/AKfycbxPXmtaW9hQhGcAavYLL43G-k3Y2IzDFYGleEqG4gwhrsIqBtZCnls3SH9NH4Agbt3k/exec" },
+        { text: "projecttttttt", url: "https://docs.google.com/document/d/1ofDGqiACk5gtrr3z-8VjA_U0jUnPhgxY8KUVWPPlfY8/edit?tab=t.96w8tp9s943o" },
+        { text: "i have githubbbbb", url: "https://github.com/tklwc2052" },
+        { text: "server filessss", url: "https://github.com/tklwc2052/smthsmth-mc-smth/tree/codespace-bookish-funicular-69wqr4qwgp7xc49rr" },
+        { text: "client files", url: "https://github.com/TuffNetwork/Tuff-Client-Builds/releases" },
+        { text: "and scratchh", url: "https://scratch.mit.edu/users/ilikespacedotcom" }
+    ];
+
+    function setRandomSplash() {
+        const link = document.getElementById('splash-link');
+        const randomChoice = splashes[Math.floor(Math.random() * splashes.length)];
+        link.textContent = randomChoice.text;
+        link.href = randomChoice.url;
+    }
+
+    // --- FVHS Schedule Logic ---
+    const FVHS_SCHEDULE = [
+        { name: "1st Period", start: "07:25", end: "08:54" },
+        { name: "2nd Period", start: "09:02", end: "10:31" },
+        { name: "Lunch/3rd Period", start: "10:31", end: "12:43" },
+        { name: "4th Period", start: "12:49", end: "14:18" }
+    ];
+
+    function updatePeriodDisplay() {
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+        const day = now.getDay();
+        const fill = document.getElementById('period-progress-fill');
+        const periodText = document.getElementById('school-period');
+
+        if (day === 0 || day === 6) { periodText.textContent = "Weekend"; fill.style.width = "0%"; return; }
+
+        let activeSlot = null;
+        for (let slot of FVHS_SCHEDULE) {
+            const [sH, sM] = slot.start.split(':').map(Number);
+            const [eH, eM] = slot.end.split(':').map(Number);
+            const startTotal = sH * 60 + sM;
+            const endTotal = eH * 60 + eM;
+
+            if (currentTime >= startTotal && currentTime < endTotal) {
+                activeSlot = { startTotal, endTotal, name: slot.name }; break;
+            }
+        }
+
+        if (activeSlot) {
+            const totalDuration = activeSlot.endTotal - activeSlot.startTotal;
+            const passed = currentTime - activeSlot.startTotal;
+            const percentage = (passed / totalDuration) * 100;
+            periodText.textContent = `${activeSlot.name} (${activeSlot.endTotal - currentTime}m left)`;
+            fill.style.width = percentage + "%";
+        } else {
+            fill.style.width = "0%";
+            if (currentTime < 445) periodText.textContent = "Before School";
+            else if (currentTime >= 858) periodText.textContent = "After School";
+            else periodText.textContent = "Passing Period";
+        }
+    }
+
+    function updateClock() {
+        const now = new Date();
+        
+        // Update Time
+        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        document.getElementById('digital-clock').textContent = timeString;
+        
+        // Update Date
+        const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('date-display').textContent = dateString;
+
+        updatePeriodDisplay();
+    }
+
+    const request = indexedDB.open("CodeRunnerDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("files", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadLastFile();
+        renderLibrary();
+        setRandomSplash();
+        setInterval(updateClock, 1000);
+        updateClock();
+    };
+
+    function loadLastFile() {
+        const transaction = db.transaction(["files"], "readonly");
+        transaction.objectStore("files").getAll().onsuccess = (e) => {
+            const allFiles = e.target.result;
+            const last = allFiles.find(f => f.id === "lastFile");
+            if (last) savedFile = last.data;
+            // Removed the auto-launch loop entirely
+        };
+    }
+
+    async function parseFileData(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+                const iconTag = doc.querySelector('link[rel*="icon"]');
+                const titleTag = doc.querySelector('title');
+                
+                let iconSrc = 'https://cdn-icons-png.flaticon.com/512/1243/1243933.png';
+                if (iconTag && iconTag.getAttribute('href')) iconSrc = iconTag.getAttribute('href');
+
+                resolve({
+                    id: file.name, name: titleTag ? titleTag.innerText : file.name,
+                    icon: iconSrc, data: file
+                });
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    function renderLibrary() {
+        libraryList.innerHTML = '';
+        
+        // 1. Upload Tile
+        const uploadTile = document.createElement('div');
+        uploadTile.className = 'library-item system-tile';
+        uploadTile.innerHTML = `
+            <div class="library-favicon" style="font-size: 24px; font-weight: 300;">+</div>
+            <div class="library-title">Upload File</div>
+        `;
+        uploadTile.onclick = () => htmlUploader.click();
+        libraryList.appendChild(uploadTile);
+
+        // 2. Settings Modal Tile
+        const settingsTile = document.createElement('div');
+        settingsTile.className = 'library-item system-tile';
+        settingsTile.innerHTML = `
+            <div class="library-favicon" style="font-size: 20px;">⚙️</div>
+            <div class="library-title">How To Use</div>
+        `;
+        settingsTile.onclick = () => openModal(settingsHTML);
+        libraryList.appendChild(settingsTile);
+
+        // 3. MC Info Modal Tile (Edit the src="" inside the img tag here to set your custom icon)
+        const mcInfoTile = document.createElement('div');
+        mcInfoTile.className = 'library-item system-tile';
+        mcInfoTile.innerHTML = `
+            <img class="library-favicon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs919kOuZGikFB_ChUAFrER5B_QAlt_f8DFE-a_RKr4UZZrLk:https://static.wikia.nocookie.net/minecraft_gamepedia/images/1/12/Minecraft_Launcher_MS_Icon.png/revision/latest/scale-to-width-down/250%3Fcb%3D20230618110121&s" onerror="this.style.display='none'">
+            <div class="library-title">MC Info</div>
+        `;
+        mcInfoTile.onclick = () => openModal(mcInfoHTML);
+        libraryList.appendChild(mcInfoTile);
+
+        // 4. Render Database Items
+        const transaction = db.transaction(["files"], "readonly");
+        transaction.objectStore("files").getAll().onsuccess = (e) => {
+            e.target.result.forEach(item => {
+                if (item.id === "lastFile") return;
+                const div = document.createElement('div');
+                div.className = 'library-item';
+                div.innerHTML = `
+                    <img class="library-favicon" src="${item.icon}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1243/1243933.png'">
+                    <div class="library-title" title="${item.name}">${item.name}</div>
+                `;
+
+                div.querySelector('.library-favicon').onclick = () => launch(item.data, item.name);
+                div.querySelector('.library-title').onclick = () => launch(item.data, item.name);
+
+                div.oncontextmenu = (ev) => {
+                    ev.preventDefault();
+                    activeItem = item;
+                    customMenu.style.display = 'block';
+                    let menuX = ev.pageX, menuY = ev.pageY;
+                    if (menuX + customMenu.offsetWidth > window.innerWidth) menuX -= customMenu.offsetWidth;
+                    if (menuY + customMenu.offsetHeight > window.innerHeight) menuY -= customMenu.offsetHeight;
+                    customMenu.style.left = menuX + 'px'; customMenu.style.top = menuY + 'px';
+                };
+
+                libraryList.appendChild(div);
+            });
+        };
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!customMenu.contains(e.target)) customMenu.style.display = 'none';
+    });
+
+    document.getElementById('menuUrl').onclick = () => {
+        customMenu.style.display = 'none';
+        const url = prompt("Insert Icon URL:", activeItem.icon);
+        if (url) updateIcon(url);
+    };
+
+    document.getElementById('menuUpload').onclick = () => {
+        customMenu.style.display = 'none';
+        iconUploader.click();
+    };
+
+    document.getElementById('menuDelete').onclick = () => {
+        customMenu.style.display = 'none';
+        if (confirm(`Remove "${activeItem.name}" from your library?`)) {
+            const tx = db.transaction(["files"], "readwrite");
+            tx.objectStore("files").delete(activeItem.id);
+            tx.oncomplete = () => {
+                if (savedFile && savedFile.name === activeItem.id) savedFile = null;
+                renderLibrary();
+            };
+        }
+    };
+
+    iconUploader.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => updateIcon(ev.target.result);
+            reader.readAsDataURL(file);
+        }
+        iconUploader.value = "";
+    };
+
+    function updateIcon(src) {
+        activeItem.icon = src;
+        const tx = db.transaction(["files"], "readwrite");
+        tx.objectStore("files").put(activeItem);
+        tx.oncomplete = renderLibrary;
+    }
+
+    function launch(file, title) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const width = window.screen.availWidth, height = window.screen.availHeight;
+            const win = window.open('about:blank', '_blank', `width=${width},height=${height},menubar=no`);
+            if (win) {
+                win.document.open(); win.document.write(e.target.result);
+                win.document.close(); win.document.title = title; win.focus();
+            } else {
+                alert("Pop-up blocked! Please allow pop-ups for this site to run files.");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    htmlUploader.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileData = await parseFileData(file);
+        const transaction = db.transaction(["files"], "readwrite");
+        const store = transaction.objectStore("files");
+        
+        store.put({ id: "lastFile", name: fileData.name, data: file });
+        store.put(fileData);
+        
+        transaction.oncomplete = () => {
+            savedFile = file; renderLibrary();
+        };
+        htmlUploader.value = ""; 
+    });
+</script>
+</body>
+</html>
