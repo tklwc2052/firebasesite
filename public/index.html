@@ -231,34 +231,27 @@
     });
 
   </script>
-<img
-  class="corner-image"
-  src="https://i.ibb.co/WvGf5jZp/Screenshot-2026-06-03-11-29-33-PM-removebg-preview.png"
-  alt=""
-> 
-<script><img
-  id="cornerImage"
-  class="corner-image"
-  src="https://i.ibb.co/WvGf5jZp/Screenshot-2026-06-03-11-29-33-PM-removebg-preview.png"
-  alt="YouTube"
->
 
-<script>
-  const cornerImage = document.getElementById("cornerImage");
-  let hoverTimer;
+  <img
+    id="cornerImage"
+    class="corner-image"
+    src="https://i.ibb.co/WvGf5jZp/Screenshot-2026-06-03-11-29-33-PM-removebg-preview.png"
+    alt="YouTube"
+  >
 
-  cornerImage.addEventListener("mouseenter", function () {
-    hoverTimer = setTimeout(function () {
-      window.location.href = "https://www.youtube.com/watch?v=xvFZjo5PgG0";
-    }, 1000);
-  });
+  <script>
+    const cornerImage = document.getElementById("cornerImage");
+    let hoverTimer;
 
-  cornerImage.addEventListener("mouseleave", function () {
-    clearTimeout(hoverTimer);
-  });
-</script>
+    cornerImage.addEventListener("mouseenter", function () {
+      hoverTimer = window.setTimeout(function () {
+        window.location.href = "https://www.youtube.com/watch?v=xvFZjo5PgG0";
+      }, 1000);
+    });
 
-</body>
-</html> 
+    cornerImage.addEventListener("mouseleave", function () {
+      window.clearTimeout(hoverTimer);
+    });
+  </script>
 </body>
 </html>
