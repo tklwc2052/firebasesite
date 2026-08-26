@@ -6,6 +6,10 @@
   <title>Lander</title>
 <link rel="icon" type="image/png" href="https://i.ibb.co/spTsw5tw/download-2.jpg">
   <style>
+
+
+
+    
     * {
       box-sizing: border-box;
     }
@@ -97,6 +101,18 @@
       font-size: 14px;
       text-align: center;
     }
+    .corner-image {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+
+  width: 150px;
+  height: auto;
+
+  object-fit: contain;
+  z-index: 100;
+  pointer-events: none;
+}
   </style>
 </head>
 <body>
@@ -214,5 +230,10 @@
     });
 
   </script>
+<img
+  class="corner-image"
+  src="https://i.ibb.co/WvGf5jZp/Screenshot-2026-06-03-11-29-33-PM-removebg-preview.png"
+  alt=""
+> 
 </body>
 </html>
