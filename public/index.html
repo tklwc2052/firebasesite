@@ -111,7 +111,8 @@
 
   object-fit: contain;
   z-index: 100;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: default;
 }
   </style>
 </head>
@@ -235,5 +236,29 @@
   src="https://i.ibb.co/WvGf5jZp/Screenshot-2026-06-03-11-29-33-PM-removebg-preview.png"
   alt=""
 > 
+<script><img
+  id="cornerImage"
+  class="corner-image"
+  src="https://i.ibb.co/WvGf5jZp/Screenshot-2026-06-03-11-29-33-PM-removebg-preview.png"
+  alt="YouTube"
+>
+
+<script>
+  const cornerImage = document.getElementById("cornerImage");
+  let hoverTimer;
+
+  cornerImage.addEventListener("mouseenter", function () {
+    hoverTimer = setTimeout(function () {
+      window.location.href = "https://www.youtube.com/watch?v=xvFZjo5PgG0";
+    }, 1000);
+  });
+
+  cornerImage.addEventListener("mouseleave", function () {
+    clearTimeout(hoverTimer);
+  });
+</script>
+
+</body>
+</html> 
 </body>
 </html>
