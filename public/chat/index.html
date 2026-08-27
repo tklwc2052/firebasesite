@@ -28,9 +28,10 @@
 const ABLY_API_KEY = "F9uhZw.yYopLg:04EkOfPZcGMFACX4JQcb5XQjv5rJQMao5kNP-6toXP4";
 const CHANNEL_NAME = "avern-one-channel-chat";
 const ADMINS = new Set(["kl_", "Doge"]);
-const HISTORY_LIMIT = 1000;
+const HISTORY_LIMIT = 5000;
 let me = "", ably = null, channel = null, lastSent = 0;
 let messages = [], warnings = {}, moderation = {}, chatSettings = { locked:false, slowmodeMs:0 }, clearedBefore = 0;
+const eventStore = new Map();
 const $ = id => document.getElementById(id);
 const isAdmin = () => ADMINS.has(me.toLowerCase());
 const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -52,15 +53,25 @@ function join(){
 }
 $("join").onclick=join; $("username").onkeydown=e=>{if(e.key==="Enter")join()};
 $("logout").onclick=()=>{localStorage.removeItem("avern_simple_user"); ably?.close(); location.reload()};
-function normalize(msg){ return { id:msg.id, name:msg.name, data:msg.data||{}, timestamp:msg.timestamp||Date.now() }; }
+function normalize(msg){ return { id:msg.id || `${msg.connectionId||""}:${msg.timestamp||0}:${msg.name||""}`, name:msg.name, data:{...(msg.data||{})}, timestamp:msg.timestamp||Date.now() }; }
+function rebuildState(){
+ messages=[]; warnings={}; moderation={}; chatSettings={locked:false,slowmodeMs:0}; clearedBefore=0;
+ const ordered=[...eventStore.values()].sort((a,b)=>a.timestamp-b.timestamp || String(a.id).localeCompare(String(b.id)));
+ for(const event of ordered){
+  const d=event.data||{};
+  if(event.name==="chat") messages.push(event);
+  if(event.name==="clear") {
+   if(d.amount){ const visible=messages.filter(m=>m.timestamp>clearedBefore && !m.data.deleted); visible.slice(-d.amount).forEach(m=>m.data.deleted=true); }
+   else clearedBefore=Math.max(clearedBefore,event.timestamp);
+  }
+  if(event.name==="settings") chatSettings={...chatSettings,...d};
+  if(event.name==="warn") (warnings[d.user] ||= []).push(d);
+  if(event.name==="moderation") moderation[d.user]={...(moderation[d.user]||{}),...d};
+ }
+}
 function applyEvent(event, render=true){
- const d=event.data||{};
- if(event.name==="chat") messages.push(event);
- if(event.name==="clear") { if(d.amount){ const visible=messages.filter(m=>m.timestamp>clearedBefore); visible.slice(-d.amount).forEach(m=>m.data.deleted=true); } else clearedBefore=Math.max(clearedBefore,event.timestamp); }
- if(event.name==="settings") chatSettings={...chatSettings,...d};
- if(event.name==="warn") (warnings[d.user] ||= []).push(d);
- if(event.name==="moderation") moderation[d.user]={...(moderation[d.user]||{}),...d};
- if(render) renderAll();
+ if(!event || eventStore.has(event.id)) return;
+ eventStore.set(event.id,event); rebuildState(); if(render) renderAll();
 }
 function renderAll(){
  const box=$("messages"); box.innerHTML="";
@@ -76,16 +87,28 @@ function renderAll(){
 }
 function updateStatus(){ let text=""; if(chatSettings.locked&&!isAdmin()) text="Chat is locked by an admin."; else if(chatSettings.slowmodeMs) text=`Slowmode: ${Math.ceil(chatSettings.slowmodeMs/1000)} seconds`; $("status").textContent=text; }
 async function loadHistory(){
- let page=await channel.history({direction:"forwards",limit:100}); let count=0;
- while(page){ for(const msg of page.items){ applyEvent(normalize(msg),false); count++; if(count>=HISTORY_LIMIT) break; } if(count>=HISTORY_LIMIT || !page.hasNext()) break; page=await page.next(); }
- renderAll();
+ let page=await channel.history({direction:"backwards",limit:1000,untilAttach:true});
+ let count=0;
+ while(page){
+  for(const msg of page.items){ applyEvent(normalize(msg),false); count++; if(count>=HISTORY_LIMIT) break; }
+  if(count>=HISTORY_LIMIT || !page.hasNext()) break;
+  page=await page.next();
+ }
+ rebuildState(); renderAll();
+ $("status").textContent = count >= HISTORY_LIMIT ? `Loaded the latest ${HISTORY_LIMIT.toLocaleString()} stored events.` : `Caught up on ${count.toLocaleString()} stored event${count===1?'':'s'}.`;
+ setTimeout(updateStatus,2500);
 }
 async function startAbly(){
- $("messages").innerHTML='<div class="notice">Connecting to Ably...</div>';
+ $("messages").innerHTML='<div class="notice">Connecting and catching up...</div>';
  ably=new Ably.Realtime({key:ABLY_API_KEY,clientId:me}); channel=ably.channels.get(CHANNEL_NAME);
  ably.connection.on("failed",state=>alert("Ably connection failed: "+(state.reason?.message||"Unknown error")));
- await channel.attach(); await loadHistory();
- channel.subscribe(msg=>applyEvent(normalize(msg),true));
+ ably.connection.on("disconnected",()=>{$("status").textContent="Connection lost. Ably is reconnecting..."});
+ ably.connection.on("connected",()=>{if(messages.length) updateStatus()});
+ await channel.attach();
+ // Subscribe before requesting history. untilAttach makes the history stop exactly at
+ // the attachment point, while the subscription receives everything after it.
+ await channel.subscribe(msg=>applyEvent(normalize(msg),true));
+ await loadHistory();
  const rule=moderation[me.toLowerCase()]||{};
  if(rule.bannedUntil>Date.now()){ alert("You are banned until "+new Date(rule.bannedUntil).toLocaleString()+". Reason: "+(rule.banReason||"No reason")); ably.close(); location.reload(); }
 }
