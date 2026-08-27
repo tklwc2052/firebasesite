@@ -153,6 +153,104 @@
       line-height: 1;
     }
 
+    #taskbarSearchWrap {
+      position: relative;
+      flex: 0 1 260px;
+      min-width: 125px;
+      max-width: 260px;
+    }
+
+    #taskbarSearch {
+      width: 100%;
+      height: 36px;
+      padding: 0 12px 0 34px;
+      border: 1px solid rgba(255, 255, 255, 0.17);
+      border-radius: 5px;
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      font: inherit;
+    }
+
+    #taskbarSearch:focus {
+      border-color: rgba(255, 255, 255, 0.55);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    #taskbarSearch::placeholder { color: rgba(255, 255, 255, 0.68); }
+
+    .search-symbol {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      font-size: 14px;
+    }
+
+    #searchResults {
+      position: fixed;
+      left: 50px;
+      bottom: calc(var(--taskbar-height) + 7px);
+      width: min(360px, calc(100vw - 14px));
+      max-height: 360px;
+      padding: 8px;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      color: white;
+      background: rgba(25, 25, 25, 0.96);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(18px);
+      z-index: 1002;
+    }
+
+    #searchResults[hidden] { display: none; }
+
+    .search-result {
+      width: 100%;
+      min-height: 52px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 5px;
+      color: white;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .search-result:hover, .search-result.selected { background: rgba(255, 255, 255, 0.12); }
+    .search-result img { width: 34px; height: 34px; object-fit: contain; }
+    .search-result small { display: block; color: rgba(255,255,255,.64); margin-top: 2px; }
+    .search-none { padding: 16px 10px; color: rgba(255,255,255,.68); font-size: 13px; }
+
+    #cmdWindow {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(720px, calc(100vw - 24px));
+      height: min(430px, calc(100vh - 80px));
+      border: 1px solid #777;
+      background: #0c0c0c;
+      box-shadow: 0 18px 55px rgba(0,0,0,.7);
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #cmdWindow[hidden] { display: none; }
+    #cmdTitlebar { height: 34px; padding-left: 10px; background: #f3f3f3; color: #111; display: flex; align-items: center; font-size: 12px; }
+    #cmdTitlebar span { flex: 1; }
+    #cmdClose { align-self: stretch; width: 46px; border: 0; background: transparent; font-size: 17px; cursor: pointer; }
+    #cmdClose:hover { color: white; background: #c42b1c; }
+    #cmdOutput { flex: 1; margin: 0; padding: 8px; overflow-y: auto; color: #eee; white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.35 Consolas, "Courier New", monospace; }
+    #cmdInputRow { display: flex; align-items: center; padding: 0 8px 8px; color: #eee; font: 14px Consolas, "Courier New", monospace; }
+    #cmdInput { flex: 1; min-width: 0; border: 0; outline: 0; color: #eee; background: transparent; font: inherit; }
+
     #taskbarPins {
       min-width: 0;
       display: flex;
@@ -278,6 +376,7 @@
     }
 
     @media (max-width: 500px) {
+      #taskbarSearchWrap { flex-basis: 150px; max-width: 150px; }
       #clockButton { min-width: 72px; padding-inline: 5px; }
       .pinned-app { flex-basis: 40px; width: 40px; }
       .corner-image { width: 105px; }
@@ -294,6 +393,14 @@
     alt="YouTube"
   >
 
+  <section id="searchResults" aria-label="Search results" hidden></section>
+
+  <section id="cmdWindow" role="dialog" aria-label="Command Prompt" hidden>
+    <div id="cmdTitlebar"><span>Command Prompt</span><button id="cmdClose" type="button" aria-label="Close">×</button></div>
+    <pre id="cmdOutput"></pre>
+    <label id="cmdInputRow">C:\KL&gt;<input id="cmdInput" type="text" autocomplete="off" spellcheck="false" aria-label="Command"></label>
+  </section>
+
   <section id="startMenu" aria-label="Start menu" hidden>
     <div class="start-heading">All apps</div>
     <div id="startApps"></div>
@@ -301,6 +408,10 @@
 
   <nav id="taskbar" aria-label="Taskbar">
     <button id="startButton" class="taskbar-button" type="button" title="Start" aria-label="Start">⊞</button>
+    <div id="taskbarSearchWrap">
+      <span class="search-symbol">⌕</span>
+      <input id="taskbarSearch" type="search" placeholder="Search" autocomplete="off" aria-label="Search apps and commands">
+    </div>
     <div id="taskbarPins" aria-label="Pinned apps"></div>
     <div id="taskbarSpacer"></div>
     <button id="clockButton" class="taskbar-button" type="button" title="Date and time">
@@ -337,7 +448,7 @@
         name: "1.14.4",
         pageUrl: "/1.14.4/",
         imageUrl: "https://i.ibb.co/Qj62zwBG/download.jpg",
-        pinned: true
+        pinned: false
       },
       {
         name: "info",
@@ -349,13 +460,13 @@
         name: "launcher",
         pageUrl: "/launcher/",
         imageUrl: "https://i.ibb.co/wF0L2pkq/Screenshot-2026-06-04-12-06-23-AM.png",
-        pinned: false
+        pinned: true
       },
       {
         name: "snowrider3d",
         pageUrl: "/snowrider3d/",
         imageUrl: "https://i.ibb.co/N6jHrJ7Z/images.jpg",
-        pinned: false
+        pinned: true
       }
     ];
 
@@ -371,6 +482,12 @@
     const startMenu = document.getElementById("startMenu");
     const startApps = document.getElementById("startApps");
     const showDesktopButton = document.getElementById("showDesktopButton");
+    const taskbarSearch = document.getElementById("taskbarSearch");
+    const searchResults = document.getElementById("searchResults");
+    const cmdWindow = document.getElementById("cmdWindow");
+    const cmdInput = document.getElementById("cmdInput");
+    const cmdOutput = document.getElementById("cmdOutput");
+    const cmdClose = document.getElementById("cmdClose");
 
     function openFile(file) {
       const link = file.pageUrl.trim();
@@ -440,15 +557,130 @@
       }
     });
 
+
+    function openCommandPrompt() {
+      startMenu.hidden = true;
+      searchResults.hidden = true;
+      taskbarSearch.value = "";
+      cmdWindow.hidden = false;
+      if (!cmdOutput.textContent) {
+        cmdOutput.textContent = "KL Command Prompt [Version 1.0]\nType help for a list of commands.\n\n";
+      }
+      cmdInput.focus();
+    }
+
+    function closeCommandPrompt() {
+      cmdWindow.hidden = true;
+      cmdInput.value = "";
+    }
+
+    function renderSearchResults() {
+      const query = taskbarSearch.value.trim().toLowerCase();
+      searchResults.replaceChildren();
+      if (!query) { searchResults.hidden = true; return; }
+
+      const matches = DESKTOP_FILES.filter(file =>
+        file.name.toLowerCase().includes(query) || file.pageUrl.toLowerCase().includes(query)
+      );
+
+      if ("cmd".includes(query) || "command prompt".includes(query)) {
+        const cmdResult = document.createElement("button");
+        cmdResult.className = "search-result selected";
+        cmdResult.type = "button";
+        cmdResult.innerHTML = '<div style="width:34px;height:28px;background:#111;border:1px solid #aaa;color:white;padding:5px;font:11px Consolas">C:\&gt;</div><div><strong>Command Prompt</strong><small>App</small></div>';
+        cmdResult.addEventListener("click", openCommandPrompt);
+        searchResults.appendChild(cmdResult);
+      }
+
+      matches.forEach((file) => {
+        const result = document.createElement("button");
+        result.className = "search-result";
+        result.type = "button";
+        result.appendChild(makeImage(file, ""));
+        const text = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = file.name;
+        const detail = document.createElement("small");
+        detail.textContent = "App";
+        text.append(title, detail);
+        result.appendChild(text);
+        result.addEventListener("click", () => openFile(file));
+        searchResults.appendChild(result);
+      });
+
+      if (!searchResults.children.length) {
+        const none = document.createElement("div");
+        none.className = "search-none";
+        none.textContent = `No results for “${taskbarSearch.value.trim()}”`;
+        searchResults.appendChild(none);
+      }
+      searchResults.hidden = false;
+    }
+
+    taskbarSearch.addEventListener("input", renderSearchResults);
+    taskbarSearch.addEventListener("focus", renderSearchResults);
+    taskbarSearch.addEventListener("click", event => event.stopPropagation());
+    searchResults.addEventListener("click", event => event.stopPropagation());
+    taskbarSearch.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const query = taskbarSearch.value.trim().toLowerCase();
+      if (query === "cmd" || query === "command prompt") { openCommandPrompt(); return; }
+      const match = DESKTOP_FILES.find(file => file.name.toLowerCase().includes(query));
+      if (match) openFile(match);
+    });
+
+    cmdClose.addEventListener("click", closeCommandPrompt);
+    cmdWindow.addEventListener("click", event => event.stopPropagation());
+    cmdInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const raw = cmdInput.value.trim();
+      const [command = "", ...args] = raw.split(/\s+/);
+      const cmd = command.toLowerCase();
+      cmdOutput.textContent += `C:\KL>${raw}\n`;
+      cmdInput.value = "";
+
+      if (cmd === "help") {
+        cmdOutput.textContent += "help          Show commands\napps          List available apps\nopen NAME     Open an app\ndate          Show the date\ntime          Show the time\necho TEXT     Print text\nclear         Clear the screen\nexit          Close Command Prompt\n";
+      } else if (cmd === "apps") {
+        cmdOutput.textContent += DESKTOP_FILES.map(file => file.name).join("\n") + "\n";
+      } else if (cmd === "open") {
+        const wanted = args.join(" ").toLowerCase();
+        const file = DESKTOP_FILES.find(item => item.name.toLowerCase() === wanted || item.name.toLowerCase().includes(wanted));
+        if (file && wanted) openFile(file);
+        else cmdOutput.textContent += "App not found. Use apps to see available apps.\n";
+      } else if (cmd === "date") {
+        cmdOutput.textContent += new Date().toLocaleDateString() + "\n";
+      } else if (cmd === "time") {
+        cmdOutput.textContent += new Date().toLocaleTimeString() + "\n";
+      } else if (cmd === "echo") {
+        cmdOutput.textContent += args.join(" ") + "\n";
+      } else if (cmd === "clear" || cmd === "cls") {
+        cmdOutput.textContent = "";
+      } else if (cmd === "exit") {
+        closeCommandPrompt();
+      } else if (cmd) {
+        cmdOutput.textContent += `'${command}' is not recognized as a command.\n`;
+      }
+      cmdOutput.textContent += cmdWindow.hidden ? "" : "\n";
+      cmdOutput.scrollTop = cmdOutput.scrollHeight;
+    });
+
     startButton.addEventListener("click", (event) => {
       event.stopPropagation();
       startMenu.hidden = !startMenu.hidden;
     });
 
     startMenu.addEventListener("click", (event) => event.stopPropagation());
-    document.addEventListener("click", () => { startMenu.hidden = true; });
+    document.addEventListener("click", () => {
+      startMenu.hidden = true;
+      searchResults.hidden = true;
+    });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") startMenu.hidden = true;
+      if (event.key === "Escape") {
+        startMenu.hidden = true;
+        searchResults.hidden = true;
+        if (!cmdWindow.hidden) closeCommandPrompt();
+      }
     });
 
     showDesktopButton.addEventListener("click", () => {
