@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Avern Multi-Server Chat</title>
+  <link rel="icon" href="https://i.ibb.co/bMLJk06L/download.png">
+  <style>
+    :root{--bg0:#111214;--bg1:#18191c;--bg2:#202225;--bg3:#2a2d31;--line:rgba(255,255,255,.075);--text:#e6e8eb;--muted:#9298a1;--blue:#5865f2;--green:#23a55a;--red:#da373c}
+    *{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden;background:var(--bg0);color:var(--text);font:14px Inter,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,textarea,select{font:inherit}.hidden{display:none!important}
+    #loading{position:fixed;inset:0;z-index:100;background:var(--bg0);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+    #app{height:100vh;display:grid;grid-template-columns:72px 250px minmax(0,1fr) 230px}
+    .servers{background:var(--bg0);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;overflow-y:auto}
+    .server-icon,.server-add,.server-home{width:48px;height:48px;border:0;border-radius:50%;background:var(--bg3);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:800;transition:.14s}.server-icon:hover,.server-icon.active,.server-add:hover,.server-home:hover{border-radius:15px;background:var(--blue)}.server-icon img{width:100%;height:100%;object-fit:cover}.server-add{color:#57f287;font-size:23px}.server-divider{width:32px;border-top:1px solid var(--line)}
+    .sidebar{background:var(--bg1);display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}.server-header{height:54px;border-bottom:1px solid var(--line);padding:0 12px;display:flex;align-items:center;gap:8px;font-weight:800}.server-header span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.header-btn{margin-left:auto;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:6px;padding:6px}.header-btn:hover{background:rgba(255,255,255,.06);color:white}
+    .channel-head{padding:15px 11px 6px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center}.channel-head button{margin-left:auto;border:0;background:transparent;color:var(--muted);cursor:pointer}.channels{padding:0 7px;overflow-y:auto;flex:1}.channel{width:100%;border:0;background:transparent;color:var(--muted);border-radius:6px;padding:8px 9px;text-align:left;cursor:pointer;display:flex;gap:7px;align-items:center;min-width:0}.channel:hover{background:rgba(255,255,255,.055);color:var(--text)}.channel.active{background:rgba(88,101,242,.18);color:white}.channel-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lock{margin-left:auto;font-size:11px}.userbar{height:58px;border-top:1px solid var(--line);background:rgba(0,0,0,.14);display:flex;align-items:center;padding:8px;gap:9px}.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;background:var(--bg3)}.usercopy{min-width:0;flex:1}.username{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subtle{font-size:11px;color:var(--muted)}
+    .main{background:var(--bg2);display:flex;flex-direction:column;min-width:0}.chat-header{height:54px;border-bottom:1px solid var(--line);padding:0 16px;display:flex;align-items:center;font-weight:800}.chat-header .topic{margin-left:12px;color:var(--muted);font-size:12px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #messages{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:3px;overscroll-behavior:contain}.load-more{align-self:center;border:0;background:var(--bg3);color:var(--muted);padding:7px 12px;border-radius:999px;cursor:pointer;margin-bottom:12px}.load-more:hover{color:white}.message{display:grid;grid-template-columns:40px minmax(0,1fr);gap:11px;padding:6px 7px;border-radius:6px}.message:hover{background:rgba(255,255,255,.025)}.message img{width:40px;height:40px;border-radius:50%;object-fit:cover}.msg-meta{display:flex;gap:8px;align-items:baseline}.msg-author{font-weight:750;color:white}.msg-time{font-size:10px;color:var(--muted)}.msg-text{margin-top:2px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.empty{margin:auto;color:var(--muted);text-align:center;line-height:1.6}
+    .composer{padding:5px 16px 15px}.composer-box{background:var(--bg3);border:1px solid transparent;border-radius:9px;padding:10px 12px;display:flex;align-items:flex-end;gap:8px}.composer-box:focus-within{border-color:rgba(88,101,242,.5)}#message-input{flex:1;resize:none;max-height:130px;background:transparent;border:0;outline:0;color:white;line-height:1.45}.send{border:0;border-radius:7px;background:var(--blue);color:white;padding:8px 13px;font-weight:800;cursor:pointer}.send:disabled{opacity:.45;cursor:not-allowed}
+    .members{background:var(--bg1);border-left:1px solid var(--line);padding:10px 7px;overflow-y:auto}.members h3{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;padding:5px 8px}.member{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px}.member:hover{background:rgba(255,255,255,.05)}.member .avatar{width:32px;height:32px}.member-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.owner{color:#faa61a;font-size:10px;margin-left:auto}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:30;display:flex;align-items:center;justify-content:center;padding:18px}.modal{width:min(460px,100%);max-height:88vh;overflow-y:auto;background:var(--bg1);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.6);padding:22px}.modal h2{margin:0 0 5px}.modal p{color:var(--muted);line-height:1.5}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:15px 0}.tab{border:0;border-radius:7px;background:var(--bg3);color:var(--muted);padding:9px;cursor:pointer}.tab.active{background:var(--blue);color:white}.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field label{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:800}.field input,.field select,.field textarea{width:100%;border:1px solid transparent;border-radius:7px;background:var(--bg3);color:white;padding:11px;outline:0}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue)}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.btn{border:0;border-radius:7px;padding:10px 14px;color:white;background:var(--blue);font-weight:800;cursor:pointer}.btn.secondary{background:var(--bg3);color:var(--text)}.btn.danger{background:var(--red)}.invite-code{font:800 24px ui-monospace,monospace;letter-spacing:3px;text-align:center;background:var(--bg0);padding:14px;border-radius:8px;user-select:all}.notice{background:rgba(88,101,242,.12);border-left:3px solid var(--blue);padding:10px;border-radius:6px;color:var(--text);font-size:12px;line-height:1.45}.error{color:#ff8d91;font-size:12px;min-height:18px}
+    @media(max-width:900px){#app{grid-template-columns:64px 220px minmax(0,1fr)}.members{display:none}}@media(max-width:650px){#app{grid-template-columns:58px minmax(0,1fr)}.sidebar{position:fixed;left:58px;top:0;bottom:0;width:235px;z-index:12;transform:translateX(-110%);transition:.18s}.sidebar.open{transform:translateX(0)}.server-icon,.server-add,.server-home{width:42px;height:42px}.chat-header{padding-left:10px}}
+  </style>
+</head>
+<body>
+<div id="loading">Connecting to Firebase…</div>
+<div id="app" class="hidden">
+  <aside class="servers"><button class="server-home" title="Account">A</button><div class="server-divider"></div><div id="server-list" style="display:contents"></div><button class="server-add" onclick="openServerModal()" title="Create or join server">+</button></aside>
+  <aside class="sidebar" id="sidebar"><div class="server-header"><span id="server-name">Select a server</span><button class="header-btn" id="server-menu" onclick="openServerSettings()">⚙</button></div><div class="channel-head">Channels <button id="add-channel" onclick="openChannelModal()">＋</button></div><div class="channels" id="channel-list"></div><div class="userbar"><img class="avatar" id="me-avatar"><div class="usercopy"><div class="username" id="me-name"></div><div class="subtle">online</div></div><button class="header-btn" onclick="openProfileModal()">Edit</button></div></aside>
+  <main class="main"><div class="chat-header"><span id="channel-title"># Welcome</span><span class="topic" id="channel-topic">Choose or create a server</span></div><div id="messages"><div class="empty">Create or join a server to begin.</div></div><div class="composer"><div class="composer-box"><textarea id="message-input" rows="1" maxlength="1000" placeholder="Choose a channel" disabled></textarea><button class="send" id="send-btn" onclick="sendMessage()" disabled>Send</button></div></div></main>
+  <aside class="members"><h3>Members · <span id="member-count">0</span></h3><div id="member-list"></div></aside>
+</div>
+
+<div class="overlay hidden" id="profile-modal"><div class="modal"><h2>Your profile</h2><p>This account uses Firebase Anonymous Authentication and keeps the same UID in this browser.</p><div class="field"><label>Username</label><input id="profile-name" maxlength="20" placeholder="Username"></div><div class="field"><label>Avatar URL</label><input id="profile-avatar" placeholder="https://..."></div><div class="error" id="profile-error"></div><div class="actions"><button class="btn secondary" onclick="closeModal('profile-modal')">Cancel</button><button class="btn" onclick="saveProfile()">Save</button></div></div></div>
+
+<div class="overlay hidden" id="server-modal"><div class="modal"><h2>Servers</h2><div class="tabs"><button class="tab active" id="create-tab" onclick="showServerTab('create')">Create</button><button class="tab" id="join-tab" onclick="showServerTab('join')">Join</button></div><div id="create-server-pane"><div class="field"><label>Server name</label><input id="new-server-name" maxlength="32" placeholder="My server"></div><div class="field"><label>Icon URL, optional</label><input id="new-server-icon" placeholder="https://..."></div><div class="notice">New servers are invite-only. A default #general channel is created automatically.</div></div><div id="join-server-pane" class="hidden"><div class="field"><label>Invite code</label><input id="join-code" maxlength="12" placeholder="ABC123"></div></div><div class="error" id="server-error"></div><div class="actions"><button class="btn secondary" onclick="closeModal('server-modal')">Cancel</button><button class="btn" id="server-action" onclick="createServer()">Create server</button></div></div></div>
+
+<div class="overlay hidden" id="channel-modal"><div class="modal"><h2>Create channel</h2><div class="field"><label>Name</label><input id="new-channel-name" maxlength="30" placeholder="private-chat"></div><div class="field"><label>Visibility</label><select id="new-channel-visibility" onchange="toggleMemberPicker()"><option value="everyone">Everyone in this server</option><option value="members">Selected members only</option></select></div><div class="field hidden" id="member-picker-wrap"><label>Allowed members</label><div id="member-picker"></div><p>The creator and server owner are always included.</p></div><div class="error" id="channel-error"></div><div class="actions"><button class="btn secondary" onclick="closeModal('channel-modal')">Cancel</button><button class="btn" onclick="createChannel()">Create</button></div></div></div>
+
+<div class="overlay hidden" id="settings-modal"><div class="modal"><h2 id="settings-title">Server settings</h2><p>Share this code with people you want to invite.</p><div class="invite-code" id="invite-code"></div><div class="actions"><button class="btn secondary" onclick="copyInvite()">Copy invite</button><button class="btn danger" id="leave-server-btn" onclick="leaveServer()">Leave server</button><button class="btn" onclick="closeModal('settings-modal')">Done</button></div></div></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<script>
+// REQUIRED SETUP:
+// 1. Fill in apiKey, authDomain, and projectId from Firebase Console > Project settings.
+// 2. Enable Authentication > Sign-in method > Anonymous.
+// 3. Publish the accompanying RTDB rules shown in the response.
+const firebaseConfig = {
+  apiKey: "AIzaSyAgOggS_nTmOubBXXg6mjI9twxsOgRlluk",
+  authDomain: "ilikespacedotcom.firebaseapp.com",
+  databaseURL: "https://ilikespacedotcom-default-rtdb.firebaseio.com",
+  projectId: "ilikespacedotcom",
+  storageBucket: "ilikespacedotcom.firebasestorage.app",
+  messagingSenderId: "535073068352",
+  appId: "1:535073068352:web:9e4b7f30ee118154af56a5",
+  measurementId: "G-ZRJ9DVTXEM"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.database();
+const DEFAULT_AVATAR="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#5865f2"/><circle cx="50" cy="37" r="18" fill="white"/><path d="M17 92c4-24 17-36 33-36s29 12 33 36" fill="white"/></svg>');
+const PAGE_SIZE=40;
+let me=null,myProfile=null,userServers={},activeServerId=null,activeServer=null,activeMembers={},activeChannels={},activeChannelId=null,oldestKey=null;
+let cleanupServer=[],cleanupChannel=[];
+const $=id=>document.getElementById(id);
+function keySafe(v){return String(v||'').toLowerCase().trim().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30)}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function code(len=6){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';crypto.getRandomValues(new Uint32Array(len)).forEach(n=>s+=chars[n%chars.length]);return s}
+function on(ref,event,fn,bag){ref.on(event,fn);bag.push(()=>ref.off(event,fn))}function clean(bag){bag.splice(0).forEach(fn=>fn())}
+function serverTimestamp(){return firebase.database.ServerValue.TIMESTAMP}
+function modal(id,show=true){$(id).classList.toggle('hidden',!show)}function closeModal(id){modal(id,false)}
+
+async function boot(){
+  if(firebaseConfig.apiKey.startsWith('PASTE_')){$('loading').innerHTML='Add your Firebase apiKey, authDomain, and projectId near the bottom of this file first.';return}
+  try{await auth.signInAnonymously()}catch(e){$('loading').textContent='Firebase sign-in failed: '+e.message;return}
+  me=auth.currentUser;
+  const snap=await db.ref('profiles/'+me.uid).once('value');myProfile=snap.val();
+  if(!myProfile){$('loading').classList.add('hidden');$('app').classList.remove('hidden');openProfileModal(true);return}
+  startApp();
+}
+function startApp(){
+  $('loading').classList.add('hidden');$('app').classList.remove('hidden');renderMe();
+  const ref=db.ref('user_servers/'+me.uid);on(ref,'value',snap=>{userServers=snap.val()||{};renderServers();if(activeServerId&&!userServers[activeServerId])selectServer(Object.keys(userServers)[0]||null);if(!activeServerId&&Object.keys(userServers).length)selectServer(Object.keys(userServers)[0]);},[]);
+}
+function renderMe(){$('me-name').textContent=myProfile.username;$('me-avatar').src=myProfile.avatar||DEFAULT_AVATAR}
+function openProfileModal(required=false){$('profile-name').value=myProfile?.username||'';$('profile-avatar').value=myProfile?.avatar||'';$('profile-error').textContent='';$('profile-modal').dataset.required=required?'1':'0';modal('profile-modal')}
+async function saveProfile(){
+  const username=$('profile-name').value.trim(),lower=username.toLowerCase(),avatar=$('profile-avatar').value.trim();if(!/^[a-zA-Z0-9_-]{2,20}$/.test(username)){$('profile-error').textContent='Use 2–20 letters, numbers, underscores, or hyphens.';return}
+  const owner=await db.ref('usernames/'+lower).once('value');if(owner.exists()&&owner.val()!==me.uid){$('profile-error').textContent='That username is already taken.';return}
+  const updates={};if(myProfile?.usernameLower&&myProfile.usernameLower!==lower)updates['usernames/'+myProfile.usernameLower]=null;updates['usernames/'+lower]=me.uid;updates['profiles/'+me.uid]={username,usernameLower:lower,avatar:avatar||DEFAULT_AVATAR,updatedAt:serverTimestamp()};
+  await db.ref().update(updates);myProfile={username,usernameLower:lower,avatar:avatar||DEFAULT_AVATAR};closeModal('profile-modal');renderMe();if(!activeServerId)startApp();else renderMembers();
+}
+
+function renderServers(){
+  $('server-list').innerHTML='';Object.entries(userServers).sort((a,b)=>(b[1].lastActivityAt||0)-(a[1].lastActivityAt||0)).forEach(([id,s])=>{const b=document.createElement('button');b.className='server-icon'+(id===activeServerId?' active':'');b.title=s.name||'Server';b.onclick=()=>selectServer(id);b.innerHTML=s.icon?`<img src="${esc(s.icon)}" alt="">`:esc((s.name||'?')[0].toUpperCase());$('server-list').appendChild(b)})
+}
+async function selectServer(id){
+  clean(cleanupServer);clean(cleanupChannel);activeServerId=id;activeChannelId=null;activeServer=null;activeMembers={};activeChannels={};oldestKey=null;renderServers();$('message-input').disabled=true;$('send-btn').disabled=true;
+  if(!id){$('server-name').textContent='Select a server';$('channel-list').innerHTML='';$('member-list').innerHTML='';$('messages').innerHTML='<div class="empty">Create or join a server to begin.</div>';return}
+  const infoRef=db.ref(`servers/${id}/info`),membersRef=db.ref(`servers/${id}/members`),channelsRef=db.ref(`servers/${id}/channels`);
+  on(infoRef,'value',s=>{activeServer=s.val();if(!activeServer){selectServer(null);return}$('server-name').textContent=activeServer.name;$('server-menu').style.display='';renderServers()},cleanupServer);
+  on(membersRef,'value',s=>{activeMembers=s.val()||{};renderMembers()},cleanupServer);
+  on(channelsRef,'value',s=>{activeChannels=s.val()||{};renderChannels();if(!activeChannelId){const first=Object.keys(activeChannels).find(canReadChannel);if(first)selectChannel(first)}},cleanupServer);
+}
+function amOwner(){return activeServer&&activeServer.ownerUid===me.uid}function amMember(){return !!activeMembers[me.uid]}
+function canReadChannel(id){const c=activeChannels[id];return !!c&&(c.visibility==='everyone'||amOwner()||!!c.allowedMembers?.[me.uid])}
+function renderChannels(){
+  $('channel-list').innerHTML='';Object.entries(activeChannels).sort((a,b)=>(a[1].position||0)-(b[1].position||0)).forEach(([id,c])=>{if(!canReadChannel(id))return;const b=document.createElement('button');b.className='channel'+(id===activeChannelId?' active':'');b.onclick=()=>selectChannel(id);b.innerHTML=`<span>#</span><span class="channel-name">${esc(c.name)}</span>${c.visibility==='members'?'<span class="lock">🔒</span>':''}`;$('channel-list').appendChild(b)});$('add-channel').style.display=amOwner()?'':'none'
+}
+function renderMembers(){
+  $('member-list').innerHTML='';$('member-count').textContent=Object.keys(activeMembers).length;Object.entries(activeMembers).forEach(([uid,m])=>{const d=document.createElement('div');d.className='member';d.innerHTML=`<img class="avatar" src="${esc(m.avatar||DEFAULT_AVATAR)}"><span class="member-name">${esc(m.username||'Member')}</span>${m.role==='owner'?'<span class="owner">OWNER</span>':''}`;$('member-list').appendChild(d)})
+}
+function selectChannel(id){
+  if(!canReadChannel(id))return;clean(cleanupChannel);activeChannelId=id;oldestKey=null;renderChannels();const c=activeChannels[id];$('channel-title').textContent='# '+c.name;$('channel-topic').textContent=c.visibility==='members'?'Private channel':'Server channel';$('message-input').disabled=false;$('send-btn').disabled=false;$('message-input').placeholder='Message #'+c.name;loadInitialMessages();
+}
+function messagePath(){return `server_messages/${activeServerId}/${activeChannelId}`}
+async function loadInitialMessages(){
+  clean(cleanupChannel);const box=$('messages');box.innerHTML='<div class="empty">Loading messages…</div>';const ref=db.ref(messagePath());const snap=await ref.orderByKey().limitToLast(PAGE_SIZE).once('value');if(!activeChannelId)return;const rows=[];snap.forEach(s=>rows.push([s.key,s.val()]));box.innerHTML='';if(rows.length){oldestKey=rows[0][0];if(rows.length===PAGE_SIZE)addLoadButton();rows.forEach(([k,v])=>box.appendChild(messageNode(k,v)));box.scrollTop=box.scrollHeight}else box.innerHTML='<div class="empty">No messages yet.<br>Start the conversation.</div>';
+  let skip=new Set(rows.map(r=>r[0]));const live=ref.orderByKey().limitToLast(1);const added=s=>{if(skip.delete(s.key))return;if(box.querySelector('.empty'))box.innerHTML='';box.appendChild(messageNode(s.key,s.val()));box.scrollTop=box.scrollHeight};on(live,'child_added',added,cleanupChannel)
+}
+function addLoadButton(){const b=document.createElement('button');b.className='load-more';b.id='load-more';b.textContent='Load older messages';b.onclick=loadOlder;$('messages').prepend(b)}
+async function loadOlder(){
+  if(!oldestKey)return;const box=$('messages'),before=box.scrollHeight;const snap=await db.ref(messagePath()).orderByKey().endAt(oldestKey).limitToLast(PAGE_SIZE+1).once('value');const rows=[];snap.forEach(s=>{if(s.key!==oldestKey)rows.push([s.key,s.val()])});$('load-more')?.remove();if(!rows.length)return;oldestKey=rows[0][0];const marker=box.firstChild;if(rows.length===PAGE_SIZE)addLoadButton();rows.forEach(([k,v])=>box.insertBefore(messageNode(k,v),marker));box.scrollTop=box.scrollHeight-before
+}
+function messageNode(key,m){const d=document.createElement('div');d.className='message';const t=m.timestamp?new Date(m.timestamp).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'';d.innerHTML=`<img src="${esc(m.avatar||DEFAULT_AVATAR)}"><div><div class="msg-meta"><span class="msg-author">${esc(m.username||'Unknown')}</span><span class="msg-time">${esc(t)}</span></div><div class="msg-text">${esc(m.text||'')}</div></div>`;return d}
+async function sendMessage(){
+  const input=$('message-input'),text=input.value.trim();if(!text||!activeServerId||!activeChannelId||!canReadChannel(activeChannelId))return;input.value='';resizeInput();const ref=db.ref(messagePath()).push();const now=serverTimestamp();const updates={};updates[`${messagePath()}/${ref.key}`]={uid:me.uid,username:myProfile.username,avatar:myProfile.avatar||DEFAULT_AVATAR,text,timestamp:now};updates[`channel_activity/${activeServerId}/${activeChannelId}`]={lastMessageKey:ref.key,lastMessageAt:now,lastSenderUid:me.uid};updates[`user_servers/${me.uid}/${activeServerId}/lastActivityAt`]=now;await db.ref().update(updates)
+}
+
+function openServerModal(){showServerTab('create');$('server-error').textContent='';modal('server-modal')}
+function showServerTab(tab){$('create-tab').classList.toggle('active',tab==='create');$('join-tab').classList.toggle('active',tab==='join');$('create-server-pane').classList.toggle('hidden',tab!=='create');$('join-server-pane').classList.toggle('hidden',tab!=='join');$('server-action').textContent=tab==='create'?'Create server':'Join server';$('server-action').onclick=tab==='create'?createServer:joinServer}
+async function createServer(){
+  const name=$('new-server-name').value.trim(),icon=$('new-server-icon').value.trim();if(name.length<2){$('server-error').textContent='Enter a server name.';return}const id=db.ref('servers').push().key,invite=code(),channel='general',now=serverTimestamp();const member={username:myProfile.username,avatar:myProfile.avatar||DEFAULT_AVATAR,role:'owner',joinedAt:now};const updates={};updates[`servers/${id}/info`]={name,icon,ownerUid:me.uid,inviteCode:invite,createdAt:now};updates[`servers/${id}/members/${me.uid}`]=member;updates[`servers/${id}/channels/${channel}`]={name:'general',visibility:'everyone',position:0,createdAt:now,createdBy:me.uid};updates[`user_servers/${me.uid}/${id}`]={name,icon,role:'owner',joinedAt:now,lastActivityAt:now};updates[`server_invites/${invite}`]={serverId:id,serverName:name,serverIcon:icon||'',active:true,createdBy:me.uid,createdAt:now};await db.ref().update(updates);closeModal('server-modal');$('new-server-name').value='';$('new-server-icon').value='';selectServer(id)
+}
+async function joinServer(){
+  const invite=$('join-code').value.trim().toUpperCase();const snap=await db.ref('server_invites/'+invite).once('value');const data=snap.val();if(!data?.active){$('server-error').textContent='That invite is invalid or disabled.';return}const info={name:data.serverName||'Invited server',icon:data.serverIcon||''};const now=serverTimestamp(),member={username:myProfile.username,avatar:myProfile.avatar||DEFAULT_AVATAR,role:'member',joinedAt:now};const updates={};updates[`servers/${data.serverId}/members/${me.uid}`]=member;updates[`user_servers/${me.uid}/${data.serverId}`]={name:info.name,icon:info.icon||'',role:'member',joinedAt:now,lastActivityAt:now};await db.ref().update(updates);closeModal('server-modal');$('join-code').value='';selectServer(data.serverId)
+}
+function openChannelModal(){if(!amOwner())return;$('new-channel-name').value='';$('new-channel-visibility').value='everyone';$('channel-error').textContent='';toggleMemberPicker();renderMemberPicker();modal('channel-modal')}
+function toggleMemberPicker(){$('member-picker-wrap').classList.toggle('hidden',$('new-channel-visibility').value!=='members')}
+function renderMemberPicker(){$('member-picker').innerHTML='';Object.entries(activeMembers).forEach(([uid,m])=>{const l=document.createElement('label');l.style.cssText='display:flex;gap:8px;padding:7px 3px;align-items:center';l.innerHTML=`<input type="checkbox" value="${uid}" ${uid===me.uid?'checked disabled':''}> <span>${esc(m.username)}</span>`;$('member-picker').appendChild(l)})}
+async function createChannel(){
+  if(!amOwner())return;const name=keySafe($('new-channel-name').value),visibility=$('new-channel-visibility').value;if(!name){$('channel-error').textContent='Enter a valid channel name.';return}if(activeChannels[name]){$('channel-error').textContent='That channel already exists.';return}const allowed={};if(visibility==='members'){$('member-picker').querySelectorAll('input:checked').forEach(i=>allowed[i.value]=true);allowed[me.uid]=true;allowed[activeServer.ownerUid]=true}await db.ref(`servers/${activeServerId}/channels/${name}`).set({name,visibility,allowedMembers:visibility==='members'?allowed:null,position:Object.keys(activeChannels).length,createdAt:serverTimestamp(),createdBy:me.uid});closeModal('channel-modal');selectChannel(name)
+}
+function openServerSettings(){if(!activeServer)return;$('settings-title').textContent=activeServer.name;$('invite-code').textContent=activeServer.inviteCode;$('leave-server-btn').textContent=amOwner()?'Delete server':'Leave server';modal('settings-modal')}
+function copyInvite(){navigator.clipboard?.writeText(activeServer.inviteCode);$('invite-code').textContent='COPIED';setTimeout(()=>{$('invite-code').textContent=activeServer.inviteCode},900)}
+async function leaveServer(){
+  if(!activeServerId)return;if(amOwner()){if(!confirm('Delete this server and all of its messages? This cannot be undone.'))return;const updates={};Object.keys(activeMembers).forEach(uid=>updates[`user_servers/${uid}/${activeServerId}`]=null);updates[`servers/${activeServerId}`]=null;updates[`server_messages/${activeServerId}`]=null;updates[`channel_activity/${activeServerId}`]=null;updates[`server_invites/${activeServer.inviteCode}`]=null;await db.ref().update(updates)}else{if(!confirm('Leave this server?'))return;const updates={};updates[`servers/${activeServerId}/members/${me.uid}`]=null;updates[`user_servers/${me.uid}/${activeServerId}`]=null;await db.ref().update(updates)}closeModal('settings-modal');selectServer(null)
+}
+function resizeInput(){const i=$('message-input');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,130)+'px'}
+$('message-input').addEventListener('input',resizeInput);$('message-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('mousedown',e=>{if(e.target===o&&o.id!=='profile-modal')closeModal(o.id)}));
+boot();
+</script>
+</body>
+</html>
