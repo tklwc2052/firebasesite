@@ -4,18 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lander</title>
-<link rel="icon" type="image/png" href="https://i.ibb.co/Sw7nj3ZR/Screenshot-2026-08-26-8-26-57-PM-removebg-preview.png">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/Sw7nj3ZR/Screenshot-2026-08-26-8-26-57-PM-removebg-preview.png">
   <style>
-
-
-
-    
-    * {
-      box-sizing: border-box;
+    :root {
+      --taskbar-height: 48px;
+      --taskbar-color: rgba(18, 18, 18, 0.88);
+      --taskbar-border: rgba(255, 255, 255, 0.14);
+      --taskbar-hover: rgba(255, 255, 255, 0.12);
+      --taskbar-active: rgba(255, 255, 255, 0.2);
     }
 
-    html,
-    body {
+    * { box-sizing: border-box; }
+
+    html, body {
       width: 100%;
       height: 100%;
       margin: 0;
@@ -23,13 +24,11 @@
       font-family: "Segoe UI", Arial, sans-serif;
     }
 
-    body {
-      background: black;
-    }
+    body { background: black; }
 
     #desktop {
       width: 100%;
-      height: 100%;
+      height: calc(100% - var(--taskbar-height));
       padding: 10px;
       display: grid;
       grid-auto-flow: column;
@@ -61,12 +60,13 @@
     }
 
     .shortcut:hover {
-      border-color: rgba(0, 0, 0, 0.08);
-      background: rgba(0, 0, 0, 0.035);
+      border-color: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.08);
     }
 
-    .shortcut:focus {
-      outline: none;
+    .shortcut:focus-visible {
+      outline: 1px solid rgba(255, 255, 255, 0.65);
+      outline-offset: -1px;
     }
 
     .shortcut-image {
@@ -92,47 +92,231 @@
       justify-content: center;
     }
 
-    #emptyMessage {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #777;
-      font-size: 14px;
-      text-align: center;
-    }
     .corner-image {
-  position: fixed;
-  right: 20px;
-  bottom: 0px;
+      position: fixed;
+      right: 20px;
+      bottom: var(--taskbar-height);
+      width: 150px;
+      height: auto;
+      object-fit: contain;
+      z-index: 100;
+      pointer-events: auto;
+      cursor: default;
+    }
 
-  width: 150px;
-  height: auto;
+    /* TASKBAR */
+    #taskbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: var(--taskbar-height);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 5px;
+      color: white;
+      background: var(--taskbar-color);
+      border-top: 1px solid var(--taskbar-border);
+      box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      z-index: 1000;
+      user-select: none;
+    }
 
-  object-fit: contain;
-  z-index: 100;
-  pointer-events: auto;
-  cursor: default;
-}
+    .taskbar-button {
+      height: 40px;
+      min-width: 40px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 4px;
+      color: white;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .taskbar-button:hover { background: var(--taskbar-hover); }
+    .taskbar-button:active { background: var(--taskbar-active); }
+
+    .taskbar-button:focus-visible {
+      outline: 1px solid rgba(255, 255, 255, 0.8);
+      outline-offset: -2px;
+    }
+
+    #startButton {
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    #taskbarPins {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    #taskbarPins::-webkit-scrollbar { display: none; }
+
+    .pinned-app {
+      position: relative;
+      flex: 0 0 44px;
+      width: 44px;
+      padding: 5px;
+    }
+
+    .pinned-app::after {
+      content: "";
+      position: absolute;
+      left: 9px;
+      right: 9px;
+      bottom: 1px;
+      height: 2px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.8);
+      opacity: 0;
+    }
+
+    .pinned-app:hover::after { opacity: 0.7; }
+
+    .taskbar-icon {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    #taskbarSpacer { flex: 1; }
+
+    #clockButton {
+      min-width: 86px;
+      padding: 3px 9px;
+      flex-direction: column;
+      gap: 1px;
+      font-size: 11px;
+      line-height: 14px;
+      white-space: nowrap;
+    }
+
+    #showDesktopButton {
+      min-width: 7px;
+      width: 7px;
+      padding: 0;
+      border-left: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 0;
+    }
+
+    /* START MENU */
+    #startMenu {
+      position: fixed;
+      left: 7px;
+      bottom: calc(var(--taskbar-height) + 7px);
+      width: min(330px, calc(100vw - 14px));
+      max-height: min(500px, calc(100vh - var(--taskbar-height) - 20px));
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 9px;
+      color: white;
+      background: rgba(25, 25, 25, 0.94);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      z-index: 999;
+      overflow-y: auto;
+    }
+
+    #startMenu[hidden] { display: none; }
+
+    .start-heading {
+      margin: 2px 4px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    #startApps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .start-app {
+      min-height: 82px;
+      padding: 8px 5px;
+      border: 0;
+      border-radius: 6px;
+      color: white;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .start-app:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .start-app img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+
+    .start-app span {
+      max-width: 100%;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 500px) {
+      #clockButton { min-width: 72px; padding-inline: 5px; }
+      .pinned-app { flex-basis: 40px; width: 40px; }
+      .corner-image { width: 105px; }
+    }
   </style>
 </head>
 <body>
-  <main id="desktop"></main>
+  <main id="desktop" aria-label="Desktop"></main>
+
+  <img
+    id="cornerImage"
+    class="corner-image"
+    src="https://i.ibb.co/Sw7nj3ZR/Screenshot-2026-08-26-8-26-57-PM-removebg-preview.png"
+    alt="YouTube"
+  >
+
+  <section id="startMenu" aria-label="Start menu" hidden>
+    <div class="start-heading">All apps</div>
+    <div id="startApps"></div>
+  </section>
+
+  <nav id="taskbar" aria-label="Taskbar">
+    <button id="startButton" class="taskbar-button" type="button" title="Start" aria-label="Start">⊞</button>
+    <div id="taskbarPins" aria-label="Pinned apps"></div>
+    <div id="taskbarSpacer"></div>
+    <button id="clockButton" class="taskbar-button" type="button" title="Date and time">
+      <span id="taskbarTime"></span>
+      <span id="taskbarDate"></span>
+    </button>
+    <button id="showDesktopButton" class="taskbar-button" type="button" title="Show desktop" aria-label="Show desktop"></button>
+  </nav>
 
   <script>
     /* ============================================================
        ONLY EDIT THIS SECTION
        ============================================================ */
-
     const DESKTOP_BACKGROUND = {
-      // Paste a direct image URL between the quotation marks.
-      // Leave it blank for a plain white background.
       imageUrl: "",
-
-      // Use "cover" to fill the screen or "contain" to show all of it.
       size: "cover",
-
-      // Examples: "center", "top", "left", or "center top".
       position: "center"
     };
 
@@ -140,60 +324,77 @@
       {
         name: "Chat",
         pageUrl: "/chat/",
-        imageUrl: "https://i.ibb.co/Nw6WW8J/download.png"
+        imageUrl: "https://i.ibb.co/Nw6WW8J/download.png",
+        pinned: true
       },
       {
         name: "Bio",
         pageUrl: "/about/",
-        imageUrl: "https://i.ibb.co/4RNR3CR3/jack.png"
+        imageUrl: "https://i.ibb.co/4RNR3CR3/jack.png",
+        pinned: true
       },
       {
         name: "1.14.4",
         pageUrl: "/1.14.4/",
-        imageUrl: "https://i.ibb.co/Qj62zwBG/download.jpg"
+        imageUrl: "https://i.ibb.co/Qj62zwBG/download.jpg",
+        pinned: true
       },
       {
         name: "info",
         pageUrl: "/info/",
-        imageUrl: "https://i.ibb.co/9mLfZ6Nz/download-1.jpg"
+        imageUrl: "https://i.ibb.co/9mLfZ6Nz/download-1.jpg",
+        pinned: false
       },
-      
       {
         name: "launcher",
         pageUrl: "/launcher/",
-        imageUrl: "https://i.ibb.co/wF0L2pkq/Screenshot-2026-06-04-12-06-23-AM.png"
+        imageUrl: "https://i.ibb.co/wF0L2pkq/Screenshot-2026-06-04-12-06-23-AM.png",
+        pinned: false
       },
-      
       {
         name: "snowrider3d",
         pageUrl: "/snowrider3d/",
-        imageUrl: "https://i.ibb.co/N6jHrJ7Z/images.jpg"
+        imageUrl: "https://i.ibb.co/N6jHrJ7Z/images.jpg",
+        pinned: false
       }
-
-      /*
-        TO ADD ANOTHER FILE, add a comma after the item above and paste:
-
-        ,{
-          name: "New Page",
-          pageUrl: "PASTE_PAGE_LINK_HERE",
-          imageUrl: "PASTE_ICON_IMAGE_LINK_HERE"
-        }
-      */
     ];
+
+    /* Set pinned: true to show a file on the taskbar.
+       Set pinned: false to keep it only on the desktop and Start menu. */
 
     /* ============================================================
        DO NOT EDIT BELOW THIS LINE UNLESS YOU WANT TO CHANGE THE CODE
        ============================================================ */
-
     const desktop = document.getElementById("desktop");
+    const taskbarPins = document.getElementById("taskbarPins");
+    const startButton = document.getElementById("startButton");
+    const startMenu = document.getElementById("startMenu");
+    const startApps = document.getElementById("startApps");
+    const showDesktopButton = document.getElementById("showDesktopButton");
+
+    function openFile(file) {
+      const link = file.pageUrl.trim();
+      if (!link || link.startsWith("PASTE_")) {
+        alert(`Add the pageUrl for ${file.name} in DESKTOP_FILES.`);
+        return;
+      }
+      window.location.href = link;
+    }
+
+    function makeImage(file, className) {
+      const image = document.createElement("img");
+      image.className = className;
+      image.src = file.imageUrl;
+      image.alt = `${file.name} icon`;
+      image.draggable = false;
+      image.addEventListener("error", () => image.remove());
+      return image;
+    }
 
     if (DESKTOP_BACKGROUND.imageUrl.trim()) {
       desktop.style.backgroundImage = `url("${DESKTOP_BACKGROUND.imageUrl}")`;
       desktop.style.backgroundSize = DESKTOP_BACKGROUND.size || "cover";
       desktop.style.backgroundPosition = DESKTOP_BACKGROUND.position || "center";
-
-      // White text is easier to read over most wallpapers.
-      document.documentElement.style.setProperty("--shortcut-text", "white");
     }
 
     DESKTOP_FILES.forEach((file) => {
@@ -203,67 +404,82 @@
       shortcut.title = `Double-click to open ${file.name}`;
 
       if (DESKTOP_BACKGROUND.imageUrl.trim()) {
-        shortcut.style.color = "white";
         shortcut.style.textShadow = "1px 1px 3px black";
       }
 
-      const image = document.createElement("img");
-      image.className = "shortcut-image";
-      image.src = file.imageUrl;
-      image.alt = `${file.name} icon`;
-      image.draggable = false;
-
-      image.addEventListener("error", () => {
-        image.style.display = "none";
-      });
-
+      const image = makeImage(file, "shortcut-image");
       const name = document.createElement("span");
       name.className = "shortcut-name";
       name.textContent = file.name;
 
       shortcut.append(image, name);
+      shortcut.addEventListener("click", (event) => event.stopPropagation());
+      shortcut.addEventListener("dblclick", () => openFile(file));
       desktop.appendChild(shortcut);
 
-      shortcut.addEventListener("click", (event) => {
-        // Prevents a click from affecting the desktop while keeping
-        // the shortcut free of a persistent selection highlight.
-        event.stopPropagation();
-      });
+      const startApp = document.createElement("button");
+      startApp.className = "start-app";
+      startApp.type = "button";
+      startApp.title = `Open ${file.name}`;
+      const startImage = makeImage(file, "");
+      const startName = document.createElement("span");
+      startName.textContent = file.name;
+      startApp.append(startImage, startName);
+      startApp.addEventListener("click", () => openFile(file));
+      startApps.appendChild(startApp);
 
-      shortcut.addEventListener("dblclick", () => {
-        const link = file.pageUrl.trim();
-
-        if (!link || link.startsWith("PASTE_")) {
-          alert(`Add the pageUrl for ${file.name} in DESKTOP_FILES.`);
-          return;
-        }
-
-        window.location.href = link;
-      });
+      if (file.pinned === true) {
+        const pin = document.createElement("button");
+        pin.className = "taskbar-button pinned-app";
+        pin.type = "button";
+        pin.title = file.name;
+        pin.setAttribute("aria-label", `Open ${file.name}`);
+        pin.appendChild(makeImage(file, "taskbar-icon"));
+        pin.addEventListener("click", () => openFile(file));
+        taskbarPins.appendChild(pin);
+      }
     });
 
-  </script>
+    startButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      startMenu.hidden = !startMenu.hidden;
+    });
 
-  <img
-    id="cornerImage"
-    class="corner-image"
-    src="https://i.ibb.co/Sw7nj3ZR/Screenshot-2026-08-26-8-26-57-PM-removebg-preview.png"
-    alt="YouTube"
-  >
+    startMenu.addEventListener("click", (event) => event.stopPropagation());
+    document.addEventListener("click", () => { startMenu.hidden = true; });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") startMenu.hidden = true;
+    });
 
-  <script>
+    showDesktopButton.addEventListener("click", () => {
+      startMenu.hidden = true;
+      desktop.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    });
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("taskbarTime").textContent = now.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit"
+      });
+      document.getElementById("taskbarDate").textContent = now.toLocaleDateString([], {
+        month: "numeric",
+        day: "numeric",
+        year: "numeric"
+      });
+    }
+
+    updateClock();
+    window.setInterval(updateClock, 1000);
+
     const cornerImage = document.getElementById("cornerImage");
     let hoverTimer;
-
-    cornerImage.addEventListener("mouseenter", function () {
-      hoverTimer = window.setTimeout(function () {
+    cornerImage.addEventListener("mouseenter", () => {
+      hoverTimer = window.setTimeout(() => {
         window.location.href = "https://www.youtube.com/watch?v=xvFZjo5PgG0";
       }, 1000);
     });
-
-    cornerImage.addEventListener("mouseleave", function () {
-      window.clearTimeout(hoverTimer);
-    });
+    cornerImage.addEventListener("mouseleave", () => window.clearTimeout(hoverTimer));
   </script>
 </body>
 </html>
