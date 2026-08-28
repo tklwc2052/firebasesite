@@ -1917,6 +1917,42 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         .forum-splitter-tools { z-index:1; }
         .forum-thread-fullscreen .forum-splitter { transform:none !important; }
 
+
+        /* Mobile navigation drawer and per-channel notification controls */
+        .mobile-sidebar-btn { display:none; background:transparent; color:var(--text-muted); border:0; border-radius:6px; width:34px; height:34px; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; }
+        .mobile-sidebar-btn:hover { color:white; background:var(--hover-clean,rgba(255,255,255,.06)); }
+        .mobile-sidebar-btn .ui-icon { width:19px; height:19px; }
+        #mobile-sidebar-backdrop { display:none; position:fixed; inset:0; z-index:19990; background:rgba(0,0,0,.58); backdrop-filter:blur(2px); }
+        .channel-notification-wrap { position:relative; margin-left:0; }
+        .channel-notification-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; background:transparent; color:var(--text-muted); border:0; border-radius:6px; min-width:34px; height:32px; padding:6px 8px; cursor:pointer; }
+        .channel-notification-btn:hover, .channel-notification-btn.active { color:white; background:var(--hover-clean,rgba(255,255,255,.06)); }
+        .channel-notification-btn .ui-icon { width:16px; height:16px; }
+        .channel-notification-menu { display:none; position:absolute; right:0; top:38px; z-index:10090; width:220px; padding:6px; border:1px solid var(--line-clean,rgba(255,255,255,.08)); border-radius:9px; background:#111214; box-shadow:0 12px 34px rgba(0,0,0,.55); }
+        .channel-notification-menu.open { display:block; }
+        .channel-notification-option { width:100%; display:flex; flex-direction:column; gap:2px; border:0; border-radius:6px; padding:9px 10px; background:transparent; color:var(--text-normal); text-align:left; cursor:pointer; font:inherit; }
+        .channel-notification-option:hover { background:var(--hover-clean,rgba(255,255,255,.06)); }
+        .channel-notification-option.selected { background:rgba(88,101,242,.18); color:white; }
+        .channel-notification-option strong { font-size:13px; }
+        .channel-notification-option span { color:var(--text-muted); font-size:11px; line-height:1.35; }
+        body.theme-light .channel-notification-menu { background:#fff; }
+        @media (max-width:640px) {
+            .mobile-sidebar-btn { display:inline-flex; }
+            #app-container { grid-template-columns:minmax(0,1fr) !important; }
+            .sidebar-left { position:fixed; left:0; top:0; bottom:0; width:min(292px,86vw); z-index:20000; transform:translateX(-105%); transition:transform .2s ease; box-shadow:14px 0 40px rgba(0,0,0,.48); }
+            body.mobile-sidebar-open .sidebar-left { transform:translateX(0); }
+            body.mobile-sidebar-open #mobile-sidebar-backdrop { display:block; }
+            .sidebar-view-switcher { grid-template-columns:1fr 1fr !important; padding:8px !important; }
+            .sidebar-view-btn { font-size:13px !important; min-height:36px; }
+            .sidebar-view-btn::first-letter { font-size:inherit !important; }
+            .sidebar-section-heading, .dm-panel-heading { display:flex !important; }
+            .dm-count-badge { display:inline-flex !important; }
+            .channel-item { justify-content:flex-start !important; padding:7px 10px !important; font-size:15px !important; }
+            .dm-list-item { justify-content:flex-start !important; padding:6px 9px !important; }
+            .dm-list-name { display:block !important; }
+            .user-footer { justify-content:flex-start !important; padding:0 9px !important; }
+            .user-footer-info, .user-footer-btn { display:block !important; }
+        }
+
     </style>
 </head>
 <body>
@@ -1924,6 +1960,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
 
     <div id="toast-notification-container"></div>
+    <div id="mobile-sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
     <div id="setup-screen">
         <div class="setup-card">
@@ -1997,7 +2034,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
         <div class="chat-area" id="drop-zone">
             <div id="drag-indicator">Drop image here to instantly attach</div>
-            <div class="chat-header"><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
+            <div class="chat-header"><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><div class="channel-notification-wrap"><button id="channel-notification-btn" class="channel-notification-btn" onclick="toggleChannelNotificationMenu(event)" title="Notification settings">🔔</button><div id="channel-notification-menu" class="channel-notification-menu"></div></div><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
             <div class="chat-messages" id="chat-box"><div class="loading-history" id="loading-history">Loading older messages...</div></div>
             <div class="chat-input-container">
                 <div class="reply-context-status-bar" id="reply-track-wrap"><span>Replying to <span id="reply-track-user" style="font-weight:bold; color:white;"></span></span><button class="reply-close-btn" onclick="cancelReplyData()">✕</button></div>
@@ -2136,6 +2173,36 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         let activeChannelSettingsRef = null;
         let activeChannelSettings = {};
         let lastMessageSentAt = 0;
+        // Client-side automatic spam protection.
+        const SPAM_MUTE_MS = 10 * 60 * 1000;
+        const SPAM_BURST_WINDOW_MS = 8 * 1000;
+        const SPAM_BURST_LIMIT = 6;
+        const SPAM_REPEAT_WINDOW_MS = 15 * 1000;
+        const SPAM_REPEAT_LIMIT = 3;
+        const SPAM_HISTORY_STORAGE_KEY = 'avern_spam_history_v1';
+        let recentSendAttempts = [];
+        function loadSpamHistory() { try { const saved = JSON.parse(localStorage.getItem(SPAM_HISTORY_STORAGE_KEY) || '[]'); recentSendAttempts = Array.isArray(saved) ? saved.filter(item => item && Date.now() - Number(item.at || 0) < SPAM_REPEAT_WINDOW_MS) : []; } catch (err) { recentSendAttempts = []; } }
+        function saveSpamHistory() { localStorage.setItem(SPAM_HISTORY_STORAGE_KEY, JSON.stringify(recentSendAttempts.slice(-12))); }
+        function normalizeSpamText(value) { return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+        function checkAndHandleSpam(messageText, hasAttachment) {
+            const now = Date.now();
+            const normalized = normalizeSpamText(messageText) || (hasAttachment ? '[image]' : '');
+            if (!normalized || normalized.startsWith('/')) return false;
+            recentSendAttempts = recentSendAttempts.filter(item => now - Number(item.at || 0) < SPAM_REPEAT_WINDOW_MS);
+            recentSendAttempts.push({ at: now, text: normalized });
+            saveSpamHistory();
+            const burstCount = recentSendAttempts.filter(item => now - item.at <= SPAM_BURST_WINDOW_MS).length;
+            const repeatedCount = recentSendAttempts.filter(item => now - item.at <= SPAM_REPEAT_WINDOW_MS && item.text === normalized).length;
+            if (burstCount < SPAM_BURST_LIMIT && repeatedCount < SPAM_REPEAT_LIMIT) return false;
+            const mutedUntil = now + SPAM_MUTE_MS;
+            const reason = 'Automatic spam detection. Please check #rules.';
+            sessionUser.mutedUntil = mutedUntil; sessionUser.muteReason = reason; recentSendAttempts = []; saveSpamHistory();
+            db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).update({ mutedUntil, muteReason: reason, spamMutedAt: now, spamMutedIn: activeChannel });
+            db.ref(getChannelDatabasePath()).push({ user: 'SYSTEM', msg: `🔇 **${sessionUser.username}** was automatically muted for **10 minutes** for spamming. Please check **#rules**.`, pfp: 'https://cdn-icons-png.flaticon.com/512/1055/1055685.png', jumpToChannel: 'rules', timestamp: now });
+            writeModLog('auto_spam_mute', { target: sessionUser.username, reason, duration: '10m', sourceChannel: activeChannel, message: `🔇 **${sessionUser.username}** was automatically muted for **10 minutes** for spamming in **${isDmMode ? '@' : '#'}${activeChannel}** and was directed to **#rules**.` });
+            updateChatInputPermissions(); alert('You were muted for 10 minutes for spamming. Please check #rules.'); return true;
+        }
+
         let globalProfiles = {};
 
         let presenceHeartbeatInterval = null;
@@ -2155,6 +2222,20 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         const UNREAD_LAST_READ_STORAGE_KEY = "avern_unread_last_read_v2";
         let lastReadByKey = {};
         let appSessionInitialized = false;
+        const NOTIFICATION_PREFS_STORAGE_KEY = 'avern_notification_preferences_v1';
+        let notificationPreferences = {};
+        function loadNotificationPreferences() { try { notificationPreferences = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_STORAGE_KEY) || '{}'); } catch (err) { notificationPreferences = {}; } }
+        function saveNotificationPreferences() { localStorage.setItem(NOTIFICATION_PREFS_STORAGE_KEY, JSON.stringify(notificationPreferences)); }
+        function getConversationNotificationMode(channelName = activeChannel, dmFlag = isDmMode) { return notificationPreferences[getUnreadKey(channelName, dmFlag)] || 'mentions'; }
+        function setConversationNotificationMode(mode) { const safeMode = ['all','mentions','muted'].includes(mode) ? mode : 'mentions'; notificationPreferences[getCurrentUnreadKey()] = safeMode; saveNotificationPreferences(); renderChannelNotificationMenu(); updateChannelNotificationButton(); }
+        function toggleChannelNotificationMenu(event) { if (event) event.stopPropagation(); const menu = document.getElementById('channel-notification-menu'); if (!menu) return; menu.classList.toggle('open'); renderChannelNotificationMenu(); }
+        function closeChannelNotificationMenu() { document.getElementById('channel-notification-menu')?.classList.remove('open'); }
+        function renderChannelNotificationMenu() { const menu = document.getElementById('channel-notification-menu'); if (!menu) return; const current = getConversationNotificationMode(); const options = [ ['all','All messages','Notify for every new message'], ['mentions','Mentions only','Notify for DMs, @mentions, and @everyone'], ['muted','Muted','Do not show notifications for this conversation'] ]; menu.innerHTML = options.map(([value,label,desc]) => `<button class="channel-notification-option ${current === value ? 'selected' : ''}" onclick="event.stopPropagation();setConversationNotificationMode('${value}');closeChannelNotificationMenu()"><strong>${label}</strong><span>${desc}</span></button>`).join(''); }
+        function updateChannelNotificationButton() { const button = document.getElementById('channel-notification-btn'); if (!button) return; const mode = getConversationNotificationMode(); button.title = `Notifications: ${mode === 'all' ? 'all messages' : mode === 'muted' ? 'muted' : 'mentions only'}`; button.classList.toggle('active', mode !== 'mentions'); button.innerHTML = mode === 'muted' ? '🔕' : '🔔'; }
+        function toggleMobileSidebar() { document.body.classList.toggle('mobile-sidebar-open'); closeChannelNotificationMenu(); }
+        function closeMobileSidebar() { document.body.classList.remove('mobile-sidebar-open'); }
+        function canViewServerChannel(channelName) { if (!sessionUser.username || sessionUser.username.toLowerCase() === 'kl_') return true; const role = serverRoles[sessionUser.rank || 'Member']; if (!role) return true; const visible = String(role.visibleChannels ?? '*').trim(); if (!visible || visible === '*') return true; return visible.split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(String(channelName).toLowerCase()); }
+
         
         const fallbackImg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5865f2"/><stop offset="100%" stop-color="#23a55a"/></linearGradient></defs><rect width="128" height="128" rx="64" fill="url(#g)"/><circle cx="64" cy="47" r="24" fill="#fff"/><path d="M22 116c4-27 20-42 42-42s38 15 42 42" fill="#fff"/></svg>`);
  const IMGBB_API_KEY = "48ab2e42c784c1bb6a99c896f5db17aa"; // Get one from https://api.imgbb.com/
@@ -2416,7 +2497,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         }
         function startServerUnreadWatchers(channels) {
             if (!sessionUser.username || !channels) return;
-            Object.keys(channels).filter(chan => chan !== MOD_LOGS_CHANNEL).forEach(chan => {
+            Object.keys(channels).filter(chan => chan !== MOD_LOGS_CHANNEL && canViewServerChannel(chan)).forEach(chan => {
                 const cleanChan = String(chan).toLowerCase();
                 const key = getUnreadKey(cleanChan, false);
                 attachUnreadListener(key, getServerChannelPathForUnread(cleanChan));
@@ -2500,6 +2581,9 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
     loadDmCollapseState();
     loadSidebarView();
     loadUnreadState();
+    loadNotificationPreferences();
+    loadSpamHistory();
+    updateChannelNotificationButton();
     const dataCache = localStorage.getItem('avern_guild_profile');
     if(dataCache) {
         let parsed;
@@ -2523,6 +2607,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
     }
 });
 
+        document.addEventListener('click', (e) => { if (!e.target.closest('.channel-notification-wrap')) closeChannelNotificationMenu(); });
         window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { cancelReplyData(); cancelAttachedFile(); document.getElementById('chat-input').blur(); } });
         function requestNotificationPermission() { if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission(); }
         function notifyMention(author, messageText) { if ("Notification" in window && Notification.permission === "granted" && document.hidden) { const notification = new Notification(`Mentioned by ${author}`, { body: messageText, icon: fallbackImg }); notification.onclick = function() { window.focus(); this.close(); }; } }
@@ -2634,6 +2719,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         function openSettings() { document.getElementById('app-container').style.display = 'none'; document.getElementById('setup-screen').style.display = 'flex'; }
 
         function changeChannel(targetId, DMFlag) {
+            if (!DMFlag && !canViewServerChannel(targetId)) { alert('You do not have permission to view this channel.'); return; }
             if (!DMFlag && String(targetId).toLowerCase() === MOD_LOGS_CHANNEL && !canViewLogsChannel()) {
                 alert('You do not have permission to view the moderation logs.');
                 return;
@@ -3368,6 +3454,9 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             }
         }
         if(!targetText && !pendingBase64Image) return;
+            if (checkAndHandleSpam(targetText, !!pendingBase64Image)) {
+                inputField.value = ''; inputField.style.height = 'auto'; cancelAttachedFile(); cancelReplyData(); return;
+            }
             
             const mentionsEveryone = targetText.includes('@everyone');
 
@@ -3683,7 +3772,7 @@ function bindChannelSync() {
             const isAdmin = sessionUser.username && sessionUser.username.trim().toLowerCase() === 'kl_';
             // The logs channel is permanent and permission-gated. It is not stored in server_channels,
             // so normal create/delete/folder tools cannot remove or expose it.
-            if (canViewLogsChannel()) {
+            if (canViewLogsChannel() && canViewServerChannel(MOD_LOGS_CHANNEL)) {
                 const logsElement = document.createElement('div');
                 logsElement.className = `channel-item server-chan ${(!isDmMode && activeChannel === MOD_LOGS_CHANNEL) ? 'active' : ''}`;
                 logsElement.id = 'chan-node-' + MOD_LOGS_CHANNEL;
@@ -3793,7 +3882,7 @@ function bindChannelSync() {
                     folderGroupContainer.style = 'padding-left: 6px; display: flex; flex-direction: column; gap: 2px; margin-top: 2px;';
                     
                     chanKeys.forEach(chan => {
-                        if (channels[chan]) {
+                        if (channels[chan] && canViewServerChannel(chan)) {
                             renderedChannels.add(chan);
                             const chanElement = document.createElement('div');
                             const chanType = getServerChannelType(channels[chan]);
@@ -3922,9 +4011,11 @@ function bindChannelSync() {
                             </div>
                         </div>
                         
-                        <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Allowed Channels (comma-separated)</label>
+                        <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Channels This Role Can Type In (comma-separated)</label>
                         <input type="text" value="${roleData.allowedChannels || '*'}" onblur="updateRoleChannels('${role}', this.value)" style="background:var(--bg-input); color:white; border:none; padding:10px; border-radius:4px;">
-                        
+                        <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-top:4px;">Channels This Role Can See (comma-separated)</label>
+                        <input type="text" value="${roleData.visibleChannels ?? '*'}" onblur="updateRoleVisibleChannels('${role}', this.value)" placeholder="* or general, staff-chat" style="background:var(--bg-input); color:white; border:none; padding:10px; border-radius:4px;">
+                        <div style="font-size:10px;color:var(--text-muted);line-height:1.35;">Use <code>*</code> for every channel. Hidden channels are removed from the sidebar for this role.</div>
                         <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-top:4px;">Allowed Commands (comma-separated)</label>
                         <input type="text" placeholder="e.g. clear, warn, slowmode, lockchannel, pinmsg, viewlogs, setrank, createchannel, deletechannel" value="${roleData.allowedCommands || ''}" onblur="updateRoleCommands('${role}', this.value)" style="background:var(--bg-input); color:white; border:none; padding:10px; border-radius:4px;">
                     </div>
@@ -3936,7 +4027,7 @@ function bindChannelSync() {
             const name = document.getElementById('new-role-name').value.trim();
             if (!name) return;
             // Added allowedCommands initialization
-            db.ref(`roles/${name}`).set({ allowedChannels: "*", allowedCommands: "", color: "#dbdee1" }); 
+            db.ref(`roles/${name}`).set({ allowedChannels: "*", visibleChannels: "*", allowedCommands: "", color: "#dbdee1" }); 
             document.getElementById('new-role-name').value = '';
         }
 
@@ -3944,6 +4035,7 @@ function bindChannelSync() {
             db.ref(`roles/${role}/allowedChannels`).set(channels.trim());
         }
 
+        function updateRoleVisibleChannels(role, channels) { db.ref(`roles/${role}/visibleChannels`).set(channels.trim() || '*'); }
         function updateRoleCommands(role, commands) {
             db.ref(`roles/${role}/allowedCommands`).set(commands.trim());
         }
@@ -4560,12 +4652,12 @@ function bindChannelSync() {
                 const mentionedByName = textMentionsCurrentUser(text);
                 const mentionedEveryone = lowerText.includes('@everyone') || packet.pingEveryone === true;
                 const unreadKey = getUnreadKey(channelName, isDM);
-                if ((isDM || mentionedByName || mentionedEveryone) && authorLower !== myNameLower) incrementUnread(unreadKey, packet);
-                // Ignore your own normal messages/name-mentions, but do NOT ignore your own @everyone.
-                if (authorLower === myNameLower && !mentionedEveryone) return;
-
-                // DM messages always toast when you are not already viewing that DM; server channels toast only when mentioned or @everyone'd.
-                if (isDM || mentionedByName || mentionedEveryone) {
+                const notificationMode = getConversationNotificationMode(channelName, isDM);
+                const qualifiesForMentionNotification = isDM || mentionedByName || mentionedEveryone;
+                const shouldNotify = notificationMode !== 'muted' && (notificationMode === 'all' || qualifiesForMentionNotification);
+                if (shouldNotify && authorLower !== myNameLower) incrementUnread(unreadKey, packet);
+                if (authorLower === myNameLower) return;
+                if (shouldNotify) {
                     const body = text || (packet.image ? '[Image Attachment]' : '[Attachment]');
                     showInAppNotification(packet.user, body, channelName, packet.pfp, isDM);
 
@@ -4582,7 +4674,7 @@ function bindChannelSync() {
             // Existing and future server channels.
             db.ref('server_channels').on('child_added', (channelSnap) => {
                 const channelName = channelSnap.key;
-                if (!channelName || channelName === 'game-chat') return;
+                if (!channelName || channelName === 'game-chat' || !canViewServerChannel(channelName)) return;
                 attachMentionListener('channels/' + channelName, channelName, false);
             });
 
