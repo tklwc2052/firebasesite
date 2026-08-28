@@ -1953,6 +1953,24 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             .user-footer-info, .user-footer-btn { display:block !important; }
         }
 
+
+        /* Fully hideable desktop channel/DM sidebar */
+        .desktop-sidebar-collapse-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin-left:auto; border:0; border-radius:6px; background:transparent; color:var(--text-muted); cursor:pointer; }
+        .desktop-sidebar-collapse-btn:hover { color:white; background:var(--hover-clean,rgba(255,255,255,.06)); }
+        .desktop-sidebar-restore-btn { display:none; align-items:center; justify-content:center; width:34px; height:32px; flex:0 0 auto; border:0; border-radius:6px; background:transparent; color:var(--text-muted); cursor:pointer; }
+        .desktop-sidebar-restore-btn:hover { color:white; background:var(--hover-clean,rgba(255,255,255,.06)); }
+        .desktop-sidebar-collapse-btn .ui-icon, .desktop-sidebar-restore-btn .ui-icon { width:18px; height:18px; }
+        .desktop-sidebar-restore-btn .ui-icon { transform:rotate(180deg); }
+        body.desktop-sidebar-collapsed #app-container { grid-template-columns:minmax(0,1fr) 244px; }
+        body.desktop-sidebar-collapsed .sidebar-left { display:none !important; }
+        body.desktop-sidebar-collapsed .desktop-sidebar-restore-btn { display:inline-flex; }
+        @media (max-width:900px) and (min-width:641px) { body.desktop-sidebar-collapsed #app-container { grid-template-columns:minmax(0,1fr); } }
+        @media (max-width:640px) {
+            .desktop-sidebar-collapse-btn, .desktop-sidebar-restore-btn { display:none !important; }
+            body.desktop-sidebar-collapsed #app-container { grid-template-columns:minmax(0,1fr) !important; }
+            body.desktop-sidebar-collapsed .sidebar-left { display:flex !important; }
+        }
+
     </style>
 </head>
 <body>
@@ -2009,8 +2027,11 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
     <div id="app-container">
         <div class="sidebar-left">
             <div class="guild-header" style="justify-content: space-between;">
-                Avern chat 
-                <button id="admin-settings-btn" onclick="openAdminModal()" style="display:none; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px; transition: color 0.2s;" title="Server Settings" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-muted)'">⚙️</button>
+                <span>Avern chat</span>
+                <div style="display:flex;align-items:center;gap:3px;margin-left:auto;">
+                    <button class="desktop-sidebar-collapse-btn" onclick="collapseDesktopSidebar()" title="Minimize channels" aria-label="Minimize channels">◀</button>
+                    <button id="admin-settings-btn" onclick="openAdminModal()" style="display:none; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px; transition: color 0.2s;" title="Server Settings" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-muted)'">⚙️</button>
+                </div>
             </div>
             <div class="sidebar-view-switcher">
                 <button id="channels-view-btn" class="sidebar-view-btn active" onclick="showSidebarView('channels')"># Channels</button>
@@ -2034,7 +2055,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
         <div class="chat-area" id="drop-zone">
             <div id="drag-indicator">Drop image here to instantly attach</div>
-            <div class="chat-header"><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><div class="channel-notification-wrap"><button id="channel-notification-btn" class="channel-notification-btn" onclick="toggleChannelNotificationMenu(event)" title="Notification settings">🔔</button><div id="channel-notification-menu" class="channel-notification-menu"></div></div><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
+            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><div class="channel-notification-wrap"><button id="channel-notification-btn" class="channel-notification-btn" onclick="toggleChannelNotificationMenu(event)" title="Notification settings">🔔</button><div id="channel-notification-menu" class="channel-notification-menu"></div></div><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
             <div class="chat-messages" id="chat-box"><div class="loading-history" id="loading-history">Loading older messages...</div></div>
             <div class="chat-input-container">
                 <div class="reply-context-status-bar" id="reply-track-wrap"><span>Replying to <span id="reply-track-user" style="font-weight:bold; color:white;"></span></span><button class="reply-close-btn" onclick="cancelReplyData()">✕</button></div>
@@ -2232,6 +2253,14 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         function closeChannelNotificationMenu() { document.getElementById('channel-notification-menu')?.classList.remove('open'); }
         function renderChannelNotificationMenu() { const menu = document.getElementById('channel-notification-menu'); if (!menu) return; const current = getConversationNotificationMode(); const options = [ ['all','All messages','Notify for every new message'], ['mentions','Mentions only','Notify for DMs, @mentions, and @everyone'], ['muted','Muted','Do not show notifications for this conversation'] ]; menu.innerHTML = options.map(([value,label,desc]) => `<button class="channel-notification-option ${current === value ? 'selected' : ''}" onclick="event.stopPropagation();setConversationNotificationMode('${value}');closeChannelNotificationMenu()"><strong>${label}</strong><span>${desc}</span></button>`).join(''); }
         function updateChannelNotificationButton() { const button = document.getElementById('channel-notification-btn'); if (!button) return; const mode = getConversationNotificationMode(); button.title = `Notifications: ${mode === 'all' ? 'all messages' : mode === 'muted' ? 'muted' : 'mentions only'}`; button.classList.toggle('active', mode !== 'mentions'); button.innerHTML = mode === 'muted' ? '🔕' : '🔔'; }
+        const DESKTOP_SIDEBAR_COLLAPSED_KEY = 'avern_desktop_sidebar_collapsed';
+        function setDesktopSidebarCollapsed(collapsed) {
+            document.body.classList.toggle('desktop-sidebar-collapsed', !!collapsed);
+            localStorage.setItem(DESKTOP_SIDEBAR_COLLAPSED_KEY, collapsed ? 'true' : 'false');
+        }
+        function collapseDesktopSidebar() { setDesktopSidebarCollapsed(true); }
+        function expandDesktopSidebar() { setDesktopSidebarCollapsed(false); }
+        function loadDesktopSidebarState() { document.body.classList.toggle('desktop-sidebar-collapsed', localStorage.getItem(DESKTOP_SIDEBAR_COLLAPSED_KEY) === 'true'); }
         function toggleMobileSidebar() { document.body.classList.toggle('mobile-sidebar-open'); closeChannelNotificationMenu(); }
         function closeMobileSidebar() { document.body.classList.remove('mobile-sidebar-open'); }
         function canViewServerChannel(channelName) { if (!sessionUser.username || sessionUser.username.toLowerCase() === 'kl_') return true; const role = serverRoles[sessionUser.rank || 'Member']; if (!role) return true; const visible = String(role.visibleChannels ?? '*').trim(); if (!visible || visible === '*') return true; return visible.split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(String(channelName).toLowerCase()); }
@@ -2580,6 +2609,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
     loadCustomBackground();
     loadDmCollapseState();
     loadSidebarView();
+    loadDesktopSidebarState();
     loadUnreadState();
     loadNotificationPreferences();
     loadSpamHistory();
@@ -4901,6 +4931,8 @@ function bindChannelSync() {
             replaceButtonIcon('#admin-settings-btn','settings',/^⚙️?\s*/);
             replaceButtonIcon('#channels-view-btn','forum',/^#\s*/);
             replaceButtonIcon('#dms-view-btn','message',/^💬\s*/);
+            replaceButtonIcon('.desktop-sidebar-collapse-btn','arrowLeft',/^◀\s*/);
+            replaceButtonIcon('.desktop-sidebar-restore-btn','arrowLeft',/^▶\s*/);
             root.querySelectorAll('.forum-modal-close,.emoji-creator-close,.media-gallery-close,.chat-search-close,.pins-close,.reply-close-btn,.preview-close,.toast-close-btn').forEach(btn => { if(btn.dataset.svgIconReady==='true') return; btn.innerHTML=uiIcon('x'); btn.classList.add('icon-button'); btn.dataset.svgIconReady='true'; });
             root.querySelectorAll('.upload-label-text').forEach(el => { if(el.dataset.svgIconReady==='true') return; el.innerHTML=uiIcon('upload')+'<span>'+escapeHtml(String(el.textContent||'').replace(/^📂\s*/,''))+'</span>'; el.dataset.svgIconReady='true'; });
         }
