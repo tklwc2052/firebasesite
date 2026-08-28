@@ -2015,6 +2015,12 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             body.desktop-sidebar-collapsed .sidebar-left { visibility:visible !important; opacity:1 !important; pointer-events:auto; }
         }
 
+
+        .footer-notification-wrap { margin-left:auto; flex:0 0 auto; }
+        .footer-notification-wrap .channel-notification-btn { width:32px; min-width:32px; height:32px; padding:6px; }
+        .footer-notification-wrap .channel-notification-btn .ui-icon { width:18px; height:18px; }
+        .footer-notification-wrap .channel-notification-menu { top:auto; bottom:40px; right:0; }
+
     </style>
 </head>
 <body>
@@ -2092,13 +2098,14 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             <div class="user-footer">
                 <img id="footer-pfp" src="" alt="Me">
                 <div class="user-footer-info"><div class="user-footer-name" id="footer-name">Username</div></div>
+                <div class="channel-notification-wrap footer-notification-wrap"><button id="channel-notification-btn" class="channel-notification-btn" onclick="toggleChannelNotificationMenu(event)" title="Notification settings" aria-label="Notification settings">🔔</button><div id="channel-notification-menu" class="channel-notification-menu"></div></div>
                 <button class="user-footer-btn" onclick="openSettings()">Edit</button>
             </div>
         </div>
 
         <div class="chat-area" id="drop-zone">
             <div id="drag-indicator">Drop image here to instantly attach</div>
-            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><div class="channel-notification-wrap"><button id="channel-notification-btn" class="channel-notification-btn" onclick="toggleChannelNotificationMenu(event)" title="Notification settings">🔔</button><div id="channel-notification-menu" class="channel-notification-menu"></div></div><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
+            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
             <div class="chat-messages" id="chat-box"><div class="loading-history" id="loading-history">Loading older messages...</div></div>
             <div class="chat-input-container">
                 <div class="reply-context-status-bar" id="reply-track-wrap"><span>Replying to <span id="reply-track-user" style="font-weight:bold; color:white;"></span></span><button class="reply-close-btn" onclick="cancelReplyData()">✕</button></div>
@@ -2295,7 +2302,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         function toggleChannelNotificationMenu(event) { if (event) event.stopPropagation(); const menu = document.getElementById('channel-notification-menu'); if (!menu) return; menu.classList.toggle('open'); renderChannelNotificationMenu(); }
         function closeChannelNotificationMenu() { document.getElementById('channel-notification-menu')?.classList.remove('open'); }
         function renderChannelNotificationMenu() { const menu = document.getElementById('channel-notification-menu'); if (!menu) return; const current = getConversationNotificationMode(); const options = [ ['all','All messages','Notify for every new message'], ['mentions','Mentions only','Notify for DMs, @mentions, and @everyone'], ['muted','Muted','Do not show notifications for this conversation'] ]; menu.innerHTML = options.map(([value,label,desc]) => `<button class="channel-notification-option ${current === value ? 'selected' : ''}" onclick="event.stopPropagation();setConversationNotificationMode('${value}');closeChannelNotificationMenu()"><strong>${label}</strong><span>${desc}</span></button>`).join(''); }
-        function updateChannelNotificationButton() { const button = document.getElementById('channel-notification-btn'); if (!button) return; const mode = getConversationNotificationMode(); button.title = `Notifications: ${mode === 'all' ? 'all messages' : mode === 'muted' ? 'muted' : 'mentions only'}`; button.classList.toggle('active', mode !== 'mentions'); button.innerHTML = mode === 'muted' ? '🔕' : '🔔'; }
+        function updateChannelNotificationButton() { const button = document.getElementById('channel-notification-btn'); if (!button) return; const mode = getConversationNotificationMode(); button.title = `Notifications: ${mode === 'all' ? 'all messages' : mode === 'muted' ? 'muted' : 'mentions only'}`; button.classList.toggle('active', mode !== 'mentions'); button.innerHTML = uiIcon(mode === 'muted' ? 'bellOff' : 'bell'); }
         const DESKTOP_SIDEBAR_COLLAPSED_KEY = 'avern_desktop_sidebar_collapsed';
         function setDesktopSidebarCollapsed(collapsed) {
             document.body.classList.toggle('desktop-sidebar-collapsed', !!collapsed);
@@ -4780,6 +4787,8 @@ function bindChannelSync() {
                 users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
                 maximize: '<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>',
                 panels: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/>',
+                bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+                bellOff: '<path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 18H3c0-2 3-2 3-9 0-.7.12-1.37.34-2"/><path d="M8.1 3.65A6 6 0 0 1 18 8c0 2.31.33 3.79.79 4.78"/><path d="m2 2 20 20"/>',
                 x: '<path d="M18 6 6 18M6 6l12 12"/>'
             };
             return `<svg class="ui-icon ${className}" viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ''}</svg>`;
@@ -4976,6 +4985,7 @@ function bindChannelSync() {
             replaceButtonIcon('#dms-view-btn','message',/^💬\s*/);
             replaceButtonIcon('.desktop-sidebar-collapse-btn','arrowLeft',/^◀\s*/);
             replaceButtonIcon('.desktop-sidebar-restore-btn','arrowLeft',/^▶\s*/);
+            replaceButtonIcon('#channel-notification-btn','bell',/^🔔\s*/);
             root.querySelectorAll('.forum-modal-close,.emoji-creator-close,.media-gallery-close,.chat-search-close,.pins-close,.reply-close-btn,.preview-close,.toast-close-btn').forEach(btn => { if(btn.dataset.svgIconReady==='true') return; btn.innerHTML=uiIcon('x'); btn.classList.add('icon-button'); btn.dataset.svgIconReady='true'; });
             root.querySelectorAll('.upload-label-text').forEach(el => { if(el.dataset.svgIconReady==='true') return; el.innerHTML=uiIcon('upload')+'<span>'+escapeHtml(String(el.textContent||'').replace(/^📂\s*/,''))+'</span>'; el.dataset.svgIconReady='true'; });
         }
@@ -5059,3 +5069,4 @@ function bindChannelSync() {
     </script>
 </body>
 </html>
+
