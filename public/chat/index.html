@@ -2019,7 +2019,23 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         .footer-notification-wrap { margin-left:auto; flex:0 0 auto; }
         .footer-notification-wrap .channel-notification-btn { width:32px; min-width:32px; height:32px; padding:6px; }
         .footer-notification-wrap .channel-notification-btn .ui-icon { width:18px; height:18px; }
-        .footer-notification-wrap .channel-notification-menu { top:auto; bottom:40px; right:0; }
+        .footer-notification-wrap .channel-notification-menu {
+            top:auto;
+            bottom:40px;
+            right:-46px;
+            left:auto;
+        }
+
+
+        @media (max-width:640px) {
+            .footer-notification-wrap .channel-notification-menu {
+                position:fixed;
+                left:10px;
+                right:10px;
+                bottom:68px;
+                width:auto;
+            }
+        }
 
     </style>
 </head>
@@ -5069,4 +5085,3 @@ function bindChannelSync() {
     </script>
 </body>
 </html>
-
