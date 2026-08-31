@@ -2456,6 +2456,67 @@ async function addCurrentImageToShowcase(){if(!sessionUser.username)return;const
 const inspectUserBeforeShowcase=inspectUser;
 inspectUser=function(nameString){inspectUserBeforeShowcase(nameString);db.ref('chat_profiles/'+nameString.toLowerCase()+'/showcase').once('value').then(snap=>{const body=document.querySelector('#profile-popup .popup-body');if(!body)return;body.querySelector('.profile-showcase-section')?.remove();const items=Array.isArray(snap.val())?snap.val().filter(Boolean).slice(0,3):[];const section=document.createElement('div');section.className='profile-showcase-section';section.innerHTML=`<div class="profile-section-label">Image showcase</div><div class="profile-showcase">${items.length?items.map((url,i)=>`<div class="profile-showcase-item" onclick='openImageViewer(${JSON.stringify(items)},${i},null,${JSON.stringify(nameString)})'><img src="${escapeAttribute(url)}" alt="Showcase image"></div>`).join(''):'<div class="profile-showcase-empty">No showcase images yet.</div>'}</div>`;const actions=document.getElementById('profile-actions');body.insertBefore(section,actions)})};
 
+
+/* ===== IMAGE FEATURE HOTFIX: directly connect existing images to viewer ===== */
+function getMessagePacketForViewer(messageKey){
+    if(!messageKey) return Promise.resolve(null);
+    return db.ref(`${getChannelDatabasePath()}/${messageKey}`).once('value').then(s=>s.val()||null);
+}
+function wireRenderedImages(root=document){
+    root.querySelectorAll('.msg-attached-img:not([data-viewer-ready])').forEach(img=>{
+        img.dataset.viewerReady='true';
+        img.style.cursor='zoom-in';
+        img.title='Open image viewer';
+        img.addEventListener('click',async event=>{
+            event.preventDefault(); event.stopPropagation();
+            const row=img.closest('.msg-group');
+            const key=row?.id?.replace(/^msg-node-/,'')||null;
+            const packet=await getMessagePacketForViewer(key);
+            const images=packet?normalizePacketImages(packet):[img.src];
+            openImageViewer(images,Math.max(0,images.indexOf(img.src)),key,packet?.user||'');
+        });
+    });
+}
+const imageFeatureObserver=new MutationObserver(records=>{
+    records.forEach(record=>record.addedNodes.forEach(node=>{
+        if(node.nodeType===1) wireRenderedImages(node.matches?.('.msg-attached-img')?node.parentElement:node);
+    }));
+});
+window.addEventListener('DOMContentLoaded',()=>{
+    wireRenderedImages();
+    imageFeatureObserver.observe(document.getElementById('chat-box')||document.body,{childList:true,subtree:true});
+    const input=document.getElementById('hidden-file-input');
+    if(input){ input.multiple=true; input.setAttribute('multiple',''); }
+});
+/* Render albums after every message row is built, without depending on HTML-string replacement. */
+const buildMessageRowBeforeImageHotfix=buildMessageRow;
+buildMessageRow=function(key,packet){
+    const row=buildMessageRowBeforeImageHotfix(key,packet);
+    const images=normalizePacketImages(packet);
+    if(images.length>1){
+        row.querySelectorAll('.msg-attached-img,.image-album-grid').forEach(el=>el.remove());
+        const details=row.querySelector('.msg-details');
+        if(details){
+            const holder=document.createElement('div');
+            holder.innerHTML=buildAlbumMarkup(key,packet);
+            details.appendChild(holder.firstElementChild);
+        }
+    }
+    wireRenderedImages(row);
+    return row;
+};
+/* A visible attachment count proves that multi-select is active. */
+const updateAlbumPreviewBeforeHotfix=updateAlbumPreview;
+updateAlbumPreview=function(){
+    updateAlbumPreviewBeforeHotfix();
+    const wrap=document.getElementById('img-preview-wrap');
+    if(wrap&&pendingAlbumImages.length){
+        let count=wrap.querySelector('.album-upload-count');
+        if(!count){count=document.createElement('div');count.className='album-upload-count';count.style.cssText='padding:6px 9px;color:var(--text-muted);font-size:12px';wrap.prepend(count)}
+        count.textContent=`${pendingAlbumImages.length} image${pendingAlbumImages.length===1?'':'s'} ready`;
+    }
+};
+
 </script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
