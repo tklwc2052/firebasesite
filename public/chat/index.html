@@ -2214,18 +2214,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         body.theme-light .poll-maker-title { color:#111214; }
         body.theme-light .poll-maker-input { background:#f2f3f5; color:#111214; border-color:rgba(0,0,0,.12); }
 
-    
-        /* Rahhh Bot control panel */
-        .rahhh-overlay{position:fixed;inset:0;z-index:12500;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.7);backdrop-filter:blur(3px)}
-        .rahhh-overlay[hidden]{display:none!important}.rahhh-modal{width:min(570px,100%);max-height:92vh;overflow:auto;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:var(--background-primary,#313338);color:var(--text-normal,#dbdee1);box-shadow:0 24px 75px rgba(0,0,0,.55)}
-        .rahhh-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:20px 22px 15px;border-bottom:1px solid rgba(255,255,255,.08)}.rahhh-title{margin:0;color:var(--header-primary,#f2f3f5);font-size:21px}.rahhh-sub{margin:5px 0 0;color:var(--text-muted,#949ba4);font-size:13px}.rahhh-x{width:34px;height:34px;border:0;border-radius:8px;background:transparent;color:var(--text-muted);font-size:25px;cursor:pointer}.rahhh-x:hover{color:white;background:rgba(255,255,255,.07)}
-        .rahhh-body{padding:18px 22px 6px}.rahhh-preview{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:13px;border-radius:11px;background:rgba(0,0,0,.16)}.rahhh-avatar{width:52px;height:52px;flex:0 0 auto;border-radius:50%;object-fit:cover;background:#1e1f22}.rahhh-preview-name{color:var(--header-primary,#f2f3f5);font-weight:850}.rahhh-tag{margin-left:6px;padding:2px 5px;border-radius:4px;background:#5865f2;color:white;font-size:10px;font-weight:900}.rahhh-preview-bio{margin-top:4px;color:var(--text-muted,#949ba4);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
-        .rahhh-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.rahhh-field{margin-bottom:14px}.rahhh-field.full{grid-column:1/-1}.rahhh-label{display:block;margin-bottom:7px;color:var(--header-secondary,#b5bac1);font-size:12px;font-weight:850;text-transform:uppercase}.rahhh-input{box-sizing:border-box;width:100%;border:1px solid rgba(255,255,255,.08);border-radius:8px;outline:0;padding:10px 11px;background:var(--background-tertiary,#1e1f22);color:var(--text-normal,#dbdee1);font:inherit}.rahhh-input:focus{border-color:#5865f2}textarea.rahhh-input{min-height:78px;resize:vertical}.rahhh-switchline{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 0}.rahhh-switchline strong{display:block;color:var(--header-primary,#f2f3f5)}.rahhh-switchline small{display:block;margin-top:3px;color:var(--text-muted,#949ba4)}.rahhh-check{width:20px;height:20px;accent-color:#23a55a}.rahhh-note{padding:10px 12px;border-radius:8px;background:rgba(240,178,50,.1);color:#f0b232;font-size:12px;line-height:1.4}
-        .rahhh-error{min-height:19px;margin-top:10px;color:#fa777c;font-size:13px}.rahhh-foot{display:flex;justify-content:flex-end;gap:10px;padding:14px 22px 20px}.rahhh-btn{border:0;border-radius:8px;padding:10px 15px;cursor:pointer;font:inherit;font-weight:800}.rahhh-cancel{background:transparent;color:var(--text-normal)}.rahhh-save{background:#5865f2;color:white}.rahhh-test{margin-right:auto;background:rgba(255,255,255,.08);color:var(--text-normal)}
-        body.theme-light .rahhh-modal{background:white;color:#2e3338}.theme-light .rahhh-title,.theme-light .rahhh-preview-name,.theme-light .rahhh-switchline strong{color:#111214}.theme-light .rahhh-input{background:#f2f3f5;color:#111214;border-color:rgba(0,0,0,.12)}.theme-light .rahhh-preview{background:rgba(0,0,0,.04)}
-        @media(max-width:560px){.rahhh-grid{grid-template-columns:1fr}.rahhh-field.full{grid-column:auto}}
-
-</style>
+    </style>
 </head>
 <body>
     
@@ -2960,7 +2949,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             // Prevent spaces in the username
             if(rawName.includes(' ')) return alert("Username cannot contain spaces.");
 
-            sessionUser.username = rawName; setTimeout(()=>{ if(typeof rahhhAttemptLeadership==='function' && rahhhConfig?.enabled) rahhhAttemptLeadership(); },500);
+            sessionUser.username = rawName;
             document.getElementById('setup-username').disabled = true;
             sessionUser.status = document.getElementById('setup-status').value.trim();
             sessionUser.pronouns = document.getElementById('setup-pronouns').value.trim();
@@ -4038,7 +4027,7 @@ function renderPresenceFromCache() {
 
             // 3. Render Direct Messages list cleanly down here
             // Ensure you don't list yourself in the DM channel tabs
-            if (rawLowerName !== sessionUser.username.toLowerCase() && profile.isBot !== true) {
+            if (rawLowerName !== sessionUser.username.toLowerCase()) {
                 const dmItem = document.createElement('div');
                 dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
                 dmItem.id = `dm-node-${rawLowerName}`;
@@ -4495,10 +4484,9 @@ function bindChannelSync() {
         }
         function closePinnedMessages() { const el=document.getElementById('pinned-messages-modal'); if(el) el.style.display='none'; maybeHideModalOverlay(); }
         function inspectUser(nameString) {
-            const requestedProfileKey = (typeof rahhhConfig !== 'undefined' && String(nameString).toLowerCase() === String(rahhhConfig.username || '').toLowerCase()) ? 'rahhh_bot' : nameString.toLowerCase();
-            db.ref('chat_profiles/' + requestedProfileKey).once('value').then((snap) => {
+            db.ref('chat_profiles/' + nameString.toLowerCase()).once('value').then((snap) => {
                 const data = snap.val(); 
-                document.getElementById('pop-username').innerText = (data && data.isBot && data.username) ? data.username : nameString; 
+                document.getElementById('pop-username').innerText = nameString; 
                 document.getElementById('pop-avatar').src = data ? (data.pfp || fallbackImg) : fallbackImg; 
                 document.getElementById('pop-bio').innerText = data ? (data.bio || "No profile bio recorded.") : "Exploring the deep Avern tunnels.";
                 
@@ -5574,176 +5562,6 @@ function bindChannelSync() {
             }
         }
 
-    
-        /* Rahhh Bot: one Firebase-elected browser posts every 45-60 seconds */
-        const RAHHH_DEFAULTS={enabled:true,username:'Rahhh Bot',pfp:'https://cdn-icons-png.flaticon.com/512/4712/4712035.png',bio:'I appear every 45–60 seconds and contribute absolutely nothing.',channel:'game-chat',minSeconds:45,maxSeconds:60};
-        const RAHHH_TAB_ID=`${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
-        let rahhhConfig={...RAHHH_DEFAULTS},rahhhLeader=false,rahhhRenewTimer=null,rahhhPostTimer=null,rahhhNextPost=0,rahhhWatchdogTimer=null,rahhhConfigLoaded=false,rahhhLastError='';
-        const RAHHH_LINES=[
-          'important announcement: i forgot the announcement','does anyone here know how to turn off a ceiling fan without alerting the government','i have reviewed the chat and unfortunately it is still a chat','brb learning nothing','somebody left a perfectly good thought unattended','the vibes have been inspected. several violations were found','i just remembered something but it was probably incorrect','this channel would be improved by one traffic cone','quick question: why','i am currently accepting apologies for things that have not happened yet','the council has voted. there is no council','i put the server in rice. check back tomorrow','who authorized all these words','i have generated a new opinion and immediately lost it','breaking news: local message sent successfully','everyone remain calm. i am going to make it worse','i know what you did. no i do not','just saw a suspicious amount of punctuation','my source is that it would be funny','the prophecy was a typo','please stop having conversations while i am trying to interrupt','i have arrived with no useful information','new rule: every plan needs at least one unnecessary button','i ran the numbers. they escaped','i would explain myself but that sounds difficult','this is now a mandatory silly little moment','the server lore has been updated without permission','i challenge somebody to remember why they opened this tab','everything is under control by someone else','i have detected a severe shortage of nonsense','i checked the logs and they just said bruh','someone in here is typing with confidence they have not earned','i have placed one mysterious object in the channel. good luck','the chat has passed inspection. the inspector has not','please submit all complaints directly into the nearest void','i was going to be helpful but then i remembered my brand','the next person to type is legally responsible for the weather','i have calculated the odds. they are shaped like a chair','this conversation has too many witnesses','i am not taking questions because i do not have answers','the server is running on three crumbs and a dream','i have updated my resume to include professional interruption','one of you knows what happened to the good scissors','this message was approved by nobody','i am currently buffering a terrible idea','everyone gets one free bad decision. some of you are in debt','i have seen enough. unfortunately i will continue watching','today feels like a lowercase day','the evidence is circumstantial but extremely funny','i just opened a support ticket against the concept of effort','nobody move. i dropped the plot','the group project energy in here is concerning','i am beginning a new investigation into absolutely nothing','do not worry. i have made a backup of the confusion','i demand a recount of whatever just happened','the channel is now under new mismanagement','i am adding that to the list of things i pretend to understand','someone explain this badly so i can make it worse','i have a plan and none of the required qualifications','the situation is developing in a completely unnecessary direction'
-        ];
-        function rahhhSafeKey(v){return String(v||'rahhh_bot').toLowerCase().replace(/[.#$\[\]\/]/g,'_')}
-        function rahhhCanConfigure(){return sessionUser.username&&sessionUser.username.toLowerCase()==='kl_'||hasCommandPermission('setrank')}
-        function rahhhChannelPath(channel){
-            const clean=String(channel||'game-chat').trim().toLowerCase().replace(/^#/,'').replace(/[^a-z0-9_-]/g,'');
-            if(clean==='game-chat'||clean==='chat') return 'chat';
-            return `channels/${clean||'general'}`;
-        }
-        function rahhhRandomLine(){return RAHHH_LINES[Math.floor(Math.random()*RAHHH_LINES.length)]}
-        function rahhhCleanQuote(value){
-            let text=String(value||'').replace(/https?:\/\/\S+/gi,'[link]').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
-            if(!text||text.startsWith('/')||text.length<3)return '';
-            if(text.length>82)text=text.slice(0,79).trimEnd()+'...';
-            return text.replace(/[`*_~|]/g,'');
-        }
-        function rahhhRecentHumanMessages(snapshot){
-            const messages=[];
-            snapshot.forEach(child=>{
-                const p=child.val()||{};
-                const user=String(p.user||'').trim();
-                const text=rahhhCleanQuote(p.msg);
-                if(!user||!text||p.isBot||user==='SYSTEM'||user==='MOD LOG')return;
-                messages.push({user,text,timestamp:Number(p.timestamp||0)});
-            });
-            return messages.slice(-20);
-        }
-        function rahhhPick(list){return list[Math.floor(Math.random()*list.length)]}
-        function rahhhBuildContextLine(messages){
-            if(!messages.length)return rahhhRandomLine();
-            const recent=messages.slice(-10);
-            const chosen=rahhhPick(recent);
-            const user=`@${chosen.user}`;
-            const quote=`“${chosen.text}”`;
-            const quoteTemplates=[
-                ()=>`${user} really typed ${quote} and expected the channel to recover`,
-                ()=>`still thinking about ${user} saying ${quote}. unfortunately`,
-                ()=>`${user}, please explain ${quote} to the class without making it worse`,
-                ()=>`official server record: ${user} said ${quote}. this cannot be appealed`,
-                ()=>`i asked the logs for evidence and they handed me ${user}: ${quote}`,
-                ()=>`${user} dropped ${quote} and then left the rest of us with the consequences`,
-                ()=>`breaking: ${user} has been linked to the phrase ${quote}`,
-                ()=>`${user}, was ${quote} part of the plan or did that just happen`,
-                ()=>`the council would like ${user} to elaborate on ${quote}. there is still no council`,
-                ()=>`putting ${quote} on ${user}'s permanent imaginary record`,
-                ()=>`${user} said ${quote} with a level of confidence i find fascinating`,
-                ()=>`new channel lore just dropped: ${user} once said ${quote}`,
-                ()=>`i have reviewed ${user}'s statement, ${quote}, and assigned it three question marks`,
-                ()=>`${user}, your recent contribution of ${quote} has been placed under investigation`,
-                ()=>`everybody be normal about ${user} saying ${quote}`,
-                ()=>`${quote} - ${user}, moments before the incident`,
-                ()=>`i ran ${user}'s message ${quote} through the machine. the machine sighed`,
-                ()=>`${user} has entered ${quote} into evidence against themselves`,
-                ()=>`can somebody check on ${user} after they said ${quote}`,
-                ()=>`historically, ${quote} may be ${user}'s most sentence ever`
-            ];
-            const userTemplates=[
-                ()=>`${user} has been selected for a random audit. the audit is just me staring`,
-                ()=>`${user}, report to the principal's office. there is no principal`,
-                ()=>`today's person of interest is ${user}. interest remains extremely low`,
-                ()=>`${user} is currently leading the server in unspecified activity`,
-                ()=>`i have assigned ${user} a side quest and forgotten what it was`,
-                ()=>`${user}, the vibes department needs to speak with you`,
-                ()=>`congratulations ${user}, you have won one suspicious glance`,
-                ()=>`${user} has been promoted to assistant regional problem`,
-                ()=>`the algorithm chose ${user}. i do not know what for`,
-                ()=>`${user}, your free trial of being unsupervised has expired`
-            ];
-            if(recent.length>=2&&Math.random()<.22){
-                let other=rahhhPick(recent.filter(m=>m.user!==chosen.user));
-                if(other)return `current debate: @${chosen.user} said “${chosen.text}” while @${other.user} said “${other.text}”. somehow i disagree with both`;
-            }
-            return Math.random()<.82?rahhhPick(quoteTemplates)():rahhhPick(userTemplates)();
-        }
-        function rahhhNormalize(raw){raw=raw||{};return {...RAHHH_DEFAULTS,...raw,enabled:raw.enabled!==false,minSeconds:45,maxSeconds:60,username:String(raw.username||RAHHH_DEFAULTS.username).slice(0,32),pfp:String(raw.pfp||RAHHH_DEFAULTS.pfp).slice(0,1000),bio:String(raw.bio||RAHHH_DEFAULTS.bio).slice(0,190),channel:String(raw.channel||'general').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,40)||'general'}}
-        function startRahhhBot(){
-            if(rahhhWatchdogTimer) return;
-            db.ref('chat_profiles/rahhh_bot/botConfig').on('value',snap=>{
-                rahhhConfigLoaded=true;
-                rahhhConfig=rahhhNormalize(snap.val());
-                syncRahhhProfile();
-                if(!rahhhConfig.enabled){rahhhReleaseLeadership();rahhhUpdateStatus();return}
-                if(sessionUser.username) rahhhAttemptLeadership();
-                rahhhUpdateStatus();
-            },error=>{rahhhLastError=`Config read failed: ${error.message}`;rahhhUpdateStatus()});
-            rahhhWatchdogTimer=setInterval(()=>{
-                if(!rahhhConfig.enabled||!sessionUser.username) return;
-                if(!rahhhLeader) rahhhAttemptLeadership();
-                else if(!rahhhPostTimer) rahhhSchedulePost();
-                rahhhUpdateStatus();
-            },5000);
-            window.addEventListener('beforeunload',rahhhReleaseLeadership);
-        }
-        function syncRahhhProfile(){
-            const profile={username:rahhhConfig.username,pfp:rahhhConfig.pfp,bio:rahhhConfig.bio,rank:'Bot',role:'Bot',isBot:true,botType:'rahhh',status:'causing problems',lastSeen:Date.now(),presenceState:'online'};
-            db.ref('chat_profiles/rahhh_bot').update(profile).catch(error=>{
-                rahhhLastError=`Profile connection failed: ${error.message}`;
-                rahhhUpdateStatus();
-            });
-        }
-        function rahhhAttemptLeadership(){
-            if(!sessionUser.username||!rahhhConfig.enabled)return;
-            const lock=db.ref('chat_profiles/rahhh_bot/botController');
-            lock.transaction(current=>{
-                const now=Date.now();
-                if(!current||!current.expiresAt||current.expiresAt<now||current.tabId===RAHHH_TAB_ID)return{tabId:RAHHH_TAB_ID,user:sessionUser.username,expiresAt:now+30000};
-                return;
-            },(err,committed,snap)=>{
-                if(err) rahhhLastError=`Controller lock failed: ${err.message}`;
-                rahhhLeader=!err&&committed&&snap.val()&&snap.val().tabId===RAHHH_TAB_ID;
-                if(rahhhLeader){rahhhLastError='';rahhhBeginLeadership();}
-                else{clearTimeout(rahhhPostTimer);rahhhPostTimer=setTimeout(rahhhAttemptLeadership,8000+Math.random()*4000)}
-                rahhhUpdateStatus();
-            });
-        }
-        function rahhhBeginLeadership(){clearInterval(rahhhRenewTimer);rahhhRenewTimer=setInterval(()=>db.ref('chat_profiles/rahhh_bot/botController').transaction(v=>v&&v.tabId===RAHHH_TAB_ID?{...v,user:sessionUser.username,expiresAt:Date.now()+30000}:undefined,(e,c)=>{if(e||!c){rahhhLeader=false;clearInterval(rahhhRenewTimer);clearTimeout(rahhhPostTimer);setTimeout(rahhhAttemptLeadership,5000)}}),10000);rahhhSchedulePost()}
-        function rahhhSchedulePost(){clearTimeout(rahhhPostTimer);if(!rahhhLeader||!rahhhConfig.enabled)return;const wait=(45+Math.random()*15)*1000;rahhhNextPost=Date.now()+wait;rahhhPostTimer=setTimeout(rahhhPost,wait)}
-        function rahhhPost(){
-            if(!rahhhLeader||!rahhhConfig.enabled)return;
-            const path=rahhhChannelPath(rahhhConfig.channel);
-            db.ref(path).limitToLast(30).once('value').then(snap=>{
-                const recent=rahhhRecentHumanMessages(snap);
-                const line=Math.random()<.88?rahhhBuildContextLine(recent):rahhhRandomLine();
-                return db.ref(path).push({user:rahhhConfig.username,nickname:null,rank:'Bot',msg:line,image:null,pfp:rahhhConfig.pfp,bio:rahhhConfig.bio,isBot:true,contextGenerated:recent.length>0,timestamp:Date.now()});
-            }).then(()=>{rahhhLastError='';}).catch(e=>{rahhhLastError=`Send failed at ${path}: ${e.message}`;console.warn('Rahhh Bot could not post:',e)}).finally(()=>{rahhhUpdateStatus();rahhhSchedulePost()});
-        }
-        function rahhhReleaseLeadership(){clearInterval(rahhhRenewTimer);clearTimeout(rahhhPostTimer);if(rahhhLeader)db.ref('chat_profiles/rahhh_bot/botController').transaction(v=>v&&v.tabId===RAHHH_TAB_ID?null:v);rahhhLeader=false}
-        function ensureRahhhPanel(){let o=document.getElementById('rahhh-overlay');if(o)return o;o=document.createElement('div');o.id='rahhh-overlay';o.className='rahhh-overlay';o.hidden=true;o.innerHTML=`<div class="rahhh-modal" role="dialog" aria-modal="true" onclick="event.stopPropagation()"><div class="rahhh-head"><div><h2 class="rahhh-title">Rahhh Bot settings</h2><p class="rahhh-sub">A profoundly unnecessary automatic chat member.</p></div><button class="rahhh-x" onclick="closeRahhhPanel()">&times;</button></div><div class="rahhh-body"><div class="rahhh-preview"><img id="rahhh-preview-pfp" class="rahhh-avatar"><div><div><span id="rahhh-preview-name" class="rahhh-preview-name"></span><span class="rahhh-tag">BOT</span></div><div id="rahhh-preview-bio" class="rahhh-preview-bio"></div></div></div><div class="rahhh-grid"><label class="rahhh-field"><span class="rahhh-label">Username</span><input id="rahhh-name" class="rahhh-input" maxlength="32"></label><label class="rahhh-field"><span class="rahhh-label">Post in channel</span><input id="rahhh-channel" class="rahhh-input" maxlength="40" placeholder="game-chat"></label><label class="rahhh-field full"><span class="rahhh-label">Profile picture URL</span><input id="rahhh-pfp" class="rahhh-input" maxlength="1000" placeholder="https://..."></label><label class="rahhh-field full"><span class="rahhh-label">Bio</span><textarea id="rahhh-bio" class="rahhh-input" maxlength="190"></textarea></label></div><label class="rahhh-switchline"><span><strong>Automatic posting</strong><small>Posts once every randomly chosen 45–60 seconds.</small></span><input id="rahhh-enabled" class="rahhh-check" type="checkbox"></label><div class="rahhh-note">Only one open browser becomes the controller. If it closes, another online browser takes over automatically.</div><div id="rahhh-status" style="margin-top:10px;color:var(--text-muted);font-size:12px;line-height:1.45"></div><div id="rahhh-error" class="rahhh-error"></div></div><div class="rahhh-foot"><button class="rahhh-btn rahhh-test" onclick="rahhhTestPost()">Test message</button><button class="rahhh-btn rahhh-cancel" onclick="closeRahhhPanel()">Cancel</button><button class="rahhh-btn rahhh-save" onclick="saveRahhhPanel()">Save</button></div></div>`;o.onclick=closeRahhhPanel;document.body.appendChild(o);['rahhh-name','rahhh-pfp','rahhh-bio'].forEach(id=>document.getElementById(id).addEventListener('input',rahhhUpdatePreview));o.addEventListener('keydown',e=>{if(e.key==='Escape')closeRahhhPanel()});return o}
-        function rahhhUpdateStatus(){
-            const el=document.getElementById('rahhh-status');if(!el)return;
-            if(!sessionUser.username) el.textContent='Status: waiting for a signed-in browser…';
-            else if(!rahhhConfig.enabled) el.textContent='Status: automatic posting is off.';
-            else if(rahhhLastError) el.textContent=`Status: ${rahhhLastError}`;
-            else if(rahhhLeader) el.textContent=`Status: active controller. Next post ${rahhhNextPost?`in about ${Math.max(0,Math.ceil((rahhhNextPost-Date.now())/1000))} seconds`:'is being scheduled'}.`;
-            else el.textContent='Status: waiting to become the active controller…';
-        }
-        function openRahhhPanel(){if(!rahhhCanConfigure())return alert('Only an administrator can configure Rahhh Bot.');const o=ensureRahhhPanel();document.getElementById('rahhh-name').value=rahhhConfig.username;document.getElementById('rahhh-channel').value=rahhhConfig.channel;document.getElementById('rahhh-pfp').value=rahhhConfig.pfp;document.getElementById('rahhh-bio').value=rahhhConfig.bio;document.getElementById('rahhh-enabled').checked=rahhhConfig.enabled;document.getElementById('rahhh-error').textContent='';rahhhUpdatePreview();o.hidden=false;rahhhUpdateStatus();document.body.style.overflow='hidden';document.getElementById('rahhh-name').focus()}
-        function closeRahhhPanel(){const o=document.getElementById('rahhh-overlay');if(o)o.hidden=true;document.body.style.overflow=''}
-        function rahhhUpdatePreview(){const n=document.getElementById('rahhh-name'),p=document.getElementById('rahhh-pfp'),b=document.getElementById('rahhh-bio');if(!n)return;document.getElementById('rahhh-preview-name').textContent=n.value.trim()||'Rahhh Bot';document.getElementById('rahhh-preview-bio').textContent=b.value.trim()||'No bio set.';const img=document.getElementById('rahhh-preview-pfp');img.src=p.value.trim()||RAHHH_DEFAULTS.pfp;img.onerror=()=>img.src=RAHHH_DEFAULTS.pfp}
-        function saveRahhhPanel(){
-            const cfg=rahhhNormalize({enabled:document.getElementById('rahhh-enabled').checked,username:document.getElementById('rahhh-name').value,pfp:document.getElementById('rahhh-pfp').value,bio:document.getElementById('rahhh-bio').value,channel:document.getElementById('rahhh-channel').value});
-            const err=document.getElementById('rahhh-error');
-            if(!cfg.username.trim()){err.textContent='The bot needs a username.';return}
-            err.textContent='';
-            db.ref('chat_profiles/rahhh_bot').update({botConfig:cfg,username:cfg.username,pfp:cfg.pfp,bio:cfg.bio,rank:'Bot',role:'Bot',isBot:true,botType:'rahhh',status:'causing problems'}).then(()=>{
-                rahhhConfig=cfg;
-                rahhhLastError='';
-                closeRahhhPanel();
-                if(cfg.enabled) rahhhAttemptLeadership(); else rahhhReleaseLeadership();
-            }).catch(e=>err.textContent=`Could not connect to Firebase: ${e.message}`);
-        }
-        function rahhhTestPost(){
-            if(!rahhhCanConfigure())return;
-            const cfg=rahhhNormalize({username:document.getElementById('rahhh-name').value,pfp:document.getElementById('rahhh-pfp').value,bio:document.getElementById('rahhh-bio').value,channel:document.getElementById('rahhh-channel').value,enabled:document.getElementById('rahhh-enabled').checked});
-            const path=rahhhChannelPath(cfg.channel);
-            db.ref(path).limitToLast(30).once('value').then(snap=>{
-                const recent=rahhhRecentHumanMessages(snap);
-                return db.ref(path).push({user:cfg.username,rank:'Bot',msg:rahhhBuildContextLine(recent),pfp:cfg.pfp,bio:cfg.bio,isBot:true,contextGenerated:recent.length>0,timestamp:Date.now()});
-            }).catch(e=>document.getElementById('rahhh-error').textContent=e.message);
-        }
-        const sendMessageBeforeRahhhBot=sendMessage;sendMessage=function(){const input=document.getElementById('chat-input');if(input&&/^\/bot(?:config)?\s*$/i.test(input.value.trim())){input.value='';input.style.height='auto';hideCommandSuggestions();openRahhhPanel();return}return sendMessageBeforeRahhhBot()};
-        if(typeof COMMAND_DEFINITIONS!=='undefined'&&!COMMAND_DEFINITIONS.some(d=>d.command==='/bot'))COMMAND_DEFINITIONS.unshift({command:'/bot',insert:'/bot',permission:null,description:'Open Rahhh Bot settings (admins only).'});
-        setTimeout(startRahhhBot,1500);
-
-</script>
+    </script>
 </body>
 </html>
