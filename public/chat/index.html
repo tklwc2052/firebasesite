@@ -3414,167 +3414,6 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
 
         
-
-        /* Fictional Avern economy. Currency has no real-world value and cannot be purchased or cashed out. */
-        const MONEY_STARTING_BALANCE = 1000;
-        const MONEY_KL_STARTING_BALANCE = 10000000000;
-        const MONEY_BEG_COOLDOWN_MS = 10 * 60 * 1000;
-        const MONEY_GAMBLE_COOLDOWN_MS = 15 * 1000;
-        const MONEY_MAX_GAMBLE = 1000000;
-        const MONEY_MAX_PAY = 10000000000;
-
-        function getMoneyUserKey(name) {
-            return String(name || '').trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
-        }
-        function getMoneyAccountRef(name) { return db.ref('money_accounts/' + getMoneyUserKey(name)); }
-        function defaultMoneyAccount(name) {
-            const key = getMoneyUserKey(name);
-            return { wallet: key === 'kl_' ? MONEY_KL_STARTING_BALANCE : MONEY_STARTING_BALANCE, bank: 0, createdAt: Date.now() };
-        }
-        async function ensureMoneyAccount(name) {
-            const key = getMoneyUserKey(name);
-            if (!key) throw new Error('Invalid username.');
-            const ref = getMoneyAccountRef(key);
-            await ref.transaction(current => current || defaultMoneyAccount(key));
-            const snap = await ref.once('value');
-            return snap.val() || defaultMoneyAccount(key);
-        }
-        function parseMoneyAmount(value, allowAll = false) {
-            const raw = String(value || '').trim().toLowerCase().replace(/,/g, '');
-            if (allowAll && raw === 'all') return 'all';
-            const match = raw.match(/^(\d+(?:\.\d+)?)([kmbt])?$/);
-            if (!match) return null;
-            const multipliers = { k:1e3, m:1e6, b:1e9, t:1e12 };
-            const amount = Math.floor(Number(match[1]) * (multipliers[match[2]] || 1));
-            return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
-        }
-        function formatMoney(amount) {
-            return '$' + Math.max(0, Math.floor(Number(amount) || 0)).toLocaleString();
-        }
-        function moneySystemMessage(message) {
-            return db.ref(getChannelDatabasePath()).push({
-                user:'BANK', msg:message, pfp:'https://cdn-icons-png.flaticon.com/512/2830/2830284.png', timestamp:Date.now()
-            });
-        }
-        function moneyUsage() {
-            return moneySystemMessage('**Money commands**\n`/money bal [@user]`\n`/money bank`\n`/money bank deposit <amount|all>`\n`/money bank withdraw <amount|all>`\n`/money gamble <amount>`\n`/money beg`\n`/money pay @user <amount> [reason]`\nAmounts support `k`, `m`, and `b`. This is fictional currency with no real-world value.');
-        }
-        async function recordMoneyTransaction(type, from, to, amount, details = {}) {
-            const ref = db.ref('money_transactions').push();
-            return ref.set({ type, from:from || '', to:to || '', amount:Number(amount)||0, timestamp:Date.now(), ...details });
-        }
-        async function handleMoneyCommand(targetText, inputField) {
-            const trimmed = String(targetText || '').trim();
-            if (!/^\/money(?:\s|$)/i.test(trimmed)) return false;
-            inputField.value = '';
-            hideCommandSuggestions();
-            const parts = trimmed.split(/\s+/);
-            const sub = String(parts[1] || '').toLowerCase();
-            const me = getMoneyUserKey(sessionUser.username);
-            try {
-                if (!sub || sub === 'help') { await moneyUsage(); return true; }
-                if (sub === 'bal' || sub === 'balance') {
-                    const target = getMoneyUserKey(parts[2] || me);
-                    if (!target || (target !== me && !globalProfiles[target])) { await moneySystemMessage('That user does not exist.'); return true; }
-                    const account = await ensureMoneyAccount(target);
-                    await moneySystemMessage(`💰 **${target}** has **${formatMoney(account.wallet)}** in their wallet and **${formatMoney(account.bank)}** in the bank. Net worth: **${formatMoney((account.wallet||0)+(account.bank||0))}**.`);
-                    return true;
-                }
-                if (sub === 'bank') {
-                    const action = String(parts[2] || '').toLowerCase();
-                    const account = await ensureMoneyAccount(me);
-                    if (!action) {
-                        await moneySystemMessage(`🏦 **${sessionUser.username}'s bank**\nWallet: **${formatMoney(account.wallet)}**\nSavings: **${formatMoney(account.bank)}**`);
-                        return true;
-                    }
-                    if (!['deposit','withdraw'].includes(action)) { await moneyUsage(); return true; }
-                    let amount = parseMoneyAmount(parts[3], true);
-                    const sourceField = action === 'deposit' ? 'wallet' : 'bank';
-                    const targetField = action === 'deposit' ? 'bank' : 'wallet';
-                    if (amount === 'all') amount = Math.floor(Number(account[sourceField]) || 0);
-                    if (!amount) { await moneySystemMessage(`Usage: \`/money bank ${action} <amount|all>\``); return true; }
-                    let result = 'failed';
-                    await getMoneyAccountRef(me).transaction(current => {
-                        current = current || defaultMoneyAccount(me);
-                        const available = Math.floor(Number(current[sourceField]) || 0);
-                        if (available < amount) { result = 'insufficient'; return; }
-                        current[sourceField] = available - amount;
-                        current[targetField] = Math.floor(Number(current[targetField]) || 0) + amount;
-                        result = 'ok'; return current;
-                    });
-                    if (result !== 'ok') { await moneySystemMessage(`You do not have enough money in your ${sourceField}.`); return true; }
-                    await recordMoneyTransaction(action, me, me, amount);
-                    await moneySystemMessage(`🏦 **${sessionUser.username}** ${action === 'deposit' ? 'deposited' : 'withdrew'} **${formatMoney(amount)}**.`);
-                    return true;
-                }
-                if (sub === 'beg') {
-                    let reward = 0, state = 'cooldown', wait = 0;
-                    const now = Date.now();
-                    await getMoneyAccountRef(me).transaction(current => {
-                        current = current || defaultMoneyAccount(me);
-                        const last = Number(current.lastBegAt || 0);
-                        if (now - last < MONEY_BEG_COOLDOWN_MS) { wait = MONEY_BEG_COOLDOWN_MS - (now-last); return; }
-                        reward = Math.floor(Math.random()*451)+50;
-                        current.wallet = Math.floor(Number(current.wallet)||0)+reward;
-                        current.lastBegAt = now; state = 'ok'; return current;
-                    });
-                    if (state !== 'ok') await moneySystemMessage(`Try begging again in **${Math.ceil(wait/60000)} minute(s)**.`);
-                    else { await recordMoneyTransaction('beg','BANK',me,reward); await moneySystemMessage(`🥺 Someone gave **${sessionUser.username} ${formatMoney(reward)}**.`); }
-                    return true;
-                }
-                if (sub === 'gamble') {
-                    const amount = parseMoneyAmount(parts[2]);
-                    if (!amount || amount > MONEY_MAX_GAMBLE) { await moneySystemMessage(`Usage: \`/money gamble <amount>\`. Maximum: **${formatMoney(MONEY_MAX_GAMBLE)}**.`); return true; }
-                    let outcome = 'failed', wait = 0;
-                    const now = Date.now();
-                    await getMoneyAccountRef(me).transaction(current => {
-                        current = current || defaultMoneyAccount(me);
-                        const last = Number(current.lastGambleAt || 0);
-                        if (now-last < MONEY_GAMBLE_COOLDOWN_MS) { wait=MONEY_GAMBLE_COOLDOWN_MS-(now-last); outcome='cooldown'; return; }
-                        const wallet = Math.floor(Number(current.wallet)||0);
-                        if (wallet < amount) { outcome='insufficient'; return; }
-                        const won = Math.random() < 0.45;
-                        current.wallet = wallet + (won ? amount : -amount);
-                        current.lastGambleAt = now; outcome = won ? 'won' : 'lost'; return current;
-                    });
-                    if (outcome === 'cooldown') await moneySystemMessage(`Wait **${Math.ceil(wait/1000)} second(s)** before playing again.`);
-                    else if (outcome === 'insufficient') await moneySystemMessage('You do not have enough wallet money.');
-                    else if (outcome === 'won' || outcome === 'lost') { await recordMoneyTransaction('gamble',me,outcome==='won'?me:'BANK',amount,{outcome}); await moneySystemMessage(`${outcome==='won'?'🎉':'💸'} **${sessionUser.username} ${outcome} ${formatMoney(amount)}** in the fictional coin toss.`); }
-                    return true;
-                }
-                if (sub === 'pay') {
-                    const target = getMoneyUserKey(parts[2]);
-                    const amount = parseMoneyAmount(parts[3]);
-                    const reason = parts.slice(4).join(' ').slice(0,120);
-                    if (!target || !globalProfiles[target]) { await moneySystemMessage('Usage: `/money pay @user <amount> [reason]`.'); return true; }
-                    if (target === me) { await moneySystemMessage('You cannot pay yourself.'); return true; }
-                    if (!amount || amount > MONEY_MAX_PAY) { await moneySystemMessage(`Enter an amount from $1 to ${formatMoney(MONEY_MAX_PAY)}.`); return true; }
-                    await ensureMoneyAccount(me); await ensureMoneyAccount(target);
-                    let paid = false;
-                    await getMoneyAccountRef(me).transaction(current => {
-                        current = current || defaultMoneyAccount(me);
-                        const wallet = Math.floor(Number(current.wallet)||0);
-                        if (wallet < amount) return;
-                        current.wallet = wallet-amount; paid=true; return current;
-                    });
-                    if (!paid) { await moneySystemMessage('You do not have enough wallet money.'); return true; }
-                    try {
-                        await getMoneyAccountRef(target).transaction(current => { current=current||defaultMoneyAccount(target); current.wallet=Math.floor(Number(current.wallet)||0)+amount; return current; });
-                    } catch (err) {
-                        await getMoneyAccountRef(me).transaction(current => { current=current||defaultMoneyAccount(me); current.wallet=Math.floor(Number(current.wallet)||0)+amount; return current; });
-                        throw err;
-                    }
-                    await recordMoneyTransaction('pay',me,target,amount,{reason});
-                    await moneySystemMessage(`💸 **${sessionUser.username}** paid **${target} ${formatMoney(amount)}**${reason ? ` for **${reason}**` : ''}.`);
-                    return true;
-                }
-                await moneyUsage();
-            } catch (err) {
-                console.error('Money command failed:',err);
-                await moneySystemMessage('The bank could not complete that command. Try again.');
-            }
-            return true;
-        }
  function getAnnouncementChannelDatabasePath(channelName) {
  const cleanChannel = String(channelName || '').trim().toLowerCase();
  return cleanChannel === 'game-chat' ? 'chat' : `channels/${cleanChannel}`;
@@ -3709,7 +3548,6 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
             if (targetText.startsWith('/')) {
  if (handleAnnounceCommand(targetText, inputField)) { return; }
-            if (handleMoneyCommand(targetText, inputField)) { return; }
             if (processModerationCommand(targetText, inputField)) { inputField.value = ''; hideCommandSuggestions(); return; }
                 if (targetText === '/clear') {
                     if (!hasCommandPermission('clear')) {
@@ -4671,7 +4509,6 @@ function bindChannelSync() {
             { command: '/unmute', insert: '/unmute ', permission: 'mute', description: 'Unmute a user.' },
             { command: '/ban', insert: '/ban ', permission: 'ban', description: 'Ban a user. Usage: /ban username 1h reason' },
             { command: '/unban', insert: '/unban ', permission: 'ban', description: 'Unban a user.' },
-            { command: '/money', insert: '/money ', permission: null, description: 'Economy commands: bal, bank, gamble, beg, and pay.' },
             { command: '/announce', insert: '/announce ', permission: 'announce', description: 'Send an announcement to every server channel you can post in.' }
         ];
         let commandSuggestionState = { items: [], selectedIndex: 0, activeQuery: '' };
