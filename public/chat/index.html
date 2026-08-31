@@ -2156,6 +2156,27 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
                 grid-template-columns: minmax(0,1fr) !important;
             }
         }
+    
+        /* Native chat polls */
+        .poll-card { margin-top:9px; width:min(520px,100%); padding:14px; border:1px solid var(--line-clean,rgba(255,255,255,.08)); border-radius:10px; background:rgba(0,0,0,.14); }
+        .poll-question { color:white; font-size:16px; font-weight:800; line-height:1.35; overflow-wrap:anywhere; }
+        .poll-options { display:flex; flex-direction:column; gap:7px; margin-top:12px; }
+        .poll-option { position:relative; width:100%; min-height:42px; overflow:hidden; border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:9px 11px; background:rgba(255,255,255,.035); color:var(--text-normal); text-align:left; cursor:pointer; font:inherit; }
+        .poll-option:hover:not(:disabled) { border-color:rgba(88,101,242,.62); background:rgba(88,101,242,.08); }
+        .poll-option:disabled { cursor:default; opacity:.82; }
+        .poll-option.selected { border-color:var(--primary-blurple); }
+        .poll-option-fill { position:absolute; inset:0 auto 0 0; width:0; background:rgba(88,101,242,.17); pointer-events:none; transition:width .2s ease; }
+        .poll-option-content { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .poll-option-label { min-width:0; overflow-wrap:anywhere; }
+        .poll-option-count { flex-shrink:0; color:var(--text-muted); font-size:12px; font-weight:750; }
+        .poll-footer { display:flex; align-items:center; gap:8px; margin-top:11px; color:var(--text-muted); font-size:11px; }
+        .poll-close-btn { margin-left:auto; border:0; border-radius:6px; padding:5px 8px; background:transparent; color:var(--text-muted); cursor:pointer; font:inherit; font-size:11px; font-weight:750; }
+        .poll-close-btn:hover { color:white; background:rgba(255,255,255,.06); }
+        .poll-closed-label { margin-left:auto; color:#f0b232; font-weight:800; }
+        body.theme-light .poll-card { background:rgba(0,0,0,.035); }
+        body.theme-light .poll-question { color:#111214; }
+        body.theme-light .poll-option { border-color:rgba(0,0,0,.11); background:rgba(0,0,0,.025); }
+
     </style>
 </head>
 <body>
@@ -5251,6 +5272,120 @@ function bindChannelSync() {
         }
         const svgUiObserver = new MutationObserver(() => applySvgIconsToInterface());
         window.addEventListener('DOMContentLoaded',()=>{ applySvgIconsToInterface(); svgUiObserver.observe(document.body,{childList:true,subtree:true}); });
+    
+        /* Native poll system: /poll "Question" "Option 1" "Option 2" */
+        function getPollVoterKey() {
+            return String(sessionUser.username || 'guest').toLowerCase().replace(/[.#$\[\]\/]/g, '_');
+        }
+        function getPollVotes(poll) {
+            return poll && poll.votes && typeof poll.votes === 'object' ? poll.votes : {};
+        }
+        function getPollVoteOption(vote) {
+            return typeof vote === 'number' ? vote : Number(vote && vote.option);
+        }
+        function buildPollMarkup(messageKey, packet) {
+            const poll = packet.poll || {};
+            const options = Array.isArray(poll.options) ? poll.options : [];
+            const votes = getPollVotes(poll);
+            const counts = options.map(() => 0);
+            Object.values(votes).forEach(vote => {
+                const option = getPollVoteOption(vote);
+                if (Number.isInteger(option) && option >= 0 && option < counts.length) counts[option]++;
+            });
+            const total = counts.reduce((sum, value) => sum + value, 0);
+            const myVote = getPollVoteOption(votes[getPollVoterKey()]);
+            const closed = poll.closed === true;
+            const canClose = !closed && (String(poll.creator || packet.user || '').toLowerCase() === String(sessionUser.username || '').toLowerCase() || hasCommandPermission('pinmsg'));
+            const optionHtml = options.map((label, index) => {
+                const count = counts[index];
+                const pct = total ? Math.round((count / total) * 100) : 0;
+                const selected = myVote === index;
+                return `<button class="poll-option ${selected ? 'selected' : ''}" ${closed ? 'disabled' : ''} onclick="voteInPoll('${escapeForSingleQuote(messageKey)}',${index})"><span class="poll-option-fill" style="width:${pct}%"></span><span class="poll-option-content"><span class="poll-option-label">${escapeHtml(label)}</span><span class="poll-option-count">${count} · ${pct}%</span></span></button>`;
+            }).join('');
+            return `<div class="poll-card"><div class="poll-question">${escapeHtml(poll.question || 'Poll')}</div><div class="poll-options">${optionHtml}</div><div class="poll-footer"><span>${total} vote${total === 1 ? '' : 's'}</span><span>•</span><span>${closed ? 'Voting ended' : 'Click an option to vote'}</span>${canClose ? `<button class="poll-close-btn" onclick="closePoll('${escapeForSingleQuote(messageKey)}')">Close poll</button>` : (closed ? '<span class="poll-closed-label">Closed</span>' : '')}</div></div>`;
+        }
+        function voteInPoll(messageKey, optionIndex) {
+            if (!sessionUser.username) return;
+            const pollRef = db.ref(`${getChannelDatabasePath()}/${messageKey}/poll`);
+            pollRef.transaction(poll => {
+                if (!poll || poll.closed === true || !Array.isArray(poll.options) || optionIndex < 0 || optionIndex >= poll.options.length) return;
+                poll.votes = poll.votes && typeof poll.votes === 'object' ? poll.votes : {};
+                const voterKey = getPollVoterKey();
+                const current = getPollVoteOption(poll.votes[voterKey]);
+                if (current === optionIndex) delete poll.votes[voterKey];
+                else poll.votes[voterKey] = { option: optionIndex, username: sessionUser.username, votedAt: Date.now() };
+                return poll;
+            }, (error, committed) => {
+                if (error) { console.error('Poll vote failed:', error); alert('Your vote could not be saved.'); }
+                else if (!committed) alert('This poll is closed or no longer exists.');
+            });
+        }
+        function closePoll(messageKey) {
+            const pollRef = db.ref(`${getChannelDatabasePath()}/${messageKey}/poll`);
+            pollRef.once('value').then(snapshot => {
+                const poll = snapshot.val();
+                if (!poll) return;
+                const mayClose = String(poll.creator || '').toLowerCase() === String(sessionUser.username || '').toLowerCase() || hasCommandPermission('pinmsg');
+                if (!mayClose) return alert('Only the poll creator or a moderator can close this poll.');
+                if (poll.closed === true) return;
+                if (!confirm('Close this poll? Voting cannot be reopened from the chat card.')) return;
+                return pollRef.update({ closed:true, closedAt:Date.now(), closedBy:sessionUser.username });
+            });
+        }
+        function parsePollCommand(text) {
+            const raw = String(text || '').trim();
+            if (!/^\/poll(?:\s|$)/i.test(raw)) return null;
+            const body = raw.replace(/^\/poll\s*/i, '');
+            const quoted = [];
+            const regex = /"((?:\\.|[^"\\])*)"/g;
+            let match;
+            while ((match = regex.exec(body)) !== null) quoted.push(match[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim());
+            if (quoted.length >= 3) return { question:quoted[0], options:quoted.slice(1, 11).filter(Boolean) };
+            const parts = body.split('|').map(value => value.trim()).filter(Boolean);
+            if (parts.length >= 3) return { question:parts[0], options:parts.slice(1, 11) };
+            return { error:true };
+        }
+        function createPollFromCommand(parsed, inputField) {
+            if (!parsed || parsed.error || !parsed.question || parsed.options.length < 2) {
+                alert('Use: /poll "Question" "Option 1" "Option 2"\nYou can add up to 10 options.\nAlternative: /poll Question | Option 1 | Option 2');
+                return;
+            }
+            if (isDmMode || (isForumMode && activeForumPost) || !isDmMode) {
+                const packet = {
+                    user:sessionUser.username,
+                    nickname:sessionUser.nickname || null,
+                    rank:sessionUser.rank || 'Member',
+                    msg:null,
+                    image:null,
+                    pfp:sessionUser.pfp,
+                    timestamp:Date.now(),
+                    poll:{ question:parsed.question.slice(0,180), options:parsed.options.map(option => option.slice(0,100)), votes:{}, creator:sessionUser.username, createdAt:Date.now(), closed:false }
+                };
+                db.ref(getChannelDatabasePath()).push(packet).catch(error => { console.error('Poll creation failed:', error); alert('The poll could not be created.'); });
+            }
+            inputField.value = '';
+            inputField.style.height = 'auto';
+            hideCommandSuggestions();
+            inputField.focus();
+        }
+        const generateMessageMarkupBeforePolls = generateMessageMarkup;
+        generateMessageMarkup = function(key, packet) {
+            const html = generateMessageMarkupBeforePolls(key, packet);
+            if (!packet || !packet.poll) return html;
+            const pollHtml = buildPollMarkup(key, packet);
+            return html.replace(/(<div id="content-container-[^"]+">[\s\S]*?<\/div>)/, `$1${pollHtml}`);
+        };
+        const sendMessageBeforePolls = sendMessage;
+        sendMessage = function() {
+            const input = document.getElementById('chat-input');
+            const parsed = parsePollCommand(input?.value);
+            if (parsed) { createPollFromCommand(parsed, input); return; }
+            return sendMessageBeforePolls();
+        };
+        if (typeof COMMAND_DEFINITIONS !== 'undefined' && !COMMAND_DEFINITIONS.some(def => def.command === '/poll')) {
+            COMMAND_DEFINITIONS.unshift({ command:'/poll', insert:'/poll "" "" ""', permission:null, description:'Create a poll with 2 to 10 choices.' });
+        }
+
     </script>
 </body>
 </html>
