@@ -2037,6 +2037,32 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             }
         }
 
+
+        /* Collapsible online member list */
+        .member-collapse-section {
+            border: 0;
+            margin: 0;
+        }
+        .member-collapse-section > summary {
+            list-style: none;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .member-collapse-section > summary::-webkit-details-marker { display: none; }
+        .member-collapse-section > summary:hover { background: var(--hover-clean, rgba(255,255,255,.055)); }
+        .member-collapse-arrow {
+            width: 12px;
+            color: var(--text-muted);
+            font-size: 10px;
+            transition: transform .16s ease;
+        }
+        .member-collapse-section[open] .member-collapse-arrow { transform: rotate(90deg); }
+        .member-collapse-section:not([open]) #online-list { display: none; }
     </style>
 </head>
 <body>
@@ -2143,7 +2169,13 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         </div>
 
         <div class="sidebar-right">
-            <div><div class="member-section-title">Online — <span id="online-count">0</span></div><div id="online-list"></div></div>
+            <details id="online-member-section" class="member-collapse-section" open>
+                <summary onclick="saveOnlineListCollapseState()">
+                    <span class="member-collapse-arrow">▶</span>
+                    <span class="member-section-title" style="padding:0;">Online — <span id="online-count">0</span></span>
+                </summary>
+                <div id="online-list"></div>
+            </details>
             <div style="margin-top: 10px;"><div class="member-section-title">Offline — <span id="offline-count">0</span></div><div id="offline-list"></div></div>
         </div>
     </div>
@@ -2295,7 +2327,10 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         let presenceHeartbeatInterval = null;
         let lastPresenceWriteAt = 0;
         let lastPresencePayloadJson = '';
-        const PRESENCE_WRITE_INTERVAL_MS = 5 * 60 * 1000;
+        const PRESENCE_WRITE_INTERVAL_MS = 30 * 1000;
+        const PRESENCE_ONLINE_TIMEOUT_MS = 90 * 1000;
+        const PRESENCE_RENDER_INTERVAL_MS = 15 * 1000;
+        let presenceRenderInterval = null;
         let dragDropListenersInitialized = false;
         let globalMentionListenersStarted = false;
         const mentionListenerRefs = new Set();
@@ -2615,7 +2650,12 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             if (!document.hidden && sessionUser.username) {
                 markCurrentConversationRead();
                 updateAllUnreadBadges();
+                updatePresenceHeartbeat(true);
+                renderPresenceFromCache();
             }
+        });
+        window.addEventListener('focus', () => {
+            if (sessionUser.username) updatePresenceHeartbeat(true);
         });
 
         function parseTime(timeStr) {
@@ -2670,12 +2710,26 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             }
         }
 
+        const ONLINE_LIST_COLLAPSED_KEY = 'avern_online_list_collapsed';
+        function loadOnlineListCollapseState() {
+            const section = document.getElementById('online-member-section');
+            if (!section) return;
+            section.open = localStorage.getItem(ONLINE_LIST_COLLAPSED_KEY) !== 'true';
+        }
+        function saveOnlineListCollapseState() {
+            // The details element toggles after the summary click, so save on the next frame.
+            requestAnimationFrame(() => {
+                const section = document.getElementById('online-member-section');
+                if (section) localStorage.setItem(ONLINE_LIST_COLLAPSED_KEY, section.open ? 'false' : 'true');
+            });
+        }
         window.addEventListener('DOMContentLoaded', () => {
     loadSavedTheme();
     loadCustomBackground();
     loadDmCollapseState();
     loadSidebarView();
     loadDesktopSidebarState();
+    loadOnlineListCollapseState();
     loadUnreadState();
     loadNotificationPreferences();
     loadSpamHistory();
@@ -3699,7 +3753,10 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             if (!force && !profileChanged && now - lastPresenceWriteAt < PRESENCE_WRITE_INTERVAL_MS) return Promise.resolve();
             lastPresenceWriteAt = now;
             lastPresencePayloadJson = stablePayload;
-            return db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).update(payload);
+            const profileRef = db.ref('chat_profiles/' + sessionUser.username.toLowerCase());
+            // Mark this session offline if Firebase detects that its connection disappeared.
+            profileRef.onDisconnect().update({ presenceState: 'offline', lastSeen: firebase.database.ServerValue.TIMESTAMP });
+            return profileRef.update({ ...payload, lastSeen: firebase.database.ServerValue.TIMESTAMP });
         }
 function getOtherUserForDmThread(threadKey, myNameLower = String(sessionUser.username || '').toLowerCase()) {
     const key = String(threadKey || '').toLowerCase();
@@ -3763,7 +3820,7 @@ function renderPresenceFromCache() {
         
         Object.keys(globalProfiles).forEach(key => {
             const profile = globalProfiles[key];
-            const isRecentlyConnected = (Date.now() - (profile.lastSeen || 0)) < 150000;
+            const isRecentlyConnected = profile.presenceState === 'online' && (Date.now() - Number(profile.lastSeen || 0)) < PRESENCE_ONLINE_TIMEOUT_MS;
             const isOnline = isRecentlyConnected;
             let actualUsername = key.toUpperCase(), rawLowerName = key.toLowerCase();
             let displayName = profile.nickname ? profile.nickname : actualUsername;
@@ -3835,6 +3892,14 @@ function renderPresenceFromCache() {
     }
 function bindPresenceSync() {
     const profilesRef = db.ref('chat_profiles');
+    // lastSeen does not emit another Firebase event as it ages, so refresh the UI locally.
+    if (!presenceRenderInterval) {
+        presenceRenderInterval = setInterval(renderPresenceFromCache, PRESENCE_RENDER_INTERVAL_MS);
+    }
+    // Reconnect and foreground events should immediately renew presence.
+    db.ref('.info/connected').on('value', snap => {
+        if (snap.val() === true && sessionUser.username) updatePresenceHeartbeat(true);
+    });
     const applyProfile = snap => {
         globalProfiles[snap.key] = snap.val() || {};
         renderPresenceFromCache();
@@ -4216,7 +4281,7 @@ function bindChannelSync() {
         }
         function getPresenceText(data) {
             if (!data || !data.lastSeen) return 'Never';
-            const connected = Date.now() - data.lastSeen < 150000;
+            const connected = data.presenceState === 'online' && Date.now() - Number(data.lastSeen || 0) < PRESENCE_ONLINE_TIMEOUT_MS;
             if (connected) return 'Online now';
             return formatRelativeTime(data.lastSeen);
         }
@@ -4265,7 +4330,7 @@ function bindChannelSync() {
                 
                 const popStatusDot = document.getElementById('pop-status-dot'); 
                 if (data && data.lastSeen) {
-                    const connected = Date.now() - data.lastSeen < 150000;
+                    const connected = data.presenceState === 'online' && Date.now() - Number(data.lastSeen || 0) < PRESENCE_ONLINE_TIMEOUT_MS;
                     popStatusDot.className = `status-dot ${connected ? 'status-online' : 'status-offline'}`;
                 } else popStatusDot.className = 'status-dot status-offline';
                 const statusBox = document.getElementById('pop-status'); 
@@ -4520,8 +4585,8 @@ function bindChannelSync() {
                 .sort((a, b) => {
                     const aProfile = globalProfiles[a] || {};
                     const bProfile = globalProfiles[b] || {};
-                    const aOnline = (Date.now() - (aProfile.lastSeen || 0)) < 150000 ? 0 : 1;
-                    const bOnline = (Date.now() - (bProfile.lastSeen || 0)) < 150000 ? 0 : 1;
+                    const aOnline = aProfile.presenceState === 'online' && (Date.now() - Number(aProfile.lastSeen || 0)) < PRESENCE_ONLINE_TIMEOUT_MS ? 0 : 1;
+                    const bOnline = bProfile.presenceState === 'online' && (Date.now() - Number(bProfile.lastSeen || 0)) < PRESENCE_ONLINE_TIMEOUT_MS ? 0 : 1;
                     if (aOnline !== bOnline) return aOnline - bOnline;
                     return a.localeCompare(b);
                 })
