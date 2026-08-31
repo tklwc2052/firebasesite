@@ -2063,6 +2063,70 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         }
         .member-collapse-section[open] .member-collapse-arrow { transform: rotate(90deg); }
         .member-collapse-section:not([open]) #online-list { display: none; }
+
+        /* Fully hideable right member sidebar */
+        .member-sidebar-collapse-btn,
+        .member-sidebar-restore-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 auto;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .member-sidebar-collapse-btn:hover,
+        .member-sidebar-restore-btn:hover {
+            color: white;
+            background: var(--hover-clean, rgba(255,255,255,.06));
+        }
+        .member-sidebar-collapse-btn { margin-left: auto; }
+        .member-sidebar-restore-btn { display: none; margin-left: 0; }
+        .member-sidebar-collapse-btn .ui-icon,
+        .member-sidebar-restore-btn .ui-icon { width: 18px; height: 18px; }
+        .sidebar-right {
+            min-width: 0;
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            transition: opacity 170ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), visibility 0s linear 0s;
+        }
+        body.member-sidebar-collapsed #app-container {
+            grid-template-columns: 252px minmax(0,1fr) 0;
+        }
+        body.desktop-sidebar-collapsed.member-sidebar-collapsed #app-container {
+            grid-template-columns: 0 minmax(0,1fr) 0;
+        }
+        body.member-sidebar-collapsed .sidebar-right {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(100%);
+            pointer-events: none;
+            padding-left: 0;
+            padding-right: 0;
+            border-left: 0;
+            transition: opacity 150ms ease, transform 240ms cubic-bezier(.2,.8,.2,1), visibility 0s linear 240ms;
+        }
+        body.member-sidebar-collapsed .member-sidebar-restore-btn { display: inline-flex; }
+        @media (max-width: 900px) {
+            .member-sidebar-collapse-btn,
+            .member-sidebar-restore-btn { display: none !important; }
+            body.member-sidebar-collapsed #app-container,
+            body.desktop-sidebar-collapsed.member-sidebar-collapsed #app-container {
+                grid-template-columns: 224px minmax(0,1fr);
+            }
+            body.member-sidebar-collapsed .sidebar-right { display: none; }
+        }
+        @media (max-width: 640px) {
+            body.member-sidebar-collapsed #app-container,
+            body.desktop-sidebar-collapsed.member-sidebar-collapsed #app-container {
+                grid-template-columns: minmax(0,1fr) !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2147,7 +2211,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
         <div class="chat-area" id="drop-zone">
             <div id="drag-indicator">Drop image here to instantly attach</div>
-            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
+            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button><button class="member-sidebar-restore-btn" onclick="expandMemberSidebar()" title="Show member list" aria-label="Show member list">◀</button></div>
             <div class="chat-messages" id="chat-box"><div class="loading-history" id="loading-history">Loading older messages...</div></div>
             <div class="chat-input-container">
                 <div class="reply-context-status-bar" id="reply-track-wrap"><span>Replying to <span id="reply-track-user" style="font-weight:bold; color:white;"></span></span><button class="reply-close-btn" onclick="cancelReplyData()">✕</button></div>
@@ -2169,13 +2233,13 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         </div>
 
         <div class="sidebar-right">
-            <details id="online-member-section" class="member-collapse-section" open>
-                <summary onclick="saveOnlineListCollapseState()">
-                    <span class="member-collapse-arrow">▶</span>
-                    <span class="member-section-title" style="padding:0;">Online — <span id="online-count">0</span></span>
-                </summary>
+            <div>
+                <div class="member-section-title" style="display:flex;align-items:center;">
+                    <span>Online — <span id="online-count">0</span></span>
+                    <button class="member-sidebar-collapse-btn" onclick="collapseMemberSidebar()" title="Hide member list" aria-label="Hide member list">▶</button>
+                </div>
                 <div id="online-list"></div>
-            </details>
+            </div>
             <div style="margin-top: 10px;"><div class="member-section-title">Offline — <span id="offline-count">0</span></div><div id="offline-list"></div></div>
         </div>
     </div>
@@ -2710,6 +2774,16 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
             }
         }
 
+        const MEMBER_SIDEBAR_COLLAPSED_KEY = 'avern_member_sidebar_collapsed';
+        function setMemberSidebarCollapsed(collapsed) {
+            document.body.classList.toggle('member-sidebar-collapsed', !!collapsed);
+            localStorage.setItem(MEMBER_SIDEBAR_COLLAPSED_KEY, collapsed ? 'true' : 'false');
+        }
+        function collapseMemberSidebar() { setMemberSidebarCollapsed(true); }
+        function expandMemberSidebar() { setMemberSidebarCollapsed(false); }
+        function loadMemberSidebarState() {
+            document.body.classList.toggle('member-sidebar-collapsed', localStorage.getItem(MEMBER_SIDEBAR_COLLAPSED_KEY) === 'true');
+        }
         const ONLINE_LIST_COLLAPSED_KEY = 'avern_online_list_collapsed';
         function loadOnlineListCollapseState() {
             const section = document.getElementById('online-member-section');
@@ -2729,7 +2803,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
     loadDmCollapseState();
     loadSidebarView();
     loadDesktopSidebarState();
-    loadOnlineListCollapseState();
+    loadMemberSidebarState();
     loadUnreadState();
     loadNotificationPreferences();
     loadSpamHistory();
