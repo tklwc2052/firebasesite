@@ -2219,37 +2219,12 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 .image-album-grid{display:grid;gap:4px;margin-top:7px;max-width:620px;border-radius:10px;overflow:hidden}.image-album-grid.album-1{grid-template-columns:1fr}.image-album-grid.album-2{grid-template-columns:1fr 1fr}.image-album-grid.album-3,.image-album-grid.album-4,.image-album-grid.album-many{grid-template-columns:1fr 1fr}.album-image-wrap{position:relative;min-height:150px;background:#111214;overflow:hidden;cursor:zoom-in}.album-image-wrap img{display:block;width:100%;height:100%;min-height:150px;max-height:300px;object-fit:cover}.album-more-count{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.62);color:#fff;font-size:28px;font-weight:900}.image-viewer-overlay{position:fixed;inset:0;z-index:15000;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:rgba(8,9,12,.96);color:#fff}.image-viewer-overlay[hidden]{display:none!important}.image-viewer-toolbar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#15161a;border-bottom:1px solid rgba(255,255,255,.08);overflow-x:auto}.image-viewer-toolbar .viewer-spacer{flex:1}.viewer-tool{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;border:0;border-radius:7px;padding:8px 10px;background:transparent;color:#b5bac1;font:inherit;font-size:12px;font-weight:750;cursor:pointer}.viewer-tool:hover,.viewer-tool.active{background:rgba(255,255,255,.09);color:#fff}.viewer-tool.danger:hover{background:rgba(237,66,69,.18);color:#ff8186}.viewer-color{width:33px;height:31px;padding:2px;border:0;border-radius:6px;background:transparent;cursor:pointer}.image-viewer-stage{position:relative;min-height:0;overflow:hidden;display:grid;place-items:center;touch-action:none;user-select:none}.viewer-image-container{position:relative;transform-origin:center center;will-change:transform}.viewer-main-image{display:block;max-width:88vw;max-height:76vh;object-fit:contain;pointer-events:none}.viewer-draw-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}.viewer-text-label{position:absolute;padding:3px 6px;border-radius:4px;background:rgba(0,0,0,.5);color:#fff;font:700 18px/1.2 sans-serif;cursor:move;white-space:pre;user-select:none}.image-viewer-footer{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#15161a;border-top:1px solid rgba(255,255,255,.08);color:#949ba4;font-size:12px}.viewer-counter{margin-left:auto}.album-preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:7px;padding:8px;background:#1e1f22;border-radius:8px;max-height:174px;overflow-y:auto}.album-preview-item{position:relative;height:75px;border-radius:7px;overflow:hidden;background:#111214}.album-preview-item img{width:100%;height:100%;object-fit:cover}.album-preview-remove{position:absolute;right:3px;top:3px;width:22px;height:22px;border:0;border-radius:50%;background:rgba(218,55,60,.9);color:#fff;cursor:pointer}.profile-showcase{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:4px}.profile-showcase-item{position:relative;aspect-ratio:1;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.04);cursor:zoom-in}.profile-showcase-item img{width:100%;height:100%;object-fit:cover}.profile-showcase-empty{grid-column:1/-1;color:var(--text-muted);font-size:12px;padding:8px 0}.showcase-star{color:#f0b232}.viewer-text-dialog{position:absolute;z-index:3;width:min(340px,calc(100% - 30px));padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#1e1f22;box-shadow:0 12px 40px rgba(0,0,0,.5)}.viewer-text-dialog input{width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px;border:1px solid transparent;border-radius:6px;background:#383a40;color:#fff;outline:none}.viewer-text-dialog input:focus{border-color:var(--primary-blurple)}@media(max-width:640px){.image-viewer-toolbar{padding:7px}.viewer-tool span{display:none}.viewer-tool{padding:8px}.viewer-main-image{max-width:96vw;max-height:72vh}.image-album-grid{max-width:100%}}
 
 
-        /* Firebase account screen */
-        #auth-screen{position:fixed;inset:0;background:#111214;display:flex;align-items:center;justify-content:center;z-index:200000;padding:18px}
-        #auth-screen[hidden]{display:none!important}.auth-card{width:min(430px,100%);background:#1e1f22;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:28px;box-shadow:0 18px 55px rgba(0,0,0,.55)}
-        .auth-card h1{margin:0 0 6px;color:#fff;font-size:25px}.auth-card p{color:var(--text-muted);font-size:13px;line-height:1.45}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:18px 0}
-        .auth-tabs button,.auth-primary,.auth-secondary{border:0;border-radius:7px;padding:11px;font:inherit;font-weight:750;cursor:pointer}.auth-tabs button{background:#2b2d31;color:var(--text-muted)}.auth-tabs button.active,.auth-primary{background:var(--primary-blurple);color:#fff}.auth-secondary{background:transparent;color:var(--text-normal)}
-        .auth-field{display:flex;flex-direction:column;gap:6px;margin:11px 0}.auth-field label{color:var(--text-muted);font-size:11px;font-weight:800;text-transform:uppercase}.auth-field input{background:#111214;color:#fff;border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:12px;outline:none}.auth-field input:focus{border-color:var(--primary-blurple)}
-        .auth-message{min-height:20px;color:#fa777c;font-size:13px;margin-top:8px}.auth-actions{display:flex;gap:8px;flex-wrap:wrap}.auth-actions .auth-primary{flex:1}.auth-verify{display:none}.auth-verify.visible{display:block}.auth-form.hidden{display:none}.auth-logout-btn{background:transparent;border:0;color:var(--text-muted);cursor:pointer;font-size:12px}.auth-logout-btn:hover{color:#fff}
+#auth-screen{position:fixed;inset:0;background:#111214;display:flex;align-items:center;justify-content:center;z-index:200000;padding:18px}#auth-screen[hidden]{display:none!important}.auth-card{width:min(430px,100%);background:#1e1f22;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:28px;box-shadow:0 18px 55px rgba(0,0,0,.55)}.auth-card h1{margin:0 0 6px;color:#fff;font-size:25px}.auth-card p{color:var(--text-muted);font-size:13px;line-height:1.45}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:18px 0}.auth-tabs button,.auth-primary,.auth-secondary{border:0;border-radius:7px;padding:11px;font:inherit;font-weight:750;cursor:pointer}.auth-tabs button{background:#2b2d31;color:var(--text-muted)}.auth-tabs button.active,.auth-primary{background:var(--primary-blurple);color:#fff}.auth-secondary{background:transparent;color:var(--text-normal)}.auth-field{display:flex;flex-direction:column;gap:6px;margin:11px 0}.auth-field label{color:var(--text-muted);font-size:11px;font-weight:800;text-transform:uppercase}.auth-field input{background:#111214;color:#fff;border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:12px;outline:none}.auth-field input:focus{border-color:var(--primary-blurple)}.auth-message{min-height:20px;color:#fa777c;font-size:13px;margin-top:8px}.auth-actions{display:flex;gap:8px;flex-wrap:wrap}.auth-actions .auth-primary{flex:1}.auth-form.hidden{display:none}.auth-logout-btn{background:transparent;border:0;color:var(--text-muted);cursor:pointer;font-size:12px}.auth-logout-btn:hover{color:#fff}
 
 </style>
 </head>
 <body>
-
-    <div id="auth-screen">
-      <div class="auth-card">
-        <div id="auth-form" class="auth-form">
-          <h1>Avern account</h1><p>Use a verified email and password to enter chat.</p>
-          <div class="auth-tabs"><button id="auth-login-tab" class="active" onclick="setAuthMode('login')">Log in</button><button id="auth-signup-tab" onclick="setAuthMode('signup')">Create account</button></div>
-          <div id="auth-username-wrap" class="auth-field" hidden><label>Username</label><input id="auth-username" maxlength="15" autocomplete="username" placeholder="No spaces"></div>
-          <div class="auth-field"><label>Email</label><input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com"></div>
-          <div class="auth-field"><label>Password</label><input id="auth-password" type="password" minlength="8" autocomplete="current-password" placeholder="At least 8 characters"></div>
-          <div class="auth-actions"><button id="auth-submit" class="auth-primary" onclick="submitAuth()">Log in</button><button class="auth-secondary" onclick="sendPasswordReset()">Forgot password?</button></div>
-          <div id="auth-message" class="auth-message" aria-live="polite"></div>
-        </div>
-        <div id="auth-verify" class="auth-verify">
-          <h1>Verify your email</h1><p id="auth-verify-copy">Open the verification email, click its link, then come back here.</p>
-          <div class="auth-actions"><button class="auth-primary" onclick="checkEmailVerification()">I verified it</button><button class="auth-secondary" onclick="resendVerification()">Resend email</button><button class="auth-secondary" onclick="signOutAccount()">Use another account</button></div>
-          <div id="auth-verify-message" class="auth-message" aria-live="polite"></div>
-        </div>
-      </div>
-    </div>
-
+<div id="auth-screen"><div class="auth-card"><div id="auth-form" class="auth-form"><h1>Avern account</h1><p>okay gng, so like i dont trust any of yall so add a password and email. i was going to send u a email to confirm it but the school is a bum.</p><div class="auth-tabs"><button id="auth-login-tab" class="active" onclick="setAuthMode('login')">Log in</button><button id="auth-signup-tab" onclick="setAuthMode('signup')">Create account</button></div><div id="auth-username-wrap" class="auth-field" hidden><label>Username</label><input id="auth-username" maxlength="15" autocomplete="username" placeholder="Letters, numbers, underscores"></div><div class="auth-field"><label>Email</label><input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="auth-field"><label>Password</label><input id="auth-password" type="password" minlength="8" autocomplete="current-password" placeholder="At least 8 characters"></div><div class="auth-actions"><button id="auth-submit" class="auth-primary" onclick="submitAuth()">Log in</button><button class="auth-secondary" onclick="sendPasswordReset()">Forgot password?</button></div><div id="auth-message" class="auth-message" aria-live="polite"></div></div></div></div>
     
 
 
@@ -2552,15 +2527,18 @@ updateAlbumPreview=function(){
 
     <script>
         // Firebase RTDB optimized build: external image URLs, single unread/mention watchers, throttled presence, and capped queries.
-        const firebaseConfig = {
-            // Replace the three REPLACE_ME values from Firebase Console > Project settings > Your apps.
-            apiKey: "AIzaSyAgOggS_nTmOubBXXg6mjI9twxsOgRlluk",
-            authDomain: "ilikespacedotcom.firebaseapp.com",
-            databaseURL: "https://ilikespacedotcom-default-rtdb.firebaseio.com",
-            projectId: "ilikespacedotcom",
-            storageBucket: "ilikespacedotcom.appspot.com",
-            appId: "G-ZRJ9DVTXEM"
-        };
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAgOggS_nTmOubBXXg6mjI9twxsOgRlluk",
+  authDomain: "ilikespacedotcom.firebaseapp.com",
+  databaseURL: "https://ilikespacedotcom-default-rtdb.firebaseio.com",
+  projectId: "ilikespacedotcom",
+  storageBucket: "ilikespacedotcom.firebasestorage.app",
+  messagingSenderId: "535073068352",
+  appId: "1:535073068352:web:9e4b7f30ee118154af56a5",
+  measurementId: "G-ZRJ9DVTXEM"
+};
+
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
@@ -3052,7 +3030,7 @@ updateAlbumPreview=function(){
         document.getElementById('setup-username').value = parsed.username || "";
         
         // NEW: Disable input if username is already set in the cache
-        // Username locking is handled by Firebase Authentication after the account loads.
+        // Username ownership is now controlled by Firebase Authentication.
 
         document.getElementById('setup-status').value = parsed.status || "";
         document.getElementById('setup-pronouns').value = parsed.pronouns || "";
@@ -3061,7 +3039,7 @@ updateAlbumPreview=function(){
         sessionUser.nickname = parsed.nickname || "";
         if (sessionUser.pfp) { document.getElementById('pfp-label-text').innerText = "Image Loaded ✓"; document.getElementById('pfp-label-text').classList.add('loaded'); }
         if (sessionUser.banner) { document.getElementById('banner-label-text').innerText = "Image Loaded ✓"; document.getElementById('banner-label-text').classList.add('loaded'); }
-        // Do not enter from localStorage. Firebase Auth decides whether the user may enter.
+        // Firebase Authentication controls automatic login.
     }
 });
 
@@ -5709,54 +5687,20 @@ function bindChannelSync() {
         }
 
     </script>
-
 <script>
-/* ===== Firebase Authentication gate ===== */
-let authMode = 'login';
-let authBootBusy = false;
-const legacyProfileSaveAndEnter = loginToGuild;
-function authMsg(text, good=false){const el=document.getElementById('auth-message');if(el){el.textContent=text||'';el.style.color=good?'#57f287':'#fa777c'}}
-function setAuthMode(mode){authMode=mode==='signup'?'signup':'login';document.getElementById('auth-login-tab').classList.toggle('active',authMode==='login');document.getElementById('auth-signup-tab').classList.toggle('active',authMode==='signup');document.getElementById('auth-username-wrap').hidden=authMode!=='signup';document.getElementById('auth-submit').textContent=authMode==='signup'?'Create account':'Log in';document.getElementById('auth-password').autocomplete=authMode==='signup'?'new-password':'current-password';authMsg('')}
-function friendlyAuthError(error){const map={'auth/invalid-credential':'That email or password is incorrect.','auth/email-already-in-use':'That email already has an account.','auth/weak-password':'Use a stronger password with at least 8 characters.','auth/invalid-email':'Enter a valid email address.','auth/too-many-requests':'Too many attempts. Wait a little and try again.','auth/network-request-failed':'Could not reach Firebase. Check your connection and authorized domain.'};return map[error?.code]||error?.message||'Authentication failed.'}
-async function submitAuth(){
-  const email=document.getElementById('auth-email').value.trim();const password=document.getElementById('auth-password').value;
-  if(!email||!password)return authMsg('Enter your email and password.');
-  try{authMsg('Working...',true);if(authMode==='signup'){
-    const username=document.getElementById('auth-username').value.trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))throw new Error('Username must be 2 to 15 letters, numbers, or underscores.');
-    localStorage.setItem('avern_pending_username',username);const cred=await auth.createUserWithEmailAndPassword(email,password);await cred.user.sendEmailVerification();showVerifyScreen(cred.user);
-  }else await auth.signInWithEmailAndPassword(email,password);
-  }catch(e){authMsg(friendlyAuthError(e));}
-}
-function showVerifyScreen(user){document.getElementById('auth-form').classList.add('hidden');document.getElementById('auth-verify').classList.add('visible');document.getElementById('auth-verify-copy').textContent=`A verification link was sent to ${user.email}. Click it, then return here.`}
-function showLoginScreen(){document.getElementById('auth-form').classList.remove('hidden');document.getElementById('auth-verify').classList.remove('visible')}
-async function resendVerification(){try{await auth.currentUser.sendEmailVerification();document.getElementById('auth-verify-message').textContent='Verification email sent again.'}catch(e){document.getElementById('auth-verify-message').textContent=friendlyAuthError(e)}}
-async function checkEmailVerification(){try{await auth.currentUser.reload();if(!auth.currentUser.emailVerified)return document.getElementById('auth-verify-message').textContent='Firebase still says the email is not verified. Open the link first.';await bootAuthenticatedAccount(auth.currentUser)}catch(e){document.getElementById('auth-verify-message').textContent=friendlyAuthError(e)}}
+/* Firebase email/password accounts. Verification intentionally disabled. */
+let authMode='login',authBootBusy=false;const legacyProfileSaveAndEnter=loginToGuild;
+function authMsg(t,g=false){const e=document.getElementById('auth-message');if(e){e.textContent=t||'';e.style.color=g?'#57f287':'#fa777c'}}
+function setAuthMode(m){authMode=m==='signup'?'signup':'login';document.getElementById('auth-login-tab').classList.toggle('active',authMode==='login');document.getElementById('auth-signup-tab').classList.toggle('active',authMode==='signup');document.getElementById('auth-username-wrap').hidden=authMode!=='signup';document.getElementById('auth-submit').textContent=authMode==='signup'?'Create account':'Log in';document.getElementById('auth-password').autocomplete=authMode==='signup'?'new-password':'current-password';authMsg('')}
+function friendlyAuthError(e){const m={'auth/invalid-credential':'That email or password is incorrect.','auth/email-already-in-use':'That email already has an account. Use Log in or Forgot password.','auth/weak-password':'Use a stronger password with at least 8 characters.','auth/invalid-email':'Enter a valid email address.','auth/too-many-requests':'Too many attempts. Wait and try again.','auth/network-request-failed':'Could not reach Firebase. Check your connection and configuration.'};return m[e?.code]||e?.message||'Authentication failed.'}
+async function submitAuth(){const email=document.getElementById('auth-email').value.trim(),password=document.getElementById('auth-password').value;if(!email||!password)return authMsg('Enter your email and password.');try{authMsg('Working...',true);if(authMode==='signup'){const username=document.getElementById('auth-username').value.trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))throw new Error('Username must be 2 to 15 letters, numbers, or underscores.');localStorage.setItem('avern_pending_username',username);const cred=await auth.createUserWithEmailAndPassword(email,password);await bootAuthenticatedAccount(cred.user)}else await auth.signInWithEmailAndPassword(email,password)}catch(e){authMsg(friendlyAuthError(e))}}
 async function sendPasswordReset(){const email=document.getElementById('auth-email').value.trim();if(!email)return authMsg('Enter your email first.');try{await auth.sendPasswordResetEmail(email);authMsg('Password reset email sent.',true)}catch(e){authMsg(friendlyAuthError(e))}}
 async function signOutAccount(){try{await auth.signOut()}finally{location.reload()}}
-async function claimOrLoadUsername(user){
-  let mapSnap=await db.ref('uid_usernames/'+user.uid).once('value');let username=mapSnap.val();
-  if(username)return String(username);
-  username=(localStorage.getItem('avern_pending_username')||'').trim();
-  if(!/^[A-Za-z0-9_]{2,15}$/.test(username)){username=(prompt('Choose a username (2-15 letters, numbers, or underscores):')||'').trim()}
-  if(!/^[A-Za-z0-9_]{2,15}$/.test(username))throw new Error('A valid username is required.');
-  const lower=username.toLowerCase();const claim=await db.ref('username_owners/'+lower).transaction(current=>current||user.uid);
-  if(!claim.committed||claim.snapshot.val()!==user.uid)throw new Error('That username is already taken. Sign out and create the account again with another username.');
-  await db.ref('uid_usernames/'+user.uid).set(lower);await db.ref('chat_profiles/'+lower).update({uid:user.uid,username:username,emailVerified:true});
-  localStorage.removeItem('avern_pending_username');return lower;
-}
-async function bootAuthenticatedAccount(user){
-  if(authBootBusy)return;authBootBusy=true;
-  try{if(!user.emailVerified){showVerifyScreen(user);return}const usernameLower=await claimOrLoadUsername(user);const snap=await db.ref('chat_profiles/'+usernameLower).once('value');const profile=snap.val()||{};
-    if(Number(profile.bannedUntil||0)>Date.now())throw new Error('This account is banned. '+(profile.banReason||''));
-    const displayName=profile.username||usernameLower;document.getElementById('setup-username').value=displayName;document.getElementById('setup-username').disabled=true;
-    document.getElementById('setup-status').value=profile.status||'';document.getElementById('setup-pronouns').value=profile.pronouns||'';document.getElementById('setup-bio').value=profile.bio||'';sessionUser.pfp=profile.pfp||'';sessionUser.banner=profile.banner||'';sessionUser.nickname=profile.nickname||'';sessionUser.uid=user.uid;
-    document.getElementById('auth-screen').hidden=true;legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+usernameLower).update({uid:user.uid,username:displayName,emailVerified:true});addAccountControls();
-  }catch(e){document.getElementById('auth-screen').hidden=false;showLoginScreen();authMsg(e.message||'Could not load the account.')}finally{authBootBusy=false}
-}
-loginToGuild=async function(){const user=auth.currentUser;if(!user)return alert('Log in first.');await user.reload();if(!user.emailVerified){document.getElementById('auth-screen').hidden=false;showVerifyScreen(user);return}const entered=document.getElementById('setup-username').value.trim().toLowerCase();const owned=(await db.ref('uid_usernames/'+user.uid).once('value')).val();if(owned&&String(owned)!==entered)return alert('The username on this account cannot be changed here.');legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+entered).update({uid:user.uid,emailVerified:true,username:sessionUser.username});addAccountControls()}
-function addAccountControls(){if(document.getElementById('auth-logout-btn'))return;const footer=document.querySelector('.user-footer');if(!footer)return;const b=document.createElement('button');b.id='auth-logout-btn';b.className='auth-logout-btn';b.textContent='Log out';b.onclick=signOutAccount;footer.appendChild(b)}
-auth.onAuthStateChanged(user=>{document.getElementById('auth-screen').hidden=false;if(!user){showLoginScreen();return}user.reload().then(()=>user.emailVerified?bootAuthenticatedAccount(user):showVerifyScreen(user)).catch(e=>authMsg(friendlyAuthError(e))) });
+async function claimOrLoadUsername(user){let s=await db.ref('uid_usernames/'+user.uid).once('value'),username=s.val();if(username)return String(username);username=(localStorage.getItem('avern_pending_username')||'').trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))username=(prompt('Choose a username (2-15 letters, numbers, or underscores):')||'').trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))throw new Error('A valid username is required.');const lower=username.toLowerCase(),claim=await db.ref('username_owners/'+lower).transaction(v=>v||user.uid);if(!claim.committed||claim.snapshot.val()!==user.uid)throw new Error('That username is already taken.');await db.ref('uid_usernames/'+user.uid).set(lower);await db.ref('chat_profiles/'+lower).update({uid:user.uid,username});localStorage.removeItem('avern_pending_username');return lower}
+async function bootAuthenticatedAccount(user){if(authBootBusy)return;authBootBusy=true;try{const lower=await claimOrLoadUsername(user),snap=await db.ref('chat_profiles/'+lower).once('value'),p=snap.val()||{};if(Number(p.bannedUntil||0)>Date.now())throw new Error('This account is banned. '+(p.banReason||''));const display=p.username||lower;document.getElementById('setup-username').value=display;document.getElementById('setup-username').disabled=true;document.getElementById('setup-status').value=p.status||'';document.getElementById('setup-pronouns').value=p.pronouns||'';document.getElementById('setup-bio').value=p.bio||'';sessionUser.pfp=p.pfp||'';sessionUser.banner=p.banner||'';sessionUser.nickname=p.nickname||'';sessionUser.uid=user.uid;document.getElementById('auth-screen').hidden=true;legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+lower).update({uid:user.uid,username:display});addAccountControls()}catch(e){document.getElementById('auth-screen').hidden=false;authMsg(e.message||'Could not load the account.')}finally{authBootBusy=false}}
+loginToGuild=async function(){const user=auth.currentUser;if(!user)return alert('Log in first.');const entered=document.getElementById('setup-username').value.trim().toLowerCase(),owned=(await db.ref('uid_usernames/'+user.uid).once('value')).val();if(owned&&String(owned)!==entered)return alert('The username on this account cannot be changed here.');legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+entered).update({uid:user.uid,username:sessionUser.username});addAccountControls()}
+function addAccountControls(){if(document.getElementById('auth-logout-btn'))return;const f=document.querySelector('.user-footer');if(!f)return;const b=document.createElement('button');b.id='auth-logout-btn';b.className='auth-logout-btn';b.textContent='Log out';b.onclick=signOutAccount;f.appendChild(b)}
+auth.onAuthStateChanged(user=>{document.getElementById('auth-screen').hidden=false;if(!user)return;bootAuthenticatedAccount(user).catch(e=>authMsg(friendlyAuthError(e))) });
 </script>
-
 </body>
 </html>
