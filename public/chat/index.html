@@ -5693,7 +5693,7 @@ let authMode='login',authBootBusy=false;const legacyProfileSaveAndEnter=loginToG
 function authMsg(t,g=false){const e=document.getElementById('auth-message');if(e){e.textContent=t||'';e.style.color=g?'#57f287':'#fa777c'}}
 function setAuthMode(m){authMode=m==='signup'?'signup':'login';document.getElementById('auth-login-tab').classList.toggle('active',authMode==='login');document.getElementById('auth-signup-tab').classList.toggle('active',authMode==='signup');document.getElementById('auth-username-wrap').hidden=authMode!=='signup';document.getElementById('auth-submit').textContent=authMode==='signup'?'Create account':'Log in';document.getElementById('auth-password').autocomplete=authMode==='signup'?'new-password':'current-password';authMsg('')}
 function friendlyAuthError(e){const m={'auth/invalid-credential':'That email or password is incorrect.','auth/email-already-in-use':'That email already has an account. Use Log in or Forgot password.','auth/weak-password':'Use a stronger password with at least 8 characters.','auth/invalid-email':'Enter a valid email address.','auth/too-many-requests':'Too many attempts. Wait and try again.','auth/network-request-failed':'Could not reach Firebase. Check your connection and configuration.'};return m[e?.code]||e?.message||'Authentication failed.'}
-async function submitAuth(){const email=document.getElementById('auth-email').value.trim(),password=document.getElementById('auth-password').value;if(!email||!password)return authMsg('Enter your email and password.');try{authMsg('Working...',true);if(authMode==='signup'){const username=document.getElementById('auth-username').value.trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))throw new Error('Username must be 2 to 15 letters, numbers, or underscores.');localStorage.setItem('avern_pending_username',username);const cred=await auth.createUserWithEmailAndPassword(email,password);await bootAuthenticatedAccount(cred.user)}else await auth.signInWithEmailAndPassword(email,password)}catch(e){authMsg(friendlyAuthError(e))}}
+async function submitAuth(){const email=document.getElementById('auth-email').value.trim(),password=document.getElementById('auth-password').value;if(!email||!password)return authMsg('Enter your email and password.');try{authMsg('Working...',true);if(authMode==='signup'){const username=document.getElementById('auth-username').value.trim();if(!/^[A-Za-z0-9_+\-]{2,24}$/.test(username))throw new Error('Username must be 2 to 15 letters, numbers, or underscores.');localStorage.setItem('avern_pending_username',username);const cred=await auth.createUserWithEmailAndPassword(email,password);await bootAuthenticatedAccount(cred.user)}else await auth.signInWithEmailAndPassword(email,password)}catch(e){authMsg(friendlyAuthError(e))}}
 async function sendPasswordReset(){const email=document.getElementById('auth-email').value.trim();if(!email)return authMsg('Enter your email first.');try{await auth.sendPasswordResetEmail(email);authMsg('Password reset email sent.',true)}catch(e){authMsg(friendlyAuthError(e))}}
 async function signOutAccount() {
     const oldUsername = sessionUser.username;
@@ -5737,7 +5737,94 @@ async function signOutAccount() {
         location.reload();
     }
 }
-async function claimOrLoadUsername(user){let s=await db.ref('uid_usernames/'+user.uid).once('value'),username=s.val();if(username)return String(username);username=(localStorage.getItem('avern_pending_username')||'').trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))username=(prompt('Choose a username (2-15 letters, numbers, or underscores):')||'').trim();if(!/^[A-Za-z0-9_]{2,15}$/.test(username))throw new Error('A valid username is required.');const lower=username.toLowerCase(),claim=await db.ref('username_owners/'+lower).transaction(v=>v||user.uid);if(!claim.committed||claim.snapshot.val()!==user.uid)throw new Error('That username is already taken.');await db.ref('uid_usernames/'+user.uid).set(lower);await db.ref('chat_profiles/'+lower).update({uid:user.uid,username});localStorage.removeItem('avern_pending_username');return lower}
+    async function deleteAccount() {
+    const user = auth.currentUser;
+
+    if (!user) {
+        alert("You must be logged in.");
+        return;
+    }
+
+    const confirmed = confirm(
+        "Permanently delete your account and profile? This cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    const password = prompt(
+        "Enter your password to confirm account deletion:"
+    );
+
+    if (!password) return;
+
+    try {
+        // Firebase requires recent authentication for account deletion.
+        const credential =
+            firebase.auth.EmailAuthProvider.credential(
+                user.email,
+                password
+            );
+
+        await user.reauthenticateWithCredential(credential);
+
+        const usernameSnapshot = await db
+            .ref("uid_usernames/" + user.uid)
+            .once("value");
+
+        const usernameLower =
+            usernameSnapshot.val() ||
+            sessionUser.username.toLowerCase();
+
+        // Stop presence updates.
+        if (presenceHeartbeatInterval) {
+            clearInterval(presenceHeartbeatInterval);
+            presenceHeartbeatInterval = null;
+        }
+
+        if (usernameLower) {
+            const profileRef = db.ref(
+                "chat_profiles/" + usernameLower
+            );
+
+            await profileRef.onDisconnect().cancel();
+
+            // Delete profile and release the username.
+            await db.ref().update({
+                ["chat_profiles/" + usernameLower]: null,
+                ["username_owners/" + usernameLower]: null,
+                ["uid_usernames/" + user.uid]: null
+            });
+        }
+
+        // Delete the Firebase Authentication account.
+        await user.delete();
+
+        localStorage.removeItem("avern_guild_profile");
+        localStorage.removeItem("avern_pending_username");
+
+        alert("Your account was permanently deleted.");
+        location.reload();
+    } catch (error) {
+        console.error("Delete account error:", error);
+
+        if (
+            error.code === "auth/wrong-password" ||
+            error.code === "auth/invalid-credential"
+        ) {
+            alert("That password is incorrect.");
+        } else if (error.code === "auth/requires-recent-login") {
+            alert(
+                "Log out, log back in, then try deleting your account again."
+            );
+        } else {
+            alert(
+                "Could not delete the account: " +
+                (error.message || error.code)
+            );
+        }
+    }
+}
+async function claimOrLoadUsername(user){let s=await db.ref('uid_usernames/'+user.uid).once('value'),username=s.val();if(username)return String(username);username=(localStorage.getItem('avern_pending_username')||'').trim();if(!/^[A-Za-z0-9_+\-]{2,24}$/.test(username))username=(prompt('Choose a username (2-15 letters, numbers, or underscores):')||'').trim();if(!/^[A-Za-z0-9_+\-]{2,24}$/.test(username))throw new Error('A valid username is required.');const lower=username.toLowerCase(),claim=await db.ref('username_owners/'+lower).transaction(v=>v||user.uid);if(!claim.committed||claim.snapshot.val()!==user.uid)throw new Error('That username is already taken.');await db.ref('uid_usernames/'+user.uid).set(lower);await db.ref('chat_profiles/'+lower).update({uid:user.uid,username});localStorage.removeItem('avern_pending_username');return lower}
 async function bootAuthenticatedAccount(user){if(authBootBusy)return;authBootBusy=true;try{const lower=await claimOrLoadUsername(user),snap=await db.ref('chat_profiles/'+lower).once('value'),p=snap.val()||{};if(Number(p.bannedUntil||0)>Date.now())throw new Error('This account is banned. '+(p.banReason||''));const display=p.username||lower;document.getElementById('setup-username').value=display;document.getElementById('setup-username').disabled=true;document.getElementById('setup-status').value=p.status||'';document.getElementById('setup-pronouns').value=p.pronouns||'';document.getElementById('setup-bio').value=p.bio||'';sessionUser.pfp=p.pfp||'';sessionUser.banner=p.banner||'';sessionUser.nickname=p.nickname||'';sessionUser.uid=user.uid;document.getElementById('auth-screen').hidden=true;legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+lower).update({uid:user.uid,username:display});addAccountControls()}catch(e){document.getElementById('auth-screen').hidden=false;authMsg(e.message||'Could not load the account.')}finally{authBootBusy=false}}
 loginToGuild=async function(){const user=auth.currentUser;if(!user)return alert('Log in first.');const entered=document.getElementById('setup-username').value.trim().toLowerCase(),owned=(await db.ref('uid_usernames/'+user.uid).once('value')).val();if(owned&&String(owned)!==entered)return alert('The username on this account cannot be changed here.');legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+entered).update({uid:user.uid,username:sessionUser.username});addAccountControls()}
 function addAccountControls(){if(document.getElementById('auth-logout-btn'))return;const f=document.querySelector('.user-footer');if(!f)return;const b=document.createElement('button');b.id='auth-logout-btn';b.className='auth-logout-btn';b.textContent='Log out';b.onclick=signOutAccount;f.appendChild(b)}
