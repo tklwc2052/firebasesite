@@ -1,0 +1,116 @@
+<html>
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/AZURE2077/polytrack-beta-0.6.0@main/">
+
+  <script>
+    var NativeImage = window.Image;
+
+    window.Image = function () {
+      var img = arguments.length
+        ? new NativeImage(arguments[0], arguments[1])
+        : new NativeImage();
+
+      img.crossOrigin = "anonymous";
+      return img;
+    };
+
+    window.Image.prototype = NativeImage.prototype;
+
+    var _createElement = document.createElement.bind(document);
+
+    document.createElement = function (tag) {
+      var el = _createElement.apply(document, arguments);
+
+      if (
+        typeof tag === "string" &&
+        tag.toLowerCase() === "img"
+      ) {
+        el.crossOrigin = "anonymous";
+      }
+
+      return el;
+    };
+
+    var _audioContexts = [];
+    var _gestured = false;
+
+    function _resumeAll() {
+      _gestured = true;
+
+      _audioContexts.forEach(function (ctx) {
+        if (ctx.state === "suspended") {
+          ctx.resume();
+        }
+      });
+    }
+
+    document.addEventListener("click", _resumeAll, true);
+    document.addEventListener("keydown", _resumeAll, true);
+    document.addEventListener("touchstart", _resumeAll, true);
+
+    var NativeAC =
+      window.AudioContext || window.webkitAudioContext;
+
+    if (NativeAC) {
+      var PatchedAC = function () {
+        var ctx = arguments.length
+          ? new NativeAC(arguments[0])
+          : new NativeAC();
+
+        _audioContexts.push(ctx);
+
+        if (_gestured && ctx.state === "suspended") {
+          ctx.resume();
+        }
+
+        return ctx;
+      };
+
+      PatchedAC.prototype = NativeAC.prototype;
+
+      try {
+        window.AudioContext = PatchedAC;
+      } catch (e) {}
+
+      try {
+        window.webkitAudioContext = PatchedAC;
+      } catch (e) {}
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "f" || e.key === "F") {
+        toggleFullscreen();
+      }
+    });
+  </script>
+
+  <meta charset="utf-8">
+
+  forced_square.woff2
+  images/logo.svg
+  images/discord.svg
+
+  <link rel="manifest" href="manifest.json">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
+
+  error_screen.bundle.jsscript>
+  <script defer src="main.bundle.js"></script>
+</head>
+
+<body>
+  <canvas id="screen"></canvas>
+  <div id="ui"></div>
+  <div id="transition-layer"></div>
+</body>
+</html>
