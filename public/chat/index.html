@@ -5827,7 +5827,34 @@ async function signOutAccount() {
 async function claimOrLoadUsername(user){let s=await db.ref('uid_usernames/'+user.uid).once('value'),username=s.val();if(username)return String(username);username=(localStorage.getItem('avern_pending_username')||'').trim();if(!/^[A-Za-z0-9_+\-]{2,24}$/.test(username))username=(prompt('Choose a username (2-15 letters, numbers, or underscores):')||'').trim();if(!/^[A-Za-z0-9_+\-]{2,24}$/.test(username))throw new Error('A valid username is required.');const lower=username.toLowerCase(),claim=await db.ref('username_owners/'+lower).transaction(v=>v||user.uid);if(!claim.committed||claim.snapshot.val()!==user.uid)throw new Error('That username is already taken.');await db.ref('uid_usernames/'+user.uid).set(lower);await db.ref('chat_profiles/'+lower).update({uid:user.uid,username});localStorage.removeItem('avern_pending_username');return lower}
 async function bootAuthenticatedAccount(user){if(authBootBusy)return;authBootBusy=true;try{const lower=await claimOrLoadUsername(user),snap=await db.ref('chat_profiles/'+lower).once('value'),p=snap.val()||{};if(Number(p.bannedUntil||0)>Date.now())throw new Error('This account is banned. '+(p.banReason||''));const display=p.username||lower;document.getElementById('setup-username').value=display;document.getElementById('setup-username').disabled=true;document.getElementById('setup-status').value=p.status||'';document.getElementById('setup-pronouns').value=p.pronouns||'';document.getElementById('setup-bio').value=p.bio||'';sessionUser.pfp=p.pfp||'';sessionUser.banner=p.banner||'';sessionUser.nickname=p.nickname||'';sessionUser.uid=user.uid;document.getElementById('auth-screen').hidden=true;legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+lower).update({uid:user.uid,username:display});addAccountControls()}catch(e){document.getElementById('auth-screen').hidden=false;authMsg(e.message||'Could not load the account.')}finally{authBootBusy=false}}
 loginToGuild=async function(){const user=auth.currentUser;if(!user)return alert('Log in first.');const entered=document.getElementById('setup-username').value.trim().toLowerCase(),owned=(await db.ref('uid_usernames/'+user.uid).once('value')).val();if(owned&&String(owned)!==entered)return alert('The username on this account cannot be changed here.');legacyProfileSaveAndEnter();await db.ref('chat_profiles/'+entered).update({uid:user.uid,username:sessionUser.username});addAccountControls()}
-function addAccountControls(){if(document.getElementById('auth-logout-btn'))return;const f=document.querySelector('.user-footer');if(!f)return;const b=document.createElement('button');b.id='auth-logout-btn';b.className='auth-logout-btn';b.textContent='Log out';b.onclick=signOutAccount;f.appendChild(b)}
+function addAccountControls() {
+    const footer = document.querySelector(".user-footer");
+
+    if (!footer) return;
+
+    if (!document.getElementById("auth-logout-btn")) {
+        const logoutButton = document.createElement("button");
+
+        logoutButton.id = "auth-logout-btn";
+        logoutButton.className = "auth-logout-btn";
+        logoutButton.textContent = "Log out";
+        logoutButton.onclick = signOutAccount;
+
+        footer.appendChild(logoutButton);
+    }
+
+    if (!document.getElementById("auth-delete-btn")) {
+        const deleteButton = document.createElement("button");
+
+        deleteButton.id = "auth-delete-btn";
+        deleteButton.className = "auth-logout-btn";
+        deleteButton.textContent = "Delete account";
+        deleteButton.style.color = "#fa777c";
+        deleteButton.onclick = deleteAccount;
+
+        footer.appendChild(deleteButton);
+    }
+}
 auth.onAuthStateChanged(user=>{document.getElementById('auth-screen').hidden=false;if(!user)return;bootAuthenticatedAccount(user).catch(e=>authMsg(friendlyAuthError(e))) });
 </script>
 </body>
