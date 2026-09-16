@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate ZIP Sandbox</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #000000; }
+        .code-editor { resize: none; tab-size: 4; }
+        .scroll-container::-webkit-scrollbar { width: 8px; }
+        .scroll-container::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 4px; }
+        .scroll-container::-webkit-scrollbar-track { background-color: #374151; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <header class="p-4 bg-black shadow-lg flex justify-between items-center z-10 border-b border-white/10">
+        <div class="flex items-center space-x-4">
+            <label for="fileUpload" class="cursor-pointer px-4 py-2 border border-white bg-black text-white font-mono rounded-lg hover:bg-gray-900 transition transform hover:scale-105">
+                Upload File/ZIP
+            </label>
+            <input type="file" id="fileUpload" accept=".html,.txt,.js,.css,.zip" class="hidden" onchange="handleFileUpload(event)">
+        </div>
+        
+        <button id="launchButton" class="px-6 py-2 border border-white bg-black text-white font-mono rounded-lg hover:bg-gray-900 transition transform hover:scale-105" onclick="launchCode()">
+            Launch
+        </button>
+    </header>
+
+    <div class="px-6 pt-2 pb-2 bg-black border-b border-white/20">
+        <span id="fileNameDisplay" class="text-white font-mono text-xs">File: None loaded.</span>
+    </div>
+
+    <main class="flex-grow overflow-hidden">
+        <textarea id="codeEditor" class="code-editor scroll-container w-full h-full p-6 text-sm font-mono text-white bg-black border-0 outline-none" placeholder="Paste code or upload a ZIP folder..."></textarea>
+    </main>
+
+    <script>
+        const codeEditor = document.getElementById('codeEditor');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+        // Allow Tab key in textarea
+        codeEditor.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + "\t" + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 1;
+            }
+        });
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            fileNameDisplay.textContent = `Processing: ${file.name}...`;
+
+            if (file.name.endsWith('.zip')) {
+                try {
+                    const zip = new JSZip();
+                    const contents = await zip.loadAsync(file);
+                    const fileMap = {};
+
+                    // 1. Create Blobs for all files in ZIP
+                    for (const [path, zipFile] of Object.entries(contents.files)) {
+                        if (!zipFile.dir) {
+                            const blob = await zipFile.async("blob");
+                            // Determine MIME type
+                            const type = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'text/javascript' : blob.type;
+                            const typedBlob = new Blob([blob], { type });
+                            fileMap[path] = URL.createObjectURL(typedBlob);
+                        }
+                    }
+
+                    // 2. Find index.html
+                    const htmlKey = Object.keys(fileMap).find(name => name.toLowerCase().endsWith('index.html'));
+
+                    if (htmlKey) {
+                        let htmlContent = await contents.files[htmlKey].async("string");
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(htmlContent, 'text/html');
+
+                        // 3. Dependency Injection (CSS, JS, Images)
+                        const rewrite = (selector, attr) => {
+                            doc.querySelectorAll(selector).forEach(el => {
+                                const val = el.getAttribute(attr);
+                                // Check for file in map (handles simple paths)
+                                if (fileMap[val]) el.setAttribute(attr, fileMap[val]);
+                                // Logic for relative paths (e.g. ./style.css)
+                                else if (val && fileMap[val.replace(/^\.\//, '')]) el.setAttribute(attr, fileMap[val.replace(/^\.\//, '')]);
+                            });
+                        };
+
+                        rewrite('link[rel="stylesheet"]', 'href');
+                        rewrite('script[src]', 'src');
+                        rewrite('img[src]', 'src');
+
+                        codeEditor.value = doc.documentElement.outerHTML;
+                        displayMessage('ZIP Ready', `Mapped ${Object.keys(fileMap).length} files from ZIP.`, 'bg-blue-600');
+                    } else {
+                        displayMessage('Error', 'No index.html found in ZIP.', 'bg-yellow-600');
+                    }
+                } catch (err) {
+                    displayMessage('Error', 'Invalid ZIP: ' + err.message, 'bg-red-600');
+                }
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => { codeEditor.value = e.target.result; };
+                reader.readAsText(file);
+            }
+            fileNameDisplay.textContent = `File: ${file.name}`;
+            event.target.value = '';
+        }
+
+        function launchCode() {
+            const userCode = codeEditor.value;
+            if (!userCode.trim()) {
+                displayMessage('Empty', 'Add some code first!', 'bg-yellow-500');
+                return;
+            }
+            const newWindow = window.open('about:blank', '_blank');
+            if (!newWindow) {
+                displayMessage('Blocked', 'Please allow pop-ups.', 'bg-red-600');
+                return;
+            }
+            newWindow.document.open();
+            newWindow.document.write(userCode);
+            newWindow.document.close();
+        }
+
+        function displayMessage(title, message, bgColorClass) {
+            let messageBox = document.getElementById('messageBox');
+            if (!messageBox) {
+                messageBox = document.createElement('div');
+                messageBox.id = 'messageBox';
+                messageBox.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50';
+                messageBox.innerHTML = `
+                    <div class="p-6 rounded-xl shadow-2xl max-w-sm w-full text-white" id="messageCard">
+                        <h3 class="text-xl font-bold mb-2" id="messageTitle"></h3>
+                        <p id="messageBody" class="mb-4 text-sm"></p>
+                        <button onclick="document.getElementById('messageBox').style.display='none'" class="w-full py-2 rounded-lg bg-white text-black font-bold">Close</button>
+                    </div>`;
+                document.body.appendChild(messageBox);
+            }
+            document.getElementById('messageTitle').textContent = title;
+            document.getElementById('messageBody').textContent = message;
+            const card = document.getElementById('messageCard');
+            card.className = `p-6 rounded-xl shadow-2xl max-w-sm w-full text-white ${bgColorClass}`;
+            messageBox.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
