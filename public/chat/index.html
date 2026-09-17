@@ -2237,16 +2237,8 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 /* Leaderboard channels, stored inside existing channel message paths */
 .channel-item.leaderboard-chan::before{content:none!important}.channel-item.leaderboard-chan .channel-type-icon{width:17px;height:17px;margin-right:7px;color:#f0b232}.leaderboard-shell{flex:1;min-height:0;overflow-y:auto;padding:18px 22px 28px}.leaderboard-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:16px;border-bottom:1px solid var(--line-clean,rgba(255,255,255,.07))}.leaderboard-title{margin:0;color:#fff;font-size:22px}.leaderboard-subtitle{margin:5px 0 0;color:var(--text-muted);font-size:13px}.leaderboard-actions{display:flex;gap:8px;flex-wrap:wrap}.leaderboard-admin-btn,.leaderboard-submit-btn,.leaderboard-save-btn{border:0;border-radius:8px;background:var(--primary-blurple);color:#fff;padding:10px 13px;font:inherit;font-weight:800;cursor:pointer}.leaderboard-levels{display:flex;flex-direction:column;gap:18px;margin-top:18px}.leaderboard-level-card{border:1px solid var(--line-clean,rgba(255,255,255,.08));border-radius:11px;background:rgba(0,0,0,.11);overflow:hidden}.leaderboard-level-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line-clean,rgba(255,255,255,.07))}.leaderboard-level-name{color:#fff;font-size:16px;font-weight:850}.leaderboard-level-desc{color:var(--text-muted);font-size:12px;margin-top:3px}.leaderboard-table{width:100%;border-collapse:collapse}.leaderboard-table th,.leaderboard-table td{padding:10px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.045);font-size:13px}.leaderboard-table th{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px}.leaderboard-table tr:last-child td{border-bottom:0}.leaderboard-rank{width:44px;color:#f0b232;font-weight:900}.leaderboard-user{font-weight:750;color:var(--text-normal)}.leaderboard-time-btn{border:0;background:transparent;color:#7aa2ff;font:inherit;font-weight:850;cursor:pointer;padding:0}.leaderboard-time-btn:hover{text-decoration:underline}.leaderboard-time-btn.no-proof{color:var(--text-normal);cursor:default;text-decoration:none}.leaderboard-empty{padding:18px 14px;color:var(--text-muted);font-size:13px;text-align:center}.leaderboard-modal{display:none;position:fixed;inset:0;z-index:16000;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.7);backdrop-filter:blur(3px)}.leaderboard-modal.open{display:flex}.leaderboard-modal-card{width:min(520px,100%);max-height:88vh;overflow:auto;border:1px solid var(--line-clean,rgba(255,255,255,.1));border-radius:13px;background:#1e1f22;box-shadow:0 20px 60px rgba(0,0,0,.6)}.leaderboard-modal-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid rgba(255,255,255,.07)}.leaderboard-modal-head h3{margin:0;color:#fff}.leaderboard-modal-close{border:0;background:transparent;color:var(--text-muted);font-size:22px;cursor:pointer}.leaderboard-modal-body{display:flex;flex-direction:column;gap:12px;padding:17px}.leaderboard-modal-body label{color:var(--text-muted);font-size:11px;font-weight:800;text-transform:uppercase}.leaderboard-modal-body input,.leaderboard-modal-body select{width:100%;box-sizing:border-box;background:var(--bg-input);color:#fff;border:1px solid transparent;border-radius:7px;padding:11px;font:inherit;outline:none}.leaderboard-level-editor{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:8px;margin-bottom:9px}.leaderboard-remove-level{border:0;border-radius:7px;background:rgba(218,55,60,.15);color:#ff777c;cursor:pointer;font-size:18px}.leaderboard-add-level{border:0;background:transparent;color:#9da7ff;font-weight:800;cursor:pointer;text-align:left;padding:3px 0}.leaderboard-proof-note{color:var(--text-muted);font-size:12px;line-height:1.4}.leaderboard-error{min-height:18px;color:#fa777c;font-size:12px}.leaderboard-proof-preview{max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;background:#111214}.leaderboard-proof-viewer{display:none;position:fixed;inset:0;z-index:17000;background:rgba(5,6,8,.95);align-items:center;justify-content:center;padding:28px}.leaderboard-proof-viewer.open{display:flex}.leaderboard-proof-viewer img{max-width:94vw;max-height:88vh;object-fit:contain;border-radius:9px}.leaderboard-proof-viewer button{position:absolute;right:18px;top:14px;border:0;background:rgba(255,255,255,.09);color:#fff;border-radius:8px;width:38px;height:38px;font-size:23px;cursor:pointer}body.theme-light .leaderboard-title,body.theme-light .leaderboard-level-name,body.theme-light .leaderboard-modal-head h3{color:#111214}body.theme-light .leaderboard-modal-card{background:#fff}@media(max-width:640px){.leaderboard-shell{padding:14px 10px 22px}.leaderboard-hero{align-items:flex-start;flex-direction:column}.leaderboard-table th,.leaderboard-table td{padding:9px 8px}.leaderboard-table th:nth-child(4),.leaderboard-table td:nth-child(4){display:none}}
 
-        /* Ordinary unread messages bold the channel or DM. Mention pings keep the existing red dot. */
-        .channel-item.has-unread-message:not(.active) {
-            color: #ffffff;
-            font-weight: 800;
-        }
-        .channel-item.has-unread-message:not(.active)::before,
-        .channel-item.has-unread-message:not(.active) .channel-type-icon {
-            color: #ffffff;
-            opacity: 1;
-        }
+        .channel-item.has-unread-message:not(.active){color:#fff;font-weight:800}.channel-item.has-unread-message:not(.active)::before,.channel-item.has-unread-message:not(.active) .channel-type-icon{color:#fff;opacity:1}
+        .chat-header{position:relative}.bell-status-widget{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:150px;padding:3px 12px;border-left:1px solid var(--line-clean,rgba(255,255,255,.07));border-right:1px solid var(--line-clean,rgba(255,255,255,.07));line-height:1.15;pointer-events:none;white-space:nowrap}.bell-current-period{color:var(--text-normal);font-size:12px;font-weight:800}.bell-next-countdown{margin-top:3px;color:var(--text-normal);font-size:10px;font-weight:650;font-variant-numeric:tabular-nums}.bell-status-widget.passing .bell-current-period{color:var(--text-normal)}.bell-status-widget.outside-school .bell-current-period,.bell-status-widget.outside-school .bell-next-countdown{color:var(--text-normal)}@media(max-width:1050px){.bell-status-widget{display:none}}
 </style>
 </head>
 <body>
@@ -2343,7 +2335,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
         <div class="chat-area" id="drop-zone">
             <div id="drag-indicator">Drop image here to instantly attach</div>
-            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
+            <div class="chat-header"><button class="desktop-sidebar-restore-btn" onclick="expandDesktopSidebar()" title="Show channels" aria-label="Show channels">▶</button><button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()" title="Open channels" aria-label="Open channels">☰</button><span id="chat-header-prefix" style="color: var(--text-muted); font-size: 20px; margin-right: 5px;">#</span><span id="active-channel-name">announcements</span><div id="bell-status-widget" class="bell-status-widget"><div id="bell-current-period" class="bell-current-period">Loading schedule...</div><div id="bell-next-countdown" class="bell-next-countdown"></div></div><button class="chat-search-btn" onclick="openChatSearch()">🔎 Search</button><button class="pinned-btn" onclick="openPinnedMessages()" title="Pinned messages">📌 Pins</button><button class="media-btn" style="margin-left:0" onclick="openMediaGallery()">🖼️ Media</button></div>
             <div class="chat-messages" id="chat-box"><div class="loading-history" id="loading-history">Loading older messages...</div></div>
             <div class="chat-input-container">
                 <div class="reply-context-status-bar" id="reply-track-wrap"><span>Replying to <span id="reply-track-user" style="font-weight:bold; color:white;"></span></span><button class="reply-close-btn" onclick="cancelReplyData()">✕</button></div>
@@ -2657,7 +2649,6 @@ const firebaseConfig = {
         let toastListenerStartedAt = Date.now();
         let pendingImageUpload = false;
         let unreadCounts = {};
-        // Ordinary unread messages are separate from mention pings.
         let unreadMessageCounts = {};
         let unreadListenerRefs = {};
         let unreadListenerStartedAt = Date.now();
@@ -2932,14 +2923,10 @@ const firebaseConfig = {
             if (!packet || !packet.user) return;
             if (String(packet.user).toLowerCase() === String(sessionUser.username).toLowerCase()) return;
             const isCurrentConversation = key === getCurrentUnreadKey();
-            if (isCurrentConversation && !document.hidden) {
-                markUnreadKeyRead(key);
-                return;
-            }
+            if (isCurrentConversation && !document.hidden) { markUnreadKeyRead(key); return; }
             unreadMessageCounts[key] = (unreadMessageCounts[key] || 0) + 1;
             updateUnreadBadge(key);
         }
-
         function incrementUnread(key, packet) {
             if (!packet || !packet.user) return;
             if (packet.user === sessionUser.username) return;
@@ -3294,22 +3281,8 @@ const firebaseConfig = {
             if (!str) return '';
             let escaped = escapeHtml(str);
 
-            // Colored text: ***color-name: text to be colored***
-            // Only these preset names are accepted, so message text cannot inject CSS.
-            const markdownColors = {
-                red: '#ed4245',
-                orange: '#f47b20',
-                yellow: '#f0b232',
-                green: '#57f287',
-                blue: '#5865f2',
-                cyan: '#22d3ee',
-                purple: '#a970ff',
-                pink: '#eb459e',
-                white: '#ffffff',
-                gray: '#949ba4',
-                grey: '#949ba4',
-                black: '#111214'
-            };
+            // Colored chat text: ***color-name: text***
+            const markdownColors = { red:'#ed4245', orange:'#f47b20', yellow:'#f0b232', green:'#57f287', blue:'#5865f2', cyan:'#22d3ee', purple:'#a970ff', pink:'#eb459e', white:'#ffffff', gray:'#949ba4', grey:'#949ba4', black:'#111214' };
             escaped = escaped.replace(/\*\*\*([a-zA-Z]+)\s*:\s*([\s\S]*?)\*\*\*/g, (match, colorName, content) => {
                 const color = markdownColors[String(colorName).toLowerCase()];
                 return color ? `<span class="msg-colored-text" style="color:${color}">${content}</span>` : match;
@@ -5971,6 +5944,13 @@ function closeLeaderboardProof(){document.getElementById('leaderboard-proof-view
 const changeChannelBeforeLeaderboards=changeChannel;
 changeChannel=function(targetId,DMFlag){detachLeaderboard();isLeaderboardMode=false;if(DMFlag)return changeChannelBeforeLeaderboards(targetId,true);return getChannelMeta(targetId).then(meta=>getServerChannelType(meta)==='leaderboard'?openLeaderboardChannel(targetId):changeChannelBeforeLeaderboards(targetId,false)).catch(()=>changeChannelBeforeLeaderboards(targetId,false))};
 const updateChatInputPermissionsBeforeLeaderboards=updateChatInputPermissions;updateChatInputPermissions=function(){updateChatInputPermissionsBeforeLeaderboards();if(isLeaderboardMode)document.querySelector('.chat-input-container').style.display='none'};
+</script>
+<script>
+const AVERN_BELL_SCHEDULE=[{name:'1st Period',start:'7:25',end:'8:45'},{name:'2nd Period',start:'8:51',end:'10:15'},{name:'3rd Period',start:'10:21',end:'11:41'},{name:'Block A',start:'11:47',end:'12:17'},{name:'Block B',start:'12:22',end:'12:52'},{name:'4th Period',start:'12:58',end:'14:18'}];
+function bellTimeToday(v,n=new Date()){const[h,m]=v.split(':').map(Number),d=new Date(n);d.setHours(h,m,0,0);return d}
+function formatBellCountdown(ms){const x=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=x%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`}
+function updateBellScheduleWidget(){const w=document.getElementById('bell-status-widget'),a=document.getElementById('bell-current-period'),b=document.getElementById('bell-next-countdown');if(!w||!a||!b)return;const n=new Date(),day=n.getDay();w.className='bell-status-widget';if(day===0||day===6){w.classList.add('outside-school');a.textContent='No school today';b.textContent='Weekend';return}const p=AVERN_BELL_SCHEDULE.map(x=>({...x,startAt:bellTimeToday(x.start,n),endAt:bellTimeToday(x.end,n)})),cur=p.find(x=>n>=x.startAt&&n<x.endAt);if(cur){a.textContent=`${cur.name}  |  ${cur.start}-${cur.end}`;b.textContent=`Next bell in ${formatBellCountdown(cur.endAt-n)}`;return}const next=p.find(x=>n<x.startAt);if(next){const before=next===p[0];w.classList.add(before?'outside-school':'passing');a.textContent=before?'Before school':'Passing period';b.textContent=`${next.name} in ${formatBellCountdown(next.startAt-n)}`;return}w.classList.add('outside-school');a.textContent='School is over';b.textContent='Dismissed at 2:18 PM'}
+window.addEventListener('DOMContentLoaded',()=>{updateBellScheduleWidget();setInterval(updateBellScheduleWidget,1000)});
 </script>
 </body>
 </html>
