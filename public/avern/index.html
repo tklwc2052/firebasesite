@@ -8,7 +8,7 @@
     <div id="status">CONNECTING...</div>
     <div id="hp-display">HP: 100/100</div>
     <div id="coords">X: 0 Y: 0</div>
-    <div style="font-size: 10px; color: #aaa;">Shift: Place | Shift+WASD: Mine/Place/Interact | Space: Jump | B: Bomb | N: Dynamite</div>
+    <div style="font-size: 10px; color: #aaa;">Shift+WASD: Mine/Place/Interact | Space: Jump | I: Inventory | Slot 6: Furnace | B: Bomb | N: Dynamite</div>
   </div>
 
   <div id="achievement-popup">
@@ -82,15 +82,13 @@
         <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/torch.png" style="width: 24px; height: 24px; image-rendering: pixelated;">
         <div id="inv-torch">0</div>
     </div>
-    <div class="resource-slot" id="slot-6" title="Gold" onclick="setSlot(6)">
+    <div class="resource-slot" id="slot-6" title="Furnace" onclick="setSlot(6)">
         <div class="slot-num">6</div>
-        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/gold.png" style="width: 24px; height: 24px; image-rendering: pixelated;">
-        <div id="inv-gold">0</div>
+        <div class="furnace-hotbar-icon">F</div>
+        <div id="inv-furnace">0</div>
     </div>
-    <div class="resource-slot" id="slot-7" title="Iron" onclick="setSlot(7)">
-        <div class="slot-num">7</div>
-        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/iron.png" style="width: 24px; height: 24px; image-rendering: pixelated; filter: grayscale(100%) brightness(150%);">
-        <div id="inv-iron">0</div>
+    <div class="resource-slot" id="slot-7" title="Sapling" onclick="setSlot(7)">
+        <div class="slot-num">7</div><div class="sapling-hotbar-icon">♣</div><div id="inv-sapling">0</div>
     </div>
     <div class="resource-slot" id="slot-8" title="Diamond" onclick="setSlot(8)">
         <div class="slot-num">8</div>
@@ -113,6 +111,41 @@
     <div id="chat-box"></div>
     <input type="text" id="chat-input" maxlength="100" placeholder="words words words...">
   </div>
+
+
+  <button id="inventory-btn" onclick="toggleInventory()">INVENTORY [I]</button>
+  <div id="inventory-menu" class="full-menu">
+    <div class="menu-header"><h2>BACKPACK</h2><button onclick="toggleInventory()">CLOSE</button></div>
+    <div id="inventory-capacity"></div>
+    <div id="inventory-grid"></div>
+    <div id="inventory-details"><h3>SELECT AN ITEM</h3><p>Click an item to see its details.</p></div>
+  </div>
+
+  <div id="furnace-menu" class="full-menu compact-menu">
+    <div class="menu-header"><h2>FURNACE</h2><button onclick="toggleFurnace()">CLOSE</button></div>
+    <div class="furnace-slots">
+      <div class="furnace-slot"><span>INPUT</span><strong id="furnace-input">EMPTY</strong></div>
+      <div class="furnace-arrow">→</div>
+      <div class="furnace-slot fuel"><span>FUEL</span><strong id="furnace-fuel">0 COAL</strong></div>
+      <div class="furnace-arrow">→</div>
+      <div class="furnace-slot output"><span>OUTPUT</span><strong id="furnace-output">EMPTY</strong></div>
+    </div>
+    <p id="furnace-status">The furnace is idle.</p>
+    <div class="furnace-actions">
+      <button class="upgrade-btn" onclick="addFurnaceFuel(1)">ADD 1 COAL</button>
+      <button class="upgrade-btn" onclick="addFurnaceFuel(player.inventory.coal || 0)">ADD ALL COAL</button>
+      <button class="upgrade-btn" onclick="removeFurnaceFuel()">TAKE FUEL</button>
+    </div>
+    <div class="furnace-actions">
+      <button class="upgrade-btn" onclick="startSmelting('rawIron', 1)">SMELT 1 IRON</button>
+      <button class="upgrade-btn" onclick="startSmelting('rawGold', 1)">SMELT 1 GOLD</button>
+      <button class="upgrade-btn" onclick="collectFurnace()">COLLECT OUTPUT</button>
+      <button class="upgrade-btn danger-btn" onclick="pickupFurnace()">PICK UP FURNACE</button>
+    </div>
+    <p>Each bar uses 1 raw ore and 1 coal. Smelting takes 4 seconds.</p>
+  </div>
+
+  <div id="game-toast"></div>
 
   <div id="shop">
     <h2>VILLAGE TRADER</h2>
