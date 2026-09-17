@@ -188,6 +188,7 @@ const canvas = document.getElementById('gameCanvas');
     const otherPlayers = {};
     const keys = {};
     let miningProgress = 0, shopOpen = false, achievementMenuOpen = false, enchantMenuOpen = false, infoMenuOpen = false;
+    let inventoryOpen = false, furnaceOpen = false, selectedInventoryItem = null, currentFurnaceKey = null;
     let currentEnchantTable = null;
 
     const chatContainer = document.getElementById('chat-container');
