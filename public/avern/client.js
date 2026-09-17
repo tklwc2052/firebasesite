@@ -38,6 +38,8 @@ const canvas = document.getElementById('gameCanvas');
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    const ORE_PRICES = { coal: 2, iron: 10, gold: 20, diamond: 75 };
+
     const UPGRADES = {
         efficiency: [
             { id: 1, name: "SHARP PICK", cost: 40, power: 1.5 },
@@ -142,6 +144,14 @@ const canvas = document.getElementById('gameCanvas');
         hasEnchantTable: savedData.hasEnchantTable || false,
         hat: savedData.hat || 'none', dir: 'down', isMoving: false, flip: false, isMining: false, isCrouching: false, username: myUsername,
         stats: savedData.stats || { dirt: 0, gold: 0, diamond: 0, iron: 0, coal: 0, lapis: 0, total: 0, maxDepth: 0 },
+        // Ores are now inventory items. Stats remain lifetime totals for achievements.
+        ores: savedData.ores || {
+            dirt: savedData.stats?.dirt || 0,
+            gold: savedData.stats?.gold || 0,
+            diamond: savedData.stats?.diamond || 0,
+            iron: savedData.stats?.iron || 0,
+            coal: savedData.stats?.coal || 0
+        },
         achieved: savedData.achieved || []
     };
 
@@ -234,7 +244,7 @@ const canvas = document.getElementById('gameCanvas');
     }
     
     function updateResUI() {
-        document.getElementById('inv-gold').innerText = player.res;
+        document.getElementById('inv-gold').innerText = player.ores.gold || 0;
         document.getElementById('inv-lapis').innerText = player.lapis;
     }
 
@@ -341,7 +351,7 @@ const canvas = document.getElementById('gameCanvas');
     let lastSentPlayer = '';
     setInterval(() => {
         const state = {
-            id: myId, x: Math.round(player.x), y: Math.round(player.y),
+            id: myId, x: player.x, y: player.y, vx: player.vx,
             dir: player.dir, isMoving: player.isMoving, flip: player.flip,
             isMining: player.isMining, username: player.username, hat: player.hat,
             lastSeen: firebase.database.ServerValue.TIMESTAMP,
@@ -357,8 +367,28 @@ const canvas = document.getElementById('gameCanvas');
     function syncRemotePlayer(id, data) {
         if (id === myId || !data || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
         data.username = String(data.username || 'Miner').slice(0,16);
-        if (!otherPlayers[id]) otherPlayers[id] = {...data, x:data.x, y:data.y, targetX:data.x, targetY:data.y};
-        else Object.assign(otherPlayers[id], data, {targetX:data.x, targetY:data.y});
+        const receivedAt = performance.now();
+
+        if (!otherPlayers[id]) {
+            otherPlayers[id] = {
+                ...data,
+                x: data.x,
+                y: data.y,
+                targetX: data.x,
+                targetY: data.y,
+                receivedAt
+            };
+        } else {
+            const op = otherPlayers[id];
+            // Never overwrite the displayed x/y here. That caused a visible snap
+            // every time a network update arrived.
+            const { x, y, ...remoteState } = data;
+            Object.assign(op, remoteState);
+            op.targetX = x;
+            op.targetY = y;
+            op.receivedAt = receivedAt;
+        }
+
         if (document.getElementById('user-list-overlay').style.display === 'block') renderUserList();
     }
     const playersRef = db.ref('players');
@@ -387,7 +417,7 @@ const canvas = document.getElementById('gameCanvas');
             id: myId, x: player.x, y: player.y, res: player.res, lapis: player.lapis,
             torchCount: player.torchCount, hasEnchantTable: player.hasEnchantTable, enchantUpgrades: player.enchantUpgrades,
             username: player.username, upgrades: player.upgrades, 
-            hat: player.hat, hp: player.hp, stats: player.stats, achieved: player.achieved
+            hat: player.hat, hp: player.hp, stats: player.stats, ores: player.ores, achieved: player.achieved
         }));
     }
     setInterval(saveLocal, 5000);
@@ -408,10 +438,10 @@ const canvas = document.getElementById('gameCanvas');
             slot3Img.style.filter = "none";
         }
 
-        document.getElementById('inv-dirt').innerText = player.stats.dirt || 0;
-        document.getElementById('inv-iron').innerText = player.stats.iron || 0;
-        document.getElementById('inv-diamond').innerText = player.stats.diamond || 0;
-        document.getElementById('inv-coal').innerText = player.stats.coal || 0;
+        document.getElementById('inv-dirt').innerText = player.ores.dirt || 0;
+        document.getElementById('inv-iron').innerText = player.ores.iron || 0;
+        document.getElementById('inv-diamond').innerText = player.ores.diamond || 0;
+        document.getElementById('inv-coal').innerText = player.ores.coal || 0;
         
         updateResUI();
         updateTorchUI();
@@ -438,10 +468,32 @@ const canvas = document.getElementById('gameCanvas');
     }
 
     function renderShop() {
+        const shopTitle = document.querySelector('#shop h2');
+        if (shopTitle) shopTitle.innerText = `VILLAGE TRADER - ${player.res} GOLD`;
         const effList = document.getElementById('eff-list');
         const fortList = document.getElementById('fort-list');
         effList.innerHTML = ''; fortList.innerHTML = '';
         
+        let sellSection = document.getElementById('ore-sell-section');
+        if (!sellSection) {
+            sellSection = document.createElement('div');
+            sellSection.id = 'ore-sell-section';
+            sellSection.className = 'upgrade-section';
+            const firstSection = document.querySelector('#shop .upgrade-section');
+            document.getElementById('shop').insertBefore(sellSection, firstSection);
+        }
+        sellSection.innerHTML = '<h3>Sell Ores</h3>';
+        const oreNames = { coal: 'COAL', iron: 'IRON', gold: 'GOLD ORE', diamond: 'DIAMOND' };
+        Object.keys(ORE_PRICES).forEach(type => {
+            const amount = player.ores[type] || 0;
+            const row = document.createElement('div');
+            row.className = 'upgrade-row';
+            row.innerHTML = `<span>${oreNames[type]}: ${amount} (${ORE_PRICES[type]} GOLD EACH)</span>
+                <span><button class="upgrade-btn" ${amount < 1 ? 'disabled' : ''} onclick="sellOre('${type}', 1)">SELL 1</button>
+                <button class="upgrade-btn" ${amount < 1 ? 'disabled' : ''} onclick="sellOre('${type}', ${amount})">SELL ALL</button></span>`;
+            sellSection.appendChild(row);
+        });
+
         const btnBuyEnchant = document.getElementById('btn-buy-enchant');
         if (player.hasEnchantTable) {
             btnBuyEnchant.innerText = "OWNED"; btnBuyEnchant.disabled = true;
@@ -524,6 +576,18 @@ const canvas = document.getElementById('gameCanvas');
             list.appendChild(row);
         });
     }
+
+    window.sellOre = (type, requestedAmount) => {
+        if (!Object.prototype.hasOwnProperty.call(ORE_PRICES, type)) return;
+        const owned = player.ores[type] || 0;
+        const amount = Math.max(0, Math.min(owned, Math.floor(requestedAmount)));
+        if (amount < 1) return;
+        player.ores[type] -= amount;
+        player.res += amount * ORE_PRICES[type];
+        updateInventoryUI();
+        renderShop();
+        saveLocal();
+    };
 
     window.buyUpgrade = (type, index) => {
         const upg = UPGRADES[type][index];
@@ -632,17 +696,23 @@ const canvas = document.getElementById('gameCanvas');
       }
     }
     function update(dt) {
-      // Smooth remote players every frame, even while a local menu or chat is open.
-      const remoteFollow = 1 - Math.exp(-18 * dt);
+      // Smooth remote players every frame. Briefly predict forward from the
+      // newest snapshot, then ease toward that position without network snapping.
+      const remoteFollow = 1 - Math.exp(-22 * dt);
+      const now = performance.now();
       for (const id in otherPlayers) {
         const op = otherPlayers[id];
-        const distance = Math.hypot(op.targetX - op.x, op.targetY - op.y);
+        const snapshotAge = Math.min((now - (op.receivedAt || now)) / 1000, 0.12);
+        const predictedX = op.targetX + (Number.isFinite(op.vx) ? op.vx * snapshotAge : 0);
+        const predictedY = op.targetY + (Number.isFinite(op.vy) ? op.vy * snapshotAge : 0);
+        const distance = Math.hypot(predictedX - op.x, predictedY - op.y);
+
         if (distance > TILE_SIZE * 8) {
           op.x = op.targetX;
           op.y = op.targetY;
         } else {
-          op.x += (op.targetX - op.x) * remoteFollow;
-          op.y += (op.targetY - op.y) * remoteFollow;
+          op.x += (predictedX - op.x) * remoteFollow;
+          op.y += (predictedY - op.y) * remoteFollow;
         }
       }
 
@@ -705,25 +775,26 @@ const canvas = document.getElementById('gameCanvas');
                         player.hasEnchantTable = true;
                         db.ref('world_breaks').push({ type: 'single', x: tx, y: ty, timestamp: firebase.database.ServerValue.TIMESTAMP });
                     } else {
-                        if (hit === 4) player.stats.diamond++; 
-                        else if (hit === 2) player.stats.gold++; 
-                        else if (hit === 5) player.stats.iron++;
-                        else if (hit === 6) player.stats.coal++;
-                        else if (hit === 7) player.stats.lapis++;
-                        else player.stats.dirt++;
-                        
+                        const oreTypes = { 4: 'diamond', 2: 'gold', 5: 'iron', 6: 'coal' };
+                        const oreType = oreTypes[hit];
+                        const fortuneChance = player.upgrades.fortune > 0 ? UPGRADES.fortune[player.upgrades.fortune - 1].chance : 0;
+                        const multiplier = Math.random() < fortuneChance ? 2 : 1;
+                        const wealthMult = player.enchantUpgrades.wealth > 0 ? ENCHANTS.wealth[player.enchantUpgrades.wealth - 1].val : 1;
+                        const amountFound = Math.max(1, Math.floor(multiplier * wealthMult));
+
+                        if (oreType) {
+                            player.stats[oreType] += amountFound;
+                            player.ores[oreType] += amountFound;
+                        } else if (hit === 7) {
+                            player.stats.lapis += amountFound;
+                            player.lapis += amountFound;
+                        } else {
+                            player.stats.dirt += amountFound;
+                            player.ores.dirt += amountFound;
+                        }
+
                         checkAchievements();
                         db.ref('world_breaks').push({ type: 'single', x: tx, y: ty, timestamp: firebase.database.ServerValue.TIMESTAMP });
-                        
-                        let f = player.upgrades.fortune > 0 ? UPGRADES.fortune[player.upgrades.fortune - 1].chance : 0;
-                        let multiplier = (Math.random() < f ? 2 : 1);
-                        let wealthMult = player.enchantUpgrades.wealth > 0 ? ENCHANTS.wealth[player.enchantUpgrades.wealth - 1].val : 1;
-                        
-                        if (hit === 4) player.res += Math.floor(50 * multiplier * wealthMult);
-                        else if (hit === 5) player.res += Math.floor(10 * multiplier * wealthMult);
-                        else if (hit === 2) player.res += Math.floor(5 * multiplier * wealthMult);
-                        else if (hit === 6) player.res += Math.floor(1 * multiplier * wealthMult);
-                        else if (hit === 7) player.lapis += Math.floor(1 * multiplier * wealthMult);
                     }
                     updateInventoryUI(); miningProgress = 0; saveLocal();
                   }
@@ -742,9 +813,9 @@ const canvas = document.getElementById('gameCanvas');
               }
               // SLOT 4: DIRT (Placing)
               else if (player.selectedSlot === 4 && isDir) {
-                  if (hit === 0 && player.stats.dirt > 0) {
+                  if (hit === 0 && player.ores.dirt > 0) {
                       db.ref('world_breaks').push({ type: 'place', x: tx, y: ty, block: 1, timestamp: firebase.database.ServerValue.TIMESTAMP });
-                      player.stats.dirt--;
+                      player.ores.dirt--;
                       updateInventoryUI(); saveLocal();
                       keys['shift'] = false;
                   }
