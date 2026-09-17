@@ -146,3 +146,67 @@
     #chat-box { flex-grow: 1; overflow-y: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 5px; }
     .chat-msg { color: white; font-size: 14px; margin: 2px 0; padding: 4px 10px; background: rgba(0, 0, 0, 0.5); width: fit-content; text-shadow: 1px 1px #000; }
     #chat-input { background: rgba(0, 0, 0, 0.9); border: 2px solid #555; color: white; padding: 10px; width: 100%; outline: none; display: none; font-family: 'MinecraftSeven'; }
+
+/* Full-screen, scrollable shop */
+#shop {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  left: 0;
+  transform: none;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  padding: 24px clamp(16px, 4vw, 60px) 48px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  z-index: 1000;
+}
+
+#shop h2 {
+  position: sticky;
+  top: -24px;
+  z-index: 2;
+  margin: 0 0 18px;
+  padding: 20px 0 12px;
+  background: #121212;
+}
+
+#shop .upgrade-section {
+  width: min(900px, 100%);
+  margin: 0 auto 20px;
+}
+
+#shop > .upgrade-btn,
+#shop > button {
+  display: block;
+  width: min(900px, 100%);
+  margin: 18px auto 0;
+}
+
+@media (max-width: 600px) {
+  #shop {
+    padding: 14px 10px 36px;
+  }
+
+  #shop h2 {
+    top: -14px;
+    padding-top: 14px;
+  }
+
+  #shop .upgrade-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #shop .upgrade-row > span:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
