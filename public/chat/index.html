@@ -2462,7 +2462,7 @@ async function ingestImageFiles(files){const accepted=[...files].filter(f=>f.typ
 handleFileSelected=function(e){if(e.target.files?.length)ingestImageFiles(e.target.files);e.target.value=''};
 ingestImageBlob=function(file){ingestImageFiles([file])};
 const sendMessageBeforeAlbums=sendMessage;
-sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&sessionUser.username.toLowerCase()!=='ds_'){const role=serverRoles[sessionUser.rank||'Member'];const allowed=role?(role.allowedChannels||''):'';if(allowed!=='*'&&!allowed.split(',').map(x=>x.trim().toLowerCase()).includes(activeChannel.toLowerCase()))return alert('You do not have permission to write here.')}const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet);input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
+sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&sessionUser.username.toLowerCase()!=='kl_'){const role=serverRoles[sessionUser.rank||'Member'];const allowed=role?(role.allowedChannels||''):'';if(allowed!=='*'&&!allowed.split(',').map(x=>x.trim().toLowerCase()).includes(activeChannel.toLowerCase()))return alert('You do not have permission to write here.')}const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet);input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
 function ensureImageViewer(){let o=document.getElementById('image-viewer-overlay');if(o)return o;o=document.createElement('div');o.id='image-viewer-overlay';o.className='image-viewer-overlay';o.hidden=true;o.innerHTML=`<div class="image-viewer-toolbar"><button class="viewer-tool" onclick="closeImageViewer()">${uiIcon('x')}<span>Close</span></button><button id="viewer-pan-tool" class="viewer-tool active" onclick="setViewerTool('pan')">${uiIcon('panels')}<span>Move</span></button><button id="viewer-draw-tool" class="viewer-tool" onclick="setViewerTool('draw')">✎<span>Draw</span></button><button id="viewer-arrow-tool" class="viewer-tool" onclick="setViewerTool('arrow')">↗<span>Arrow</span></button><button class="viewer-tool" onclick="openViewerTextDialog()">T<span>Text</span></button><input id="viewer-color" class="viewer-color" type="color" value="#ff3b3b"><button class="viewer-tool" onclick="viewerUndo()">↶<span>Undo</span></button><button class="viewer-tool" onclick="viewerRedo()">↷<span>Redo</span></button><button class="viewer-tool" onclick="resetViewerTransform()">1:1</button><div class="viewer-spacer"></div><button class="viewer-tool" onclick="downloadViewerImage()">↓<span>Download</span></button><button class="viewer-tool" onclick="copyViewerLink()">${uiIcon('message')}<span>Copy link</span></button><button class="viewer-tool showcase-star" onclick="addCurrentImageToShowcase()">★<span>Showcase</span></button><button class="viewer-tool" onclick="postViewerMarkup()">${uiIcon('upload')}<span>Post markup</span></button></div><div id="image-viewer-stage" class="image-viewer-stage"><div id="viewer-image-container" class="viewer-image-container"><img id="viewer-main-image" class="viewer-main-image"><canvas id="viewer-draw-canvas" class="viewer-draw-canvas"></canvas><div id="viewer-label-layer"></div></div></div><div class="image-viewer-footer"><button class="viewer-tool" onclick="viewerPrevious()">‹ Previous</button><span id="viewer-meta"></span><span id="viewer-counter" class="viewer-counter"></span><button class="viewer-tool" onclick="viewerNext()">Next ›</button></div>`;document.body.appendChild(o);bindViewerEvents();return o}
 function openImageViewer(images,index=0,messageKey=null,author=''){const o=ensureImageViewer();viewerState={images:Array.isArray(images)?images:[images],index:Number(index)||0,messageKey,author,scale:1,x:0,y:0,tool:'pan',drawing:false,startX:0,startY:0,history:[],redo:[],labels:[]};o.hidden=false;document.body.style.overflow='hidden';loadViewerImage()}
 function closeImageViewer(){const o=document.getElementById('image-viewer-overlay');if(o)o.hidden=true;document.body.style.overflow=''}
@@ -2675,7 +2675,7 @@ const firebaseConfig = {
         function loadDesktopSidebarState() { document.body.classList.toggle('desktop-sidebar-collapsed', localStorage.getItem(DESKTOP_SIDEBAR_COLLAPSED_KEY) === 'true'); }
         function toggleMobileSidebar() { document.body.classList.toggle('mobile-sidebar-open'); closeChannelNotificationMenu(); }
         function closeMobileSidebar() { document.body.classList.remove('mobile-sidebar-open'); }
-        function canViewServerChannel(channelName) { if (!sessionUser.username || sessionUser.username.toLowerCase() === 'ds_') return true; const role = serverRoles[sessionUser.rank || 'Member']; if (!role) return true; const visible = String(role.visibleChannels ?? '*').trim(); if (!visible || visible === '*') return true; return visible.split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(String(channelName).toLowerCase()); }
+        function canViewServerChannel(channelName) { if (!sessionUser.username || sessionUser.username.toLowerCase() === 'kl_') return true; const role = serverRoles[sessionUser.rank || 'Member']; if (!role) return true; const visible = String(role.visibleChannels ?? '*').trim(); if (!visible || visible === '*') return true; return visible.split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(String(channelName).toLowerCase()); }
 
         
         const fallbackImg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5865f2"/><stop offset="100%" stop-color="#23a55a"/></linearGradient></defs><rect width="128" height="128" rx="64" fill="url(#g)"/><circle cx="64" cy="47" r="24" fill="#fff"/><path d="M22 116c4-27 20-42 42-42s38 15 42 42" fill="#fff"/></svg>`);
@@ -2993,7 +2993,7 @@ const firebaseConfig = {
         }
 
         function hasCommandPermission(command) {
-            if (sessionUser.username.toLowerCase() === 'ds_') return true;
+            if (sessionUser.username.toLowerCase() === 'kl_') return true;
             const myRank = sessionUser.rank || "Member";
             const roleData = serverRoles[myRank];
             if (!roleData || !roleData.allowedCommands) return false;
@@ -3134,7 +3134,7 @@ const firebaseConfig = {
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'grid';
 
-            if (sessionUser.username.toLowerCase() === 'ds_') {
+            if (sessionUser.username.toLowerCase() === 'kl_') {
                 document.getElementById('admin-settings-btn').style.display = 'block';
             } else {
                 document.getElementById('admin-settings-btn').style.display = 'none';
@@ -3189,7 +3189,7 @@ const firebaseConfig = {
             listenToGlobalChannelOrder();
             listenForGlobalMentions();
 
-            if (sessionUser.username.trim().toLowerCase() === 'ds_') {
+            if (sessionUser.username.trim().toLowerCase() === 'kl_') {
                 document.querySelectorAll('#channels-container .server-chan').forEach(el => {
                     el.setAttribute('draggable', 'true');
                 });
@@ -3660,7 +3660,7 @@ const firebaseConfig = {
  }
  function getAnnouncementAllowedChannels(allChannels) {
  const channels = Object.keys(allChannels || {}).map(channelName => String(channelName).trim().toLowerCase()).filter(Boolean);
- if (sessionUser.username && sessionUser.username.toLowerCase() === 'ds_') return channels;
+ if (sessionUser.username && sessionUser.username.toLowerCase() === 'kl_') return channels;
  const myRank = sessionUser.rank || "Member";
  const roleData = serverRoles[myRank];
  if (!roleData) return [];
@@ -3773,7 +3773,7 @@ const firebaseConfig = {
 
 
         function sendMessage() {
-            if (!isDmMode && sessionUser.username.toLowerCase() !== 'ds_') {
+            if (!isDmMode && sessionUser.username.toLowerCase() !== 'kl_') {
                 const myRank = sessionUser.rank || "Member";
                 const roleData = serverRoles[myRank];
                 const allowed = roleData ? (roleData.allowedChannels || "") : "";
@@ -4275,7 +4275,7 @@ function bindChannelSync() {
             channelsContainer.innerHTML = '';
             
             const renderedChannels = new Set();
-            const isAdmin = sessionUser.username && sessionUser.username.trim().toLowerCase() === 'ds_';
+            const isAdmin = sessionUser.username && sessionUser.username.trim().toLowerCase() === 'kl_';
             // The logs channel is permanent and permission-gated. It is not stored in server_channels,
             // so normal create/delete/folder tools cannot remove or expose it.
             if (canViewLogsChannel() && canViewServerChannel(MOD_LOGS_CHANNEL)) {
@@ -4289,7 +4289,7 @@ function bindChannelSync() {
                 renderedChannels.add(MOD_LOGS_CHANNEL);
             }
 
-            // --- ADMIN CONTROLS (Only visible to ds_) ---
+            // --- ADMIN CONTROLS (Only visible to kl_) ---
             if (isAdmin) {
                 const manageBtn = document.createElement('div');
                 manageBtn.style = 'padding: 6px; margin: 4px 0 8px 0; background: var(--primary-blurple); color: white; text-align: center; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: background 0.2s;';
@@ -4494,7 +4494,7 @@ function bindChannelSync() {
         }
 
         function openAdminModal() {
-            if (sessionUser.username.toLowerCase() !== 'ds_') return alert("Access Denied.");
+            if (sessionUser.username.toLowerCase() !== 'kl_') return alert("Access Denied.");
             document.getElementById('admin-overlay').style.display = 'block';
             renderAdminModal();
         }
@@ -4582,7 +4582,7 @@ function bindChannelSync() {
             return;
         }
 
-        if (isDmMode || sessionUser.username.toLowerCase() === 'ds_') {
+        if (isDmMode || sessionUser.username.toLowerCase() === 'kl_') {
                 inputField.disabled = false;
                 inputField.placeholder = isDmMode ? `Message @${activeChannel}` : `Message #${activeChannel}`;
                 wrapper.style.opacity = '1';
@@ -4705,7 +4705,7 @@ function bindChannelSync() {
                 else { dmActionBtn.style.display = 'block'; dmActionBtn.onclick = () => { closeProfilePopup(); changeChannel(nameString.toLowerCase(), true); }; }
 
                 const adminRoleBtn = document.getElementById('pop-admin-role-btn');
-                if (sessionUser.username.toLowerCase() === 'ds_') {
+                if (sessionUser.username.toLowerCase() === 'kl_') {
                     adminRoleBtn.style.display = 'block';
                     adminRoleBtn.onclick = () => {
                         const existingRole = (data && data.role) ? data.role : "";
@@ -5284,7 +5284,7 @@ function bindChannelSync() {
             forumSearchQuery = String(value || '').trim().toLowerCase();
             renderForumPostGrid(forumPostCache);
         }
-        function canManageForumPins() { return sessionUser.username?.toLowerCase() === 'ds_' || hasCommandPermission('pinmsg'); }
+        function canManageForumPins() { return sessionUser.username?.toLowerCase() === 'kl_' || hasCommandPermission('pinmsg'); }
         function toggleForumPostMenu(postKey) { openForumMenuKey = openForumMenuKey === postKey ? null : postKey; renderForumPostGrid(forumPostCache); }
         function toggleForumPostPin(postKey, shouldPin) {
             if (!canManageForumPins()) return alert('You do not have permission to pin forum posts.');
@@ -5925,7 +5925,7 @@ let isLeaderboardMode=false,leaderboardRef=null,leaderboardData={levels:{},entri
 function leaderboardChannelPath(name=activeChannel){return name==='game-chat'?'chat':`channels/${name}`}
 function detachLeaderboard(){if(leaderboardRef){leaderboardRef.off();leaderboardRef=null}}
 function safeLeaderboardKey(v){return String(v||'').toLowerCase().replace(/[^a-z0-9_-]/g,'_')}
-function canManageLeaderboard(){return String(sessionUser.username||'').toLowerCase()==='ds_'||hasCommandPermission('createchannel')}
+function canManageLeaderboard(){return String(sessionUser.username||'').toLowerCase()==='kl_'||hasCommandPermission('createchannel')}
 function parseLeaderboardTime(raw){const p=String(raw||'').trim().split(':');if(!p.length||p.length>3||p.some(x=>!/^\d+(?:\.\d+)?$/.test(x)))return null;let n=p.length===1?+p[0]:p.length===2?+p[0]*60 + +p[1]:+p[0]*3600 + +p[1]*60 + +p[2];return Number.isFinite(n)&&n>0&&n<864000?Math.round(n*1000):null}
 function formatLeaderboardTime(ms){ms=Number(ms)||0;const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),sec=Math.floor(ms%60000/1000),mil=String(ms%1000).padStart(3,'0');if(h)return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${mil}`;if(m)return `${m}:${String(sec).padStart(2,'0')}.${mil}`;return `${sec}.${mil}s`}
 function unpackLeaderboard(snapshot){const out={levels:{},entries:{}};snapshot.forEach(child=>{const v=child.val()||{};if(!v.isLeaderboardControl)return;if(v.leaderboardKind==='config')out.levels=v.levels||{};if(v.leaderboardKind==='entry'&&v.levelKey&&v.ownerKey){out.entries[v.levelKey]??={};out.entries[v.levelKey][v.ownerKey]=v}});return out}
