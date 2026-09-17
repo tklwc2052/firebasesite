@@ -33,12 +33,24 @@ const canvas = document.getElementById('gameCanvas');
     const bombs = []; 
     
     const worldTorches = []; // Persistent storage for placed torches
+    const worldFurnaces = []; // Persistent, placeable furnaces
+    const worldTrees = []; // Persistent saplings and trees
 
     const firebaseConfig = { databaseURL: "https://avern-game-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const ORE_PRICES = { coal: 2, iron: 10, gold: 20, diamond: 75 };
+    const SAVE_VERSION = 3;
+    const ORE_PRICES = { coal: 2, rawIron: 6, ironBar: 12, rawGold: 12, goldBar: 25, diamond: 75 };
+    const INVENTORY_LIMITS = { dirt:999, coal:250, rawIron:150, rawGold:100, diamond:50, lapis:100, ironBar:200, goldBar:200, torch:250, furnace:10, sapling:99, wood:999, enchantTable:10, bomb:99, dynamite:99 };
+    const ITEM_INFO = {
+      dirt:{name:'DIRT',desc:'A basic placeable block.'}, coal:{name:'COAL',desc:'Fuel for furnaces or sell it for coins.'},
+      rawIron:{name:'RAW IRON',desc:'Smelt this into valuable iron bars.'}, rawGold:{name:'RAW GOLD',desc:'Smelt this into valuable gold bars.'},
+      diamond:{name:'DIAMOND',desc:'A rare gem that sells for many coins.'}, lapis:{name:'LAPIS',desc:'Used for enchanting.'},
+      ironBar:{name:'IRON BAR',desc:'Smelted iron. Sell it or save it for crafting.'}, goldBar:{name:'GOLD BAR',desc:'Smelted gold worth more than raw ore.'},
+      torch:{name:'TORCH',desc:'Place it to light dark tunnels.'}, furnace:{name:'FURNACE',desc:'Place it, then interact to smelt ores.'}, sapling:{name:'SAPLING',desc:'Plant on top of any solid block. Needs a clear 3x6 area.'}, wood:{name:'WOOD',desc:'A versatile building and crafting material.'},
+      enchantTable:{name:'ENCHANT TABLE',desc:'Place it to access enchantments.'}, bomb:{name:'BOMB',desc:'A small explosive.'}, dynamite:{name:'DYNAMITE',desc:'A stronger explosive.'}
+    };
 
     const UPGRADES = {
         efficiency: [
@@ -144,17 +156,24 @@ const canvas = document.getElementById('gameCanvas');
         hasEnchantTable: savedData.hasEnchantTable || false,
         hat: savedData.hat || 'none', dir: 'down', isMoving: false, flip: false, isMining: false, isCrouching: false, username: myUsername,
         stats: savedData.stats || { dirt: 0, gold: 0, diamond: 0, iron: 0, coal: 0, lapis: 0, total: 0, maxDepth: 0 },
-        // Ores are now inventory items. Stats remain lifetime totals for achievements.
-        ores: savedData.ores || {
-            dirt: savedData.stats?.dirt || 0,
-            gold: savedData.stats?.gold || 0,
-            diamond: savedData.stats?.diamond || 0,
-            iron: savedData.stats?.iron || 0,
-            coal: savedData.stats?.coal || 0
+        inventory: savedData.inventory || {
+          dirt: savedData.ores?.dirt ?? savedData.stats?.dirt ?? 0,
+          coal: savedData.ores?.coal ?? savedData.stats?.coal ?? 0,
+          rawIron: savedData.ores?.iron ?? savedData.stats?.iron ?? 0,
+          rawGold: savedData.ores?.gold ?? savedData.stats?.gold ?? 0,
+          diamond: savedData.ores?.diamond ?? savedData.stats?.diamond ?? 0,
+          lapis: savedData.lapis || 0, ironBar:0, goldBar:0,
+          torch: savedData.torchCount ?? 10, furnace:0, sapling:0, wood:0,
+          enchantTable: savedData.hasEnchantTable ? 1 : 0, bomb:0, dynamite:0
         },
+        furnaceJob: savedData.furnaceJob || null,
         achieved: savedData.achieved || []
     };
 
+    for(const key of Object.keys(INVENTORY_LIMITS)) if(!Number.isFinite(player.inventory[key])) player.inventory[key]=0;
+    player.lapis=player.inventory.lapis;
+    player.torchCount=player.inventory.torch;
+    player.hasEnchantTable=player.inventory.enchantTable>0;
     window.setSlot = (s) => { player.selectedSlot = s; updateInventoryUI(); };
 
     function recalculateStats() {
@@ -227,6 +246,28 @@ const canvas = document.getElementById('gameCanvas');
             if (index !== -1) worldTorches.splice(index, 1);
         });
 
+
+        db.ref('furnaces').on('child_added', (snap) => {
+            if (!worldFurnaces.some(f => f.key === snap.key)) worldFurnaces.push({ ...snap.val(), key: snap.key });
+        });
+        db.ref('furnaces').on('child_changed', (snap) => {
+            const index = worldFurnaces.findIndex(f => f.key === snap.key);
+            if (index !== -1) worldFurnaces[index] = { ...snap.val(), key: snap.key };
+            if (furnaceOpen && currentFurnaceKey === snap.key) renderFurnace();
+        });
+        db.ref('furnaces').on('child_removed', (snap) => {
+            const index = worldFurnaces.findIndex(f => f.key === snap.key);
+            if (index !== -1) worldFurnaces.splice(index, 1);
+            if (currentFurnaceKey === snap.key) {
+                currentFurnaceKey = null;
+                if (furnaceOpen) toggleFurnace();
+            }
+        });
+
+        db.ref('trees').on('child_added', snap => { if(!worldTrees.some(t=>t.key===snap.key)) worldTrees.push({...snap.val(),key:snap.key}); });
+        db.ref('trees').on('child_changed', snap => { const i=worldTrees.findIndex(t=>t.key===snap.key); if(i>=0)worldTrees[i]={...snap.val(),key:snap.key}; });
+        db.ref('trees').on('child_removed', snap => { const i=worldTrees.findIndex(t=>t.key===snap.key); if(i>=0)worldTrees.splice(i,1); });
+
         db.ref('bomb_drops').orderByChild('timestamp').startAt(Date.now()).on('child_added', (snap) => {
             const data = snap.val();
             if (data.id !== myId && Number.isFinite(data.x) && Number.isFinite(data.y)) bombs.push({ x: data.x, y: data.y, vy: 0, fuse: 2.5, owner: data.id });
@@ -244,12 +285,14 @@ const canvas = document.getElementById('gameCanvas');
     }
     
     function updateResUI() {
-        document.getElementById('inv-gold').innerText = player.ores.gold || 0;
-        document.getElementById('inv-lapis').innerText = player.lapis;
+        const furnaceCount = document.getElementById('inv-furnace');
+        if (furnaceCount) furnaceCount.innerText = player.inventory.furnace || 0;
+        const saplingCount=document.getElementById('inv-sapling'); if(saplingCount)saplingCount.innerText=player.inventory.sapling||0;
+        document.getElementById('inv-lapis').innerText = player.inventory.lapis || 0;
     }
 
     function updateTorchUI() { 
-        document.getElementById('inv-torch').innerText = player.torchCount; 
+        document.getElementById('inv-torch').innerText = player.inventory.torch || 0; 
     }
 
     function respawn() {
@@ -365,36 +408,11 @@ const canvas = document.getElementById('gameCanvas');
         }
     }, 50);
     function syncRemotePlayer(id, data) {
-        if (id === myId || !data || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
-        data.username = String(data.username || 'Miner').slice(0, 16);
-        const receivedAt = performance.now();
-
-        if (!otherPlayers[id]) {
-            otherPlayers[id] = {
-                ...data,
-                x: data.x,
-                y: data.y,
-                snapshots: [{ x: data.x, y: data.y, vx: data.vx || 0, vy: data.vy || 0, time: receivedAt }]
-            };
-        } else {
-            const op = otherPlayers[id];
-            const { x, y, ...remoteState } = data;
-            Object.assign(op, remoteState);
-
-            if (!op.snapshots) op.snapshots = [];
-            const previous = op.snapshots[op.snapshots.length - 1];
-            if (!previous || previous.x !== x || previous.y !== y) {
-                op.snapshots.push({ x, y, vx: data.vx || 0, vy: data.vy || 0, time: receivedAt });
-            }
-
-            // Keep only a short history so interpolation remains lightweight.
-            const oldestUsefulTime = receivedAt - 1000;
-            while (op.snapshots.length > 2 && op.snapshots[1].time < oldestUsefulTime) {
-                op.snapshots.shift();
-            }
-        }
-
-        if (document.getElementById('user-list-overlay').style.display === 'block') renderUserList();
+      if (id===myId || !data || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
+      data.username=String(data.username||'Miner').slice(0,16);
+      if (!otherPlayers[id]) otherPlayers[id]={...data,x:data.x,y:data.y,targetX:data.x,targetY:data.y,receivedAt:performance.now()};
+      else { const op=otherPlayers[id]; const {x,y,...state}=data; Object.assign(op,state); op.targetX=x; op.targetY=y; op.receivedAt=performance.now(); }
+      if (document.getElementById('user-list-overlay').style.display==='block') renderUserList();
     }
     const playersRef = db.ref('players');
     playersRef.on('child_added', snap => syncRemotePlayer(snap.key, snap.val()));
@@ -419,13 +437,14 @@ const canvas = document.getElementById('gameCanvas');
     }
     function saveLocal() {
         localStorage.setItem('driller_save', JSON.stringify({
-            id: myId, x: player.x, y: player.y, res: player.res, lapis: player.lapis,
+            saveVersion: SAVE_VERSION, id: myId, x: player.x, y: player.y, res: player.res, lapis: player.inventory.lapis,
             torchCount: player.torchCount, hasEnchantTable: player.hasEnchantTable, enchantUpgrades: player.enchantUpgrades,
             username: player.username, upgrades: player.upgrades, 
-            hat: player.hat, hp: player.hp, stats: player.stats, ores: player.ores, achieved: player.achieved
+            hat: player.hat, hp: player.hp, stats: player.stats, inventory: player.inventory, achieved: player.achieved
         }));
     }
     setInterval(saveLocal, 5000);
+    setInterval(() => { if (furnaceOpen) renderFurnace(); }, 250);
 
     function updateInventoryUI() {
         for(let i=1; i<=10; i++) {
@@ -443,17 +462,17 @@ const canvas = document.getElementById('gameCanvas');
             slot3Img.style.filter = "none";
         }
 
-        document.getElementById('inv-dirt').innerText = player.ores.dirt || 0;
-        document.getElementById('inv-iron').innerText = player.ores.iron || 0;
-        document.getElementById('inv-diamond').innerText = player.ores.diamond || 0;
-        document.getElementById('inv-coal').innerText = player.ores.coal || 0;
+        document.getElementById('inv-dirt').innerText = player.inventory.dirt || 0;
+        document.getElementById('inv-iron').innerText = player.inventory.rawIron || 0;
+        document.getElementById('inv-diamond').innerText = player.inventory.diamond || 0;
+        document.getElementById('inv-coal').innerText = player.inventory.coal || 0;
         
         updateResUI();
         updateTorchUI();
     }
 
     function toggleShop() {
-        if (isTyping || enchantMenuOpen) return;
+        if (isTyping || enchantMenuOpen || inventoryOpen || furnaceOpen) return;
         shopOpen = !shopOpen;
         document.getElementById('shop').style.display = shopOpen ? 'block' : 'none';
         if (shopOpen) renderShop();
@@ -473,37 +492,22 @@ const canvas = document.getElementById('gameCanvas');
     }
 
     function renderShop() {
-        const shopTitle = document.querySelector('#shop h2');
-        if (shopTitle) shopTitle.innerText = `VILLAGE TRADER - ${player.res} GOLD`;
         const effList = document.getElementById('eff-list');
         const fortList = document.getElementById('fort-list');
         effList.innerHTML = ''; fortList.innerHTML = '';
         
-        let sellSection = document.getElementById('ore-sell-section');
-        if (!sellSection) {
-            sellSection = document.createElement('div');
-            sellSection.id = 'ore-sell-section';
-            sellSection.className = 'upgrade-section';
-            const firstSection = document.querySelector('#shop .upgrade-section');
-            document.getElementById('shop').insertBefore(sellSection, firstSection);
-        }
-        sellSection.innerHTML = '<h3>Sell Ores</h3>';
-        const oreNames = { coal: 'COAL', iron: 'IRON', gold: 'GOLD ORE', diamond: 'DIAMOND' };
-        Object.keys(ORE_PRICES).forEach(type => {
-            const amount = player.ores[type] || 0;
-            const row = document.createElement('div');
-            row.className = 'upgrade-row';
-            row.innerHTML = `<span>${oreNames[type]}: ${amount} (${ORE_PRICES[type]} GOLD EACH)</span>
-                <span><button class="upgrade-btn" ${amount < 1 ? 'disabled' : ''} onclick="sellOre('${type}', 1)">SELL 1</button>
-                <button class="upgrade-btn" ${amount < 1 ? 'disabled' : ''} onclick="sellOre('${type}', ${amount})">SELL ALL</button></span>`;
-            sellSection.appendChild(row);
-        });
+        const title=document.querySelector('#shop h2'); if(title) title.innerText=`VILLAGE TRADER - ${player.res} COINS`;
+        let sell=document.getElementById('ore-sell-section'); if(!sell){sell=document.createElement('div');sell.id='ore-sell-section';sell.className='upgrade-section';document.getElementById('shop').insertBefore(sell,document.querySelector('#shop .upgrade-section'));}
+        sell.innerHTML='<h3>SELL MATERIALS</h3>';
+        const saplingRow=document.createElement('div');saplingRow.className='upgrade-row';saplingRow.innerHTML=`<span>SAPLING (${player.inventory.sapling||0} OWNED)</span><button class="upgrade-btn" ${player.res<25?'disabled':''} onclick="buySapling()">25 COINS</button>`;sell.appendChild(saplingRow);
+        for(const [type,price] of Object.entries(ORE_PRICES)){const amount=player.inventory[type]||0;const row=document.createElement('div');row.className='upgrade-row';row.innerHTML=`<span>${ITEM_INFO[type].name}: ${amount} (${price} COINS)</span><span><button class="upgrade-btn" ${!amount?'disabled':''} onclick="sellItem('${type}',1)">SELL 1</button> <button class="upgrade-btn" ${!amount?'disabled':''} onclick="sellItem('${type}',${amount})">SELL ALL</button></span>`;sell.appendChild(row)}
+        const total=Object.entries(ORE_PRICES).reduce((sum,[t,p])=>sum+(player.inventory[t]||0)*p,0);const all=document.createElement('button');all.className='upgrade-btn';all.disabled=!total;all.innerText=`SELL EVERYTHING (${total} COINS)`;all.onclick=sellAllMaterials;sell.appendChild(all);
 
         const btnBuyEnchant = document.getElementById('btn-buy-enchant');
         if (player.hasEnchantTable) {
             btnBuyEnchant.innerText = "OWNED"; btnBuyEnchant.disabled = true;
         } else {
-            btnBuyEnchant.innerText = "1000 GOLD"; btnBuyEnchant.disabled = player.res < 1000;
+            btnBuyEnchant.innerText = "1000 COINS"; btnBuyEnchant.disabled = player.res < 1000;
         }
 
         UPGRADES.efficiency.forEach((upg, i) => {
@@ -582,16 +586,65 @@ const canvas = document.getElementById('gameCanvas');
         });
     }
 
-    window.sellOre = (type, requestedAmount) => {
-        if (!Object.prototype.hasOwnProperty.call(ORE_PRICES, type)) return;
-        const owned = player.ores[type] || 0;
-        const amount = Math.max(0, Math.min(owned, Math.floor(requestedAmount)));
-        if (amount < 1) return;
-        player.ores[type] -= amount;
-        player.res += amount * ORE_PRICES[type];
-        updateInventoryUI();
-        renderShop();
-        saveLocal();
+    function toast(message){const el=document.getElementById('game-toast');el.innerText=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),1400)}
+    function addItem(type,amount){const limit=INVENTORY_LIMITS[type]??999;const before=player.inventory[type]||0;player.inventory[type]=Math.min(limit,before+amount);if(type==='lapis')player.lapis=player.inventory.lapis;const added=player.inventory[type]-before;if(added>0)toast(`+${added} ${ITEM_INFO[type]?.name||type}`);if(added<amount)toast(`${ITEM_INFO[type]?.name||type} FULL`);return added}
+    window.buySapling=()=>{if(player.res<25)return;if((player.inventory.sapling||0)>=INVENTORY_LIMITS.sapling){toast('SAPLING STACK FULL');return}player.res-=25;addItem('sapling',1);renderShop();updateInventoryUI();saveLocal()};
+    window.sellItem=(type,wanted)=>{if(!(type in ORE_PRICES))return;const amount=Math.min(player.inventory[type]||0,Math.max(0,Math.floor(wanted)));if(!amount)return;player.inventory[type]-=amount;const coins=amount*ORE_PRICES[type];player.res+=coins;toast(`SOLD ${amount} ${ITEM_INFO[type].name} FOR ${coins} COINS`);updateInventoryUI();renderShop();renderInventory();saveLocal()};
+    window.sellAllMaterials=()=>{let total=0;for(const [type,price] of Object.entries(ORE_PRICES)){total+=(player.inventory[type]||0)*price;player.inventory[type]=0}if(total){player.res+=total;toast(`SOLD EVERYTHING FOR ${total} COINS`);updateInventoryUI();renderShop();renderInventory();saveLocal()}};
+    window.toggleInventory=()=>{if(shopOpen||enchantMenuOpen||furnaceOpen)return;inventoryOpen=!inventoryOpen;document.getElementById('inventory-menu').style.display=inventoryOpen?'block':'none';if(inventoryOpen)renderInventory()};
+    function renderInventory(){const grid=document.getElementById('inventory-grid');if(!grid)return;grid.replaceChildren();let used=0,total=0;for(const [type,limit] of Object.entries(INVENTORY_LIMITS)){const count=player.inventory[type]||0;used+=count;total+=limit;const b=document.createElement('button');b.className='inventory-item'+(selectedInventoryItem===type?' selected':'');b.innerHTML=`<strong>${ITEM_INFO[type]?.name||type}</strong><div class="count">${count} / ${limit}</div>`;b.onclick=()=>{selectedInventoryItem=type;renderInventoryDetails(type);renderInventory()};grid.appendChild(b)}document.getElementById('inventory-capacity').innerText=`STACK CAPACITY: ${used} ITEMS STORED`;
+      if(selectedInventoryItem)renderInventoryDetails(selectedInventoryItem)}
+    function renderInventoryDetails(type){const item=ITEM_INFO[type],count=player.inventory[type]||0,box=document.getElementById('inventory-details');if(!item)return;let actions='';if(type==='furnace'&&count===0)actions='<button class="upgrade-btn" onclick="craftFurnace()">CRAFT FURNACE: 20 DIRT + 10 RAW IRON</button>';else if(type==='furnace')actions='<button class="upgrade-btn" onclick="setSlot(6); toggleInventory(); toast(\'FURNACE EQUIPPED IN SLOT 6\')">EQUIP TO SLOT 6</button>';if(type in ORE_PRICES&&count)actions+=`<button class="upgrade-btn" onclick="sellItem('${type}',1)">SELL 1</button>`;box.innerHTML=`<h3>${item.name} x${count}</h3><p>${item.desc}</p>${actions}`}
+    window.craftFurnace=()=>{if((player.inventory.dirt||0)<20||(player.inventory.rawIron||0)<10){toast('NEED 20 DIRT AND 10 RAW IRON');return}player.inventory.dirt-=20;player.inventory.rawIron-=10;addItem('furnace',1);renderInventory();saveLocal()};
+    function getCurrentFurnace(){return worldFurnaces.find(f=>f.key===currentFurnaceKey)||null}
+    window.toggleFurnace=(key=null)=>{
+      if(key)currentFurnaceKey=key;
+      if(shopOpen||enchantMenuOpen||inventoryOpen)return;
+      if(!currentFurnaceKey){toast('INTERACT WITH A PLACED FURNACE');return}
+      furnaceOpen=!furnaceOpen;
+      document.getElementById('furnace-menu').style.display=furnaceOpen?'block':'none';
+      if(furnaceOpen)renderFurnace();else currentFurnaceKey=null;
+    };
+    function furnaceReady(f){return !!(f&&f.job&&Date.now()>=f.job.finishTime)}
+    function renderFurnace(){
+      const f=getCurrentFurnace(),el=document.getElementById('furnace-status');
+      if(!f){el.innerText='FURNACE NOT FOUND.';return}
+      document.getElementById('furnace-fuel').innerText=`${f.fuel||0} COAL`;document.getElementById('furnace-input').innerText=f.job?`${f.job.amount} ${ITEM_INFO[f.job.input].name}`:'EMPTY';document.getElementById('furnace-output').innerText=f.job&&furnaceReady(f)?`${f.job.amount} ${ITEM_INFO[f.job.output].name}`:'EMPTY';
+      if(!f.job)el.innerText=`FURNACE AT X ${f.tx}, Y ${f.ty} IS IDLE.`;
+      else if(furnaceReady(f))el.innerText=`READY: ${f.job.amount} ${ITEM_INFO[f.job.output].name}`;
+      else el.innerText=`SMELTING ${f.job.amount} ITEM(S): ${Math.max(0,Math.ceil((f.job.finishTime-Date.now())/1000))}s`;
+    }
+    window.startSmelting=async(input,amount)=>{
+      const f=getCurrentFurnace();
+      if(!f){toast('FURNACE NOT FOUND');return}
+      if(f.job){toast('COLLECT THE CURRENT OUTPUT FIRST');return}
+      const output=input==='rawIron'?'ironBar':input==='rawGold'?'goldBar':null;
+      if(!output)return;
+      if((player.inventory[input]||0)<amount){toast('NOT ENOUGH ORE');return}if((f.fuel||0)<amount){toast('ADD COAL TO THE FUEL SLOT');return}
+      player.inventory[input]-=amount;f.fuel=(f.fuel||0)-amount;await db.ref('furnaces/'+f.key+'/fuel').set(f.fuel);
+      const job={input,output,amount,finishTime:Date.now()+4000*amount};
+      await db.ref('furnaces/'+f.key+'/job').set(job);
+      f.job=job;toast('SMELTING STARTED');renderFurnace();renderInventory();saveLocal();
+    };
+    window.addFurnaceFuel=async amount=>{const f=getCurrentFurnace();if(!f)return;amount=Math.min(player.inventory.coal||0,Math.max(0,Math.floor(amount)));if(!amount)return;player.inventory.coal-=amount;f.fuel=(f.fuel||0)+amount;await db.ref('furnaces/'+f.key+'/fuel').set(f.fuel);renderFurnace();renderInventory();saveLocal()};
+    window.removeFurnaceFuel=async()=>{const f=getCurrentFurnace();if(!f||!(f.fuel||0))return;const space=INVENTORY_LIMITS.coal-(player.inventory.coal||0),amount=Math.min(space,f.fuel);if(!amount){toast('COAL STACK FULL');return}player.inventory.coal+=amount;f.fuel-=amount;await db.ref('furnaces/'+f.key+'/fuel').set(f.fuel);renderFurnace();renderInventory();saveLocal()};
+    window.collectFurnace=async()=>{
+      const f=getCurrentFurnace();
+      if(!f||!furnaceReady(f)){toast('NOTHING READY');return}
+      const space=(INVENTORY_LIMITS[f.job.output]||999)-(player.inventory[f.job.output]||0);
+      if(space<f.job.amount){toast('NOT ENOUGH INVENTORY SPACE');return}
+      addItem(f.job.output,f.job.amount);
+      await db.ref('furnaces/'+f.key+'/job').remove();
+      delete f.job;renderFurnace();renderInventory();updateInventoryUI();saveLocal();
+    };
+    window.pickupFurnace=async()=>{
+      const f=getCurrentFurnace();if(!f)return;
+      if(f.ownerId!==myId){toast('ONLY THE OWNER CAN PICK THIS UP');return}
+      if(f.job){toast('COLLECT THE FURNACE OUTPUT FIRST');return}if(f.fuel){toast('TAKE THE FUEL OUT FIRST');return}
+      if((player.inventory.furnace||0)>=INVENTORY_LIMITS.furnace){toast('FURNACE STACK IS FULL');return}
+      player.inventory.furnace++;await db.ref('furnaces/'+f.key).remove();
+      furnaceOpen=false;currentFurnaceKey=null;document.getElementById('furnace-menu').style.display='none';
+      updateInventoryUI();renderInventory();saveLocal();toast('FURNACE PICKED UP');
     };
 
     window.buyUpgrade = (type, index) => {
@@ -605,7 +658,7 @@ const canvas = document.getElementById('gameCanvas');
     window.buyEnchant = (type, index) => {
         const upg = ENCHANTS[type][index];
         if (player.lapis >= upg.cost && player.enchantUpgrades[type] === index) {
-            player.lapis -= upg.cost; player.enchantUpgrades[type]++;
+            player.lapis -= upg.cost; player.inventory.lapis = player.lapis; player.enchantUpgrades[type]++;
             recalculateStats(); updateInventoryUI(); renderEnchantMenu(); saveLocal();
         }
     };
@@ -700,50 +753,37 @@ const canvas = document.getElementById('gameCanvas');
         }
       }
     }
-    function update(dt) {
-      // Use a tiny snapshot buffer, then extrapolate briefly when Firebase
-      // delivers updates unevenly. A frame-rate-independent ease removes corrections.
-      const interpolationDelay = 55;
-      const renderTime = performance.now() - interpolationDelay;
-      const correctionBlend = 1 - Math.exp(-16 * dt);
-
-      for (const id in otherPlayers) {
-        const op = otherPlayers[id];
-        const snapshots = op.snapshots || [];
-        if (snapshots.length === 0) continue;
-
-        while (snapshots.length >= 2 && snapshots[1].time <= renderTime) {
-          snapshots.shift();
-        }
-
-        let desiredX;
-        let desiredY;
-
-        if (snapshots.length >= 2) {
-          const from = snapshots[0];
-          const to = snapshots[1];
-          const duration = Math.max(1, to.time - from.time);
-          const blend = Math.max(0, Math.min(1, (renderTime - from.time) / duration));
-          desiredX = from.x + (to.x - from.x) * blend;
-          desiredY = from.y + (to.y - from.y) * blend;
-        } else {
-          const latest = snapshots[0];
-          const aheadSeconds = Math.max(0, Math.min((renderTime - latest.time) / 1000, 0.18));
-          desiredX = latest.x + (latest.vx || 0) * aheadSeconds;
-          desiredY = latest.y + (latest.vy || 0) * aheadSeconds;
-        }
-
-        const distance = Math.hypot(desiredX - op.x, desiredY - op.y);
-        if (distance > TILE_SIZE * 8) {
-          op.x = desiredX;
-          op.y = desiredY;
-        } else {
-          op.x += (desiredX - op.x) * correctionBlend;
-          op.y += (desiredY - op.y) * correctionBlend;
+    function treeHasSpace(x,groundY,ignoreKey=null){
+      // A tree occupies the three columns centered on x and the six tiles above its base.
+      if(x<1||x>=WORLD_WIDTH-1||groundY<6||groundY>=WORLD_HEIGHT)return false;
+      if(!gameMap[groundY]||gameMap[groundY][x]===0)return false;
+      for(let yy=groundY-6;yy<groundY;yy++){
+        for(let xx=x-1;xx<=x+1;xx++){
+          if(gameMap[yy]?.[xx]>0)return false;
+          if(worldFurnaces.some(f=>f.tx===xx&&f.ty===yy))return false;
         }
       }
+      return !worldTrees.some(t=>t.key!==ignoreKey&&Math.abs(t.x-x)<3&&Math.abs(t.groundY-groundY)<6);
+    }
+    function treeParts(t){
+      const grown=Date.now()>=t.growAt;
+      if(!grown)return[{x:t.x,y:t.groundY-1,type:'sapling'}];
+      const parts=[];
+      for(let y=t.groundY-1;y>=t.groundY-4;y--)parts.push({x:t.x,y,type:'wood'});
+      for(let y=t.groundY-6;y<=t.groundY-3;y++){
+        for(let x=t.x-1;x<=t.x+1;x++){
+          if(!(y===t.groundY-6&&x!==t.x))parts.push({x,y,type:'leaves'});
+        }
+      }
+      return parts;
+    }
+    function treeAt(x,y){for(const t of worldTrees)if(treeParts(t).some(p=>p.x===x&&p.y===y))return t;return null}
+    async function chopTree(t){const grown=Date.now()>=t.growAt;if(grown){addItem('wood',5);if(Math.random()<.45)addItem('sapling',1)}else addItem('sapling',1);await db.ref('trees/'+t.key).remove();updateInventoryUI();renderInventory();saveLocal()}
 
-      if (shopOpen || enchantMenuOpen || achievementMenuOpen || infoMenuOpen || !isMapLoaded || isTyping) return;
+    function update(dt) {
+      const remoteBlend=1-Math.exp(-14*dt), now=performance.now();
+      for(const id in otherPlayers){const op=otherPlayers[id];const age=Math.min((now-(op.receivedAt||now))/1000,.16);const dx=op.targetX+(op.vx||0)*age,dy=op.targetY+(op.vy||0)*age;const dist=Math.hypot(dx-op.x,dy-op.y);if(dist>TILE_SIZE*8){op.x=op.targetX;op.y=op.targetY}else{op.x+=(dx-op.x)*remoteBlend;op.y+=(dy-op.y)*remoteBlend}}
+      if (shopOpen || inventoryOpen || furnaceOpen || enchantMenuOpen || achievementMenuOpen || infoMenuOpen || !isMapLoaded || isTyping) return;
       if (player.hp < player.maxHp) {
         player.hp += 1 * dt; 
         if (player.hp > player.maxHp) player.hp = player.maxHp;
@@ -755,23 +795,15 @@ const canvas = document.getElementById('gameCanvas');
       player.isMoving = false;
       player.isMining = false;
       player.isCrouching = keys['s'] && player.onGround;
-
       let moveDirection = 0;
-      if (!keys['shift'] && keys['a']) moveDirection -= 1;
-      if (!keys['shift'] && keys['d']) moveDirection += 1;
-
+      if (!keys['shift'] && keys['a']) moveDirection--;
+      if (!keys['shift'] && keys['d']) moveDirection++;
       const targetVx = moveDirection * player.moveSpeed;
       const rate = moveDirection === 0 ? player.moveDeceleration : player.moveAcceleration;
-      const maxVelocityChange = rate * dt;
-      const velocityDifference = targetVx - player.vx;
-      if (Math.abs(velocityDifference) <= maxVelocityChange) player.vx = targetVx;
-      else player.vx += Math.sign(velocityDifference) * maxVelocityChange;
-
-      if (moveDirection !== 0) {
-          player.dir = 'side';
-          player.isMoving = true;
-          player.flip = moveDirection < 0;
-      }
+      const change = rate * dt;
+      const difference = targetVx - player.vx;
+      player.vx = Math.abs(difference) <= change ? targetVx : player.vx + Math.sign(difference) * change;
+      if (moveDirection) { player.dir='side'; player.isMoving=true; player.flip=moveDirection<0; }
 
       if (keys['shift']) {
           if (player.selectedSlot === 2) {
@@ -788,6 +820,8 @@ const canvas = document.getElementById('gameCanvas');
               const tx = Math.floor((player.x + player.w/2 + mx*40)/TILE_SIZE);
               const ty = Math.floor((player.y + player.h/2 + my*40)/TILE_SIZE);
               const hit = gameMap[ty] ? gameMap[ty][tx] : 0;
+              const targetedTree = treeAt(tx,ty);
+              if(player.selectedSlot===1 && targetedTree && isDir){chopTree(targetedTree);keys['shift']=false;return;}
               
               // SLOT 1: PICKAXE
               if (player.selectedSlot === 1 && hit > 0 && isDir) {
@@ -802,26 +836,15 @@ const canvas = document.getElementById('gameCanvas');
                         player.hasEnchantTable = true;
                         db.ref('world_breaks').push({ type: 'single', x: tx, y: ty, timestamp: firebase.database.ServerValue.TIMESTAMP });
                     } else {
-                        const oreTypes = { 4: 'diamond', 2: 'gold', 5: 'iron', 6: 'coal' };
-                        const oreType = oreTypes[hit];
-                        const fortuneChance = player.upgrades.fortune > 0 ? UPGRADES.fortune[player.upgrades.fortune - 1].chance : 0;
-                        const multiplier = Math.random() < fortuneChance ? 2 : 1;
-                        const wealthMult = player.enchantUpgrades.wealth > 0 ? ENCHANTS.wealth[player.enchantUpgrades.wealth - 1].val : 1;
-                        const amountFound = Math.max(1, Math.floor(multiplier * wealthMult));
-
-                        if (oreType) {
-                            player.stats[oreType] += amountFound;
-                            player.ores[oreType] += amountFound;
-                        } else if (hit === 7) {
-                            player.stats.lapis += amountFound;
-                            player.lapis += amountFound;
-                        } else {
-                            player.stats.dirt += amountFound;
-                            player.ores.dirt += amountFound;
-                        }
-
+                        const types={4:'diamond',2:'rawGold',5:'rawIron',6:'coal',7:'lapis'};
+                        const type=types[hit]||'dirt';
+                        const statType={rawGold:'gold',rawIron:'iron'}[type]||type;
+                        const fortune=player.upgrades.fortune>0?UPGRADES.fortune[player.upgrades.fortune-1].chance:0;
+                        const amount=Math.random()<fortune?2:1;
+                        player.stats[statType]=(player.stats[statType]||0)+amount;
+                        addItem(type,amount);
                         checkAchievements();
-                        db.ref('world_breaks').push({ type: 'single', x: tx, y: ty, timestamp: firebase.database.ServerValue.TIMESTAMP });
+                        db.ref('world_breaks').push({type:'single',x:tx,y:ty,timestamp:firebase.database.ServerValue.TIMESTAMP});
                     }
                     updateInventoryUI(); miningProgress = 0; saveLocal();
                   }
@@ -838,11 +861,34 @@ const canvas = document.getElementById('gameCanvas');
                       keys['shift'] = false;
                   }
               }
+              // SLOT 7: SAPLING (surface planting)
+              else if (player.selectedSlot === 7 && isDir) {
+                  const plantX=tx;
+                  const groundY=ty+1;
+                  if((player.inventory.sapling||0)<1){toast('NO SAPLINGS');keys['shift']=false;}
+                  else if(hit!==0 || !gameMap[groundY] || gameMap[groundY][plantX]===0){toast('PLANT THE SAPLING ON TOP OF A BLOCK');keys['shift']=false;}
+                  else if(!treeHasSpace(plantX,groundY)){toast('TREE NEEDS A CLEAR 3x6 SPACE');keys['shift']=false;}
+                  else {player.inventory.sapling--;const growAt=Date.now()+45000+Math.floor(Math.random()*75001);db.ref('trees').push({x:plantX,groundY,growAt,ownerId:myId});updateInventoryUI();renderInventory();saveLocal();toast('SAPLING PLANTED');keys['shift']=false;}
+              }
+              // SLOT 6: FURNACE (Place / Interact)
+              else if (player.selectedSlot === 6 && isDir) {
+                  const placed = worldFurnaces.find(f => f.tx === tx && f.ty === ty);
+                  if (placed) {
+                      currentFurnaceKey = placed.key;
+                      toggleFurnace(placed.key);
+                      keys['shift'] = false;
+                  } else if (hit === 0 && (player.inventory.furnace || 0) > 0) {
+                      player.inventory.furnace--;
+                      db.ref('furnaces').push({ tx, ty, ownerId: myId, ownerName: player.username, fuel: 0, placedAt: firebase.database.ServerValue.TIMESTAMP });
+                      updateInventoryUI(); renderInventory(); saveLocal(); toast('FURNACE PLACED');
+                      keys['shift'] = false;
+                  }
+              }
               // SLOT 4: DIRT (Placing)
               else if (player.selectedSlot === 4 && isDir) {
-                  if (hit === 0 && player.ores.dirt > 0) {
+                  if (hit === 0 && player.inventory.dirt > 0) {
                       db.ref('world_breaks').push({ type: 'place', x: tx, y: ty, block: 1, timestamp: firebase.database.ServerValue.TIMESTAMP });
-                      player.ores.dirt--;
+                      player.inventory.dirt--;
                       updateInventoryUI(); saveLocal();
                       keys['shift'] = false;
                   }
@@ -856,12 +902,12 @@ const canvas = document.getElementById('gameCanvas');
                       const tty = Math.floor(t.y / TILE_SIZE);
                       if (ttx === tx && tty === ty) {
                           if (t.key) db.ref('torches/' + t.key).remove();
-                          worldTorches.splice(i, 1); player.torchCount++; updateInventoryUI(); saveLocal(); pickedUp = true; break; 
+                          worldTorches.splice(i, 1); player.inventory.torch++; updateInventoryUI(); saveLocal(); pickedUp = true; break; 
                       }
                   }
-                  if (!pickedUp && hit === 0 && player.torchCount > 0) {
+                  if (!pickedUp && hit === 0 && player.inventory.torch > 0) {
                       db.ref('torches').push({ x: tx * TILE_SIZE + 32, y: ty * TILE_SIZE + 32 });
-                      player.torchCount--; updateInventoryUI(); saveLocal();
+                      player.inventory.torch--; updateInventoryUI(); saveLocal();
                   }
                   keys['shift'] = false; // Prevent accidentally dropping all your torches in one tick
               }
@@ -900,9 +946,7 @@ const canvas = document.getElementById('gameCanvas');
       }
 
       updateBombs(dt);
-      const cameraFollow = 1 - Math.exp(-10 * dt);
-      camera.x += (player.x - camera.x) * cameraFollow;
-      camera.y += (player.y - camera.y) * cameraFollow;
+      const cameraBlend=1-Math.exp(-10*dt); camera.x+=(player.x-camera.x)*cameraBlend; camera.y+=(player.y-camera.y)*cameraBlend;
       if (camera.shake > 0) camera.shake *= 0.9;
       const curDepth = Math.floor(player.y / TILE_SIZE);
       if (curDepth > player.stats.maxDepth) { player.stats.maxDepth = curDepth; checkAchievements(); }
@@ -910,16 +954,8 @@ const canvas = document.getElementById('gameCanvas');
     }
 
     function checkCollision(nx, ny) {
-      const edgePadding = 0.001;
-      const l = Math.floor(nx / TILE_SIZE);
-      const r = Math.floor((nx + player.w - edgePadding) / TILE_SIZE);
-      const t = Math.floor(ny / TILE_SIZE);
-      const b = Math.floor((ny + player.h - edgePadding) / TILE_SIZE);
-      for (let i = l; i <= r; i++) {
-        for (let j = t; j <= b; j++) {
-          if (gameMap[j] && gameMap[j][i] > 0) return { x:i, y:j, type:gameMap[j][i] };
-        }
-      }
+      const e=.001,l=Math.floor(nx/TILE_SIZE),r=Math.floor((nx+player.w-e)/TILE_SIZE),t=Math.floor(ny/TILE_SIZE),b=Math.floor((ny+player.h-e)/TILE_SIZE);
+      for (let i=l; i<=r; i++) for (let j=t; j<=b; j++) if (gameMap[j] && gameMap[j][i] > 0) return {x:i, y:j, type:gameMap[j][i]};
       return null;
     }
 
@@ -1001,7 +1037,17 @@ const canvas = document.getElementById('gameCanvas');
           }
         }
       }
+      worldTrees.forEach(t=>treeParts(t).forEach(part=>{const x=part.x*TILE_SIZE-cx,y=part.y*TILE_SIZE-cy;ctx.save();if(part.type==='wood'){ctx.fillStyle='#7a4b25';ctx.fillRect(x+18,y,28,TILE_SIZE);ctx.fillStyle='#9b6434';ctx.fillRect(x+24,y,7,TILE_SIZE)}else if(part.type==='leaves'){ctx.fillStyle='#2d7a39';ctx.fillRect(x+3,y+3,TILE_SIZE-6,TILE_SIZE-6);ctx.fillStyle='#47a34f';ctx.fillRect(x+10,y+10,16,16)}else{ctx.fillStyle='#79502a';ctx.fillRect(x+29,y+34,6,26);ctx.fillStyle='#45a34b';ctx.fillRect(x+15,y+14,34,25)}ctx.restore()}));
       worldTorches.forEach(t => { if (sprites.torch.complete) ctx.drawImage(sprites.torch, t.x - cx - 16, t.y - cy - 16, 32, 32); });
+      worldFurnaces.forEach(f => {
+        const x=f.tx*TILE_SIZE-cx, y=f.ty*TILE_SIZE-cy;
+        ctx.save();
+        ctx.fillStyle='#4a4a4a';ctx.fillRect(x+4,y+4,TILE_SIZE-8,TILE_SIZE-8);
+        ctx.strokeStyle=furnaceReady(f)?'#ff9a22':'#888';ctx.lineWidth=3;ctx.strokeRect(x+5,y+5,TILE_SIZE-10,TILE_SIZE-10);
+        ctx.fillStyle=furnaceReady(f)?'#ff6a00':'#171717';ctx.fillRect(x+17,y+34,30,18);
+        ctx.fillStyle='#222';ctx.fillRect(x+14,y+13,36,13);
+        ctx.restore();
+      });
       bombs.forEach(b => { if (sprites.bomb.complete) ctx.drawImage(sprites.bomb, b.x - cx, b.y - cy, 48, 48); });
       
       for (let id in otherPlayers) { drawSprite(otherPlayers[id], cx, cy); drawIndicator(otherPlayers[id], cx, cy); }
@@ -1016,6 +1062,8 @@ const canvas = document.getElementById('gameCanvas');
         if (e.key === 'Enter' && isTyping) { sendChatMessage(chatInput.value); chatInput.value = ''; chatInput.blur(); chatInput.style.display = 'none'; chatContainer.classList.remove('active'); isTyping = false; return; }
         if (e.key === 'Escape') { 
             if (isTyping) { chatInput.value = ''; chatInput.blur(); chatInput.style.display = 'none'; chatContainer.classList.remove('active'); isTyping = false; } 
+            else if (inventoryOpen) toggleInventory();
+            else if (furnaceOpen) toggleFurnace();
             else if (shopOpen) toggleShop(); 
             else if (enchantMenuOpen) toggleEnchantMenu(); 
             else if (achievementMenuOpen) toggleAchievementMenu();
@@ -1033,7 +1081,8 @@ const canvas = document.getElementById('gameCanvas');
             else if (player.jumpCount < 2) { player.vy = player.jumpForce; player.jumpCount = 2; }
         }
 
-        if (e.key === 'e') toggleShop();
+        if (e.key.toLowerCase() === 'e') toggleShop();
+        if (e.key.toLowerCase() === 'i') toggleInventory();
         
         // Inventory Selection
         if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(e.key)) {
