@@ -2236,6 +2236,17 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
 /* Leaderboard channels, stored inside existing channel message paths */
 .channel-item.leaderboard-chan::before{content:none!important}.channel-item.leaderboard-chan .channel-type-icon{width:17px;height:17px;margin-right:7px;color:#f0b232}.leaderboard-shell{flex:1;min-height:0;overflow-y:auto;padding:18px 22px 28px}.leaderboard-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:16px;border-bottom:1px solid var(--line-clean,rgba(255,255,255,.07))}.leaderboard-title{margin:0;color:#fff;font-size:22px}.leaderboard-subtitle{margin:5px 0 0;color:var(--text-muted);font-size:13px}.leaderboard-actions{display:flex;gap:8px;flex-wrap:wrap}.leaderboard-admin-btn,.leaderboard-submit-btn,.leaderboard-save-btn{border:0;border-radius:8px;background:var(--primary-blurple);color:#fff;padding:10px 13px;font:inherit;font-weight:800;cursor:pointer}.leaderboard-levels{display:flex;flex-direction:column;gap:18px;margin-top:18px}.leaderboard-level-card{border:1px solid var(--line-clean,rgba(255,255,255,.08));border-radius:11px;background:rgba(0,0,0,.11);overflow:hidden}.leaderboard-level-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line-clean,rgba(255,255,255,.07))}.leaderboard-level-name{color:#fff;font-size:16px;font-weight:850}.leaderboard-level-desc{color:var(--text-muted);font-size:12px;margin-top:3px}.leaderboard-table{width:100%;border-collapse:collapse}.leaderboard-table th,.leaderboard-table td{padding:10px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.045);font-size:13px}.leaderboard-table th{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px}.leaderboard-table tr:last-child td{border-bottom:0}.leaderboard-rank{width:44px;color:#f0b232;font-weight:900}.leaderboard-user{font-weight:750;color:var(--text-normal)}.leaderboard-time-btn{border:0;background:transparent;color:#7aa2ff;font:inherit;font-weight:850;cursor:pointer;padding:0}.leaderboard-time-btn:hover{text-decoration:underline}.leaderboard-time-btn.no-proof{color:var(--text-normal);cursor:default;text-decoration:none}.leaderboard-empty{padding:18px 14px;color:var(--text-muted);font-size:13px;text-align:center}.leaderboard-modal{display:none;position:fixed;inset:0;z-index:16000;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.7);backdrop-filter:blur(3px)}.leaderboard-modal.open{display:flex}.leaderboard-modal-card{width:min(520px,100%);max-height:88vh;overflow:auto;border:1px solid var(--line-clean,rgba(255,255,255,.1));border-radius:13px;background:#1e1f22;box-shadow:0 20px 60px rgba(0,0,0,.6)}.leaderboard-modal-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid rgba(255,255,255,.07)}.leaderboard-modal-head h3{margin:0;color:#fff}.leaderboard-modal-close{border:0;background:transparent;color:var(--text-muted);font-size:22px;cursor:pointer}.leaderboard-modal-body{display:flex;flex-direction:column;gap:12px;padding:17px}.leaderboard-modal-body label{color:var(--text-muted);font-size:11px;font-weight:800;text-transform:uppercase}.leaderboard-modal-body input,.leaderboard-modal-body select{width:100%;box-sizing:border-box;background:var(--bg-input);color:#fff;border:1px solid transparent;border-radius:7px;padding:11px;font:inherit;outline:none}.leaderboard-level-editor{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:8px;margin-bottom:9px}.leaderboard-remove-level{border:0;border-radius:7px;background:rgba(218,55,60,.15);color:#ff777c;cursor:pointer;font-size:18px}.leaderboard-add-level{border:0;background:transparent;color:#9da7ff;font-weight:800;cursor:pointer;text-align:left;padding:3px 0}.leaderboard-proof-note{color:var(--text-muted);font-size:12px;line-height:1.4}.leaderboard-error{min-height:18px;color:#fa777c;font-size:12px}.leaderboard-proof-preview{max-width:100%;max-height:180px;object-fit:contain;border-radius:8px;background:#111214}.leaderboard-proof-viewer{display:none;position:fixed;inset:0;z-index:17000;background:rgba(5,6,8,.95);align-items:center;justify-content:center;padding:28px}.leaderboard-proof-viewer.open{display:flex}.leaderboard-proof-viewer img{max-width:94vw;max-height:88vh;object-fit:contain;border-radius:9px}.leaderboard-proof-viewer button{position:absolute;right:18px;top:14px;border:0;background:rgba(255,255,255,.09);color:#fff;border-radius:8px;width:38px;height:38px;font-size:23px;cursor:pointer}body.theme-light .leaderboard-title,body.theme-light .leaderboard-level-name,body.theme-light .leaderboard-modal-head h3{color:#111214}body.theme-light .leaderboard-modal-card{background:#fff}@media(max-width:640px){.leaderboard-shell{padding:14px 10px 22px}.leaderboard-hero{align-items:flex-start;flex-direction:column}.leaderboard-table th,.leaderboard-table td{padding:9px 8px}.leaderboard-table th:nth-child(4),.leaderboard-table td:nth-child(4){display:none}}
+
+        /* Ordinary unread messages bold the channel or DM. Mention pings keep the existing red dot. */
+        .channel-item.has-unread-message:not(.active) {
+            color: #ffffff;
+            font-weight: 800;
+        }
+        .channel-item.has-unread-message:not(.active)::before,
+        .channel-item.has-unread-message:not(.active) .channel-type-icon {
+            color: #ffffff;
+            opacity: 1;
+        }
 </style>
 </head>
 <body>
@@ -2646,6 +2657,8 @@ const firebaseConfig = {
         let toastListenerStartedAt = Date.now();
         let pendingImageUpload = false;
         let unreadCounts = {};
+        // Ordinary unread messages are separate from mention pings.
+        let unreadMessageCounts = {};
         let unreadListenerRefs = {};
         let unreadListenerStartedAt = Date.now();
         const UNREAD_LAST_READ_STORAGE_KEY = "avern_unread_last_read_v2";
@@ -2840,6 +2853,7 @@ const firebaseConfig = {
         function markUnreadKeyRead(key) {
             if (!key) return;
             unreadCounts[key] = 0;
+            unreadMessageCounts[key] = 0;
             lastReadByKey[key] = Date.now();
             saveUnreadState();
             updateUnreadBadge(key);
@@ -2885,7 +2899,10 @@ const firebaseConfig = {
             }
 
             const count = unreadCounts[key] || 0;
-            const shouldShow = count > 0 && key !== getCurrentUnreadKey();
+            const messageCount = unreadMessageCounts[key] || 0;
+            const isCurrent = key === getCurrentUnreadKey();
+            const shouldShow = count > 0 && !isCurrent;
+            item.classList.toggle('has-unread-message', messageCount > 0 && !isCurrent);
 
             if (shouldShow) {
                 item.classList.add('has-unread');
@@ -2909,6 +2926,18 @@ const firebaseConfig = {
 
         function updateAllUnreadBadges() {
             Object.keys(unreadCounts).forEach(updateUnreadBadge);
+        }
+
+        function incrementUnreadMessage(key, packet) {
+            if (!packet || !packet.user) return;
+            if (String(packet.user).toLowerCase() === String(sessionUser.username).toLowerCase()) return;
+            const isCurrentConversation = key === getCurrentUnreadKey();
+            if (isCurrentConversation && !document.hidden) {
+                markUnreadKeyRead(key);
+                return;
+            }
+            unreadMessageCounts[key] = (unreadMessageCounts[key] || 0) + 1;
+            updateUnreadBadge(key);
         }
 
         function incrementUnread(key, packet) {
@@ -5159,6 +5188,7 @@ function bindChannelSync() {
                 const notificationMode = getConversationNotificationMode(channelName, isDM);
                 const qualifiesForMentionNotification = isDM || mentionedByName || mentionedEveryone;
                 const shouldNotify = notificationMode !== 'muted' && (notificationMode === 'all' || qualifiesForMentionNotification);
+                if (authorLower !== myNameLower) incrementUnreadMessage(unreadKey, packet);
                 if (shouldNotify && authorLower !== myNameLower) incrementUnread(unreadKey, packet);
                 if (authorLower === myNameLower) return;
                 if (shouldNotify) {
