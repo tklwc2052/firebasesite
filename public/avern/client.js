@@ -366,7 +366,7 @@ const canvas = document.getElementById('gameCanvas');
     }, 50);
     function syncRemotePlayer(id, data) {
         if (id === myId || !data || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
-        data.username = String(data.username || 'Miner').slice(0,16);
+        data.username = String(data.username || 'Miner').slice(0, 16);
         const receivedAt = performance.now();
 
         if (!otherPlayers[id]) {
@@ -374,19 +374,24 @@ const canvas = document.getElementById('gameCanvas');
                 ...data,
                 x: data.x,
                 y: data.y,
-                targetX: data.x,
-                targetY: data.y,
-                receivedAt
+                snapshots: [{ x: data.x, y: data.y, time: receivedAt }]
             };
         } else {
             const op = otherPlayers[id];
-            // Never overwrite the displayed x/y here. That caused a visible snap
-            // every time a network update arrived.
             const { x, y, ...remoteState } = data;
             Object.assign(op, remoteState);
-            op.targetX = x;
-            op.targetY = y;
-            op.receivedAt = receivedAt;
+
+            if (!op.snapshots) op.snapshots = [];
+            const previous = op.snapshots[op.snapshots.length - 1];
+            if (!previous || previous.x !== x || previous.y !== y) {
+                op.snapshots.push({ x, y, time: receivedAt });
+            }
+
+            // Keep only a short history so interpolation remains lightweight.
+            const oldestUsefulTime = receivedAt - 1000;
+            while (op.snapshots.length > 2 && op.snapshots[1].time < oldestUsefulTime) {
+                op.snapshots.shift();
+            }
         }
 
         if (document.getElementById('user-list-overlay').style.display === 'block') renderUserList();
@@ -696,23 +701,36 @@ const canvas = document.getElementById('gameCanvas');
       }
     }
     function update(dt) {
-      // Smooth remote players every frame. Briefly predict forward from the
-      // newest snapshot, then ease toward that position without network snapping.
-      const remoteFollow = 1 - Math.exp(-22 * dt);
-      const now = performance.now();
+      // Render remote players slightly behind real time. This gives us two
+      // confirmed network positions to interpolate between instead of chasing
+      // each new update, which removes the remaining Firebase jitter.
+      const interpolationDelay = 85;
+      const renderTime = performance.now() - interpolationDelay;
+
       for (const id in otherPlayers) {
         const op = otherPlayers[id];
-        const snapshotAge = Math.min((now - (op.receivedAt || now)) / 1000, 0.12);
-        const predictedX = op.targetX + (Number.isFinite(op.vx) ? op.vx * snapshotAge : 0);
-        const predictedY = op.targetY + (Number.isFinite(op.vy) ? op.vy * snapshotAge : 0);
-        const distance = Math.hypot(predictedX - op.x, predictedY - op.y);
+        const snapshots = op.snapshots || [];
+        if (snapshots.length === 0) continue;
 
-        if (distance > TILE_SIZE * 8) {
-          op.x = op.targetX;
-          op.y = op.targetY;
+        while (snapshots.length >= 2 && snapshots[1].time <= renderTime) {
+          snapshots.shift();
+        }
+
+        if (snapshots.length >= 2) {
+          const from = snapshots[0];
+          const to = snapshots[1];
+          const duration = Math.max(1, to.time - from.time);
+          const blend = Math.max(0, Math.min(1, (renderTime - from.time) / duration));
+          const smoothBlend = blend * blend * (3 - 2 * blend);
+          op.x = from.x + (to.x - from.x) * smoothBlend;
+          op.y = from.y + (to.y - from.y) * smoothBlend;
         } else {
-          op.x += (predictedX - op.x) * remoteFollow;
-          op.y += (predictedY - op.y) * remoteFollow;
+          const latest = snapshots[0];
+          const distance = Math.hypot(latest.x - op.x, latest.y - op.y);
+          if (distance > TILE_SIZE * 8) {
+            op.x = latest.x;
+            op.y = latest.y;
+          }
         }
       }
 
