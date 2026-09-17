@@ -355,7 +355,7 @@ const canvas = document.getElementById('gameCanvas');
             dir: player.dir, isMoving: player.isMoving, flip: player.flip,
             isMining: player.isMining, username: player.username, hat: player.hat,
             lastSeen: firebase.database.ServerValue.TIMESTAMP,
-            onGround: player.onGround, vy: Math.round(player.vy),
+            onGround: player.onGround, vy: player.vy,
             isCrouching: player.isCrouching, hp: Math.round(player.hp)
         };
         const comparable = JSON.stringify({...state, lastSeen: 0});
@@ -374,7 +374,7 @@ const canvas = document.getElementById('gameCanvas');
                 ...data,
                 x: data.x,
                 y: data.y,
-                snapshots: [{ x: data.x, y: data.y, time: receivedAt }]
+                snapshots: [{ x: data.x, y: data.y, vx: data.vx || 0, vy: data.vy || 0, time: receivedAt }]
             };
         } else {
             const op = otherPlayers[id];
@@ -384,7 +384,7 @@ const canvas = document.getElementById('gameCanvas');
             if (!op.snapshots) op.snapshots = [];
             const previous = op.snapshots[op.snapshots.length - 1];
             if (!previous || previous.x !== x || previous.y !== y) {
-                op.snapshots.push({ x, y, time: receivedAt });
+                op.snapshots.push({ x, y, vx: data.vx || 0, vy: data.vy || 0, time: receivedAt });
             }
 
             // Keep only a short history so interpolation remains lightweight.
@@ -701,11 +701,11 @@ const canvas = document.getElementById('gameCanvas');
       }
     }
     function update(dt) {
-      // Render remote players slightly behind real time. This gives us two
-      // confirmed network positions to interpolate between instead of chasing
-      // each new update, which removes the remaining Firebase jitter.
-      const interpolationDelay = 85;
+      // Use a tiny snapshot buffer, then extrapolate briefly when Firebase
+      // delivers updates unevenly. A frame-rate-independent ease removes corrections.
+      const interpolationDelay = 55;
       const renderTime = performance.now() - interpolationDelay;
+      const correctionBlend = 1 - Math.exp(-16 * dt);
 
       for (const id in otherPlayers) {
         const op = otherPlayers[id];
@@ -716,21 +716,30 @@ const canvas = document.getElementById('gameCanvas');
           snapshots.shift();
         }
 
+        let desiredX;
+        let desiredY;
+
         if (snapshots.length >= 2) {
           const from = snapshots[0];
           const to = snapshots[1];
           const duration = Math.max(1, to.time - from.time);
           const blend = Math.max(0, Math.min(1, (renderTime - from.time) / duration));
-          const smoothBlend = blend * blend * (3 - 2 * blend);
-          op.x = from.x + (to.x - from.x) * smoothBlend;
-          op.y = from.y + (to.y - from.y) * smoothBlend;
+          desiredX = from.x + (to.x - from.x) * blend;
+          desiredY = from.y + (to.y - from.y) * blend;
         } else {
           const latest = snapshots[0];
-          const distance = Math.hypot(latest.x - op.x, latest.y - op.y);
-          if (distance > TILE_SIZE * 8) {
-            op.x = latest.x;
-            op.y = latest.y;
-          }
+          const aheadSeconds = Math.max(0, Math.min((renderTime - latest.time) / 1000, 0.18));
+          desiredX = latest.x + (latest.vx || 0) * aheadSeconds;
+          desiredY = latest.y + (latest.vy || 0) * aheadSeconds;
+        }
+
+        const distance = Math.hypot(desiredX - op.x, desiredY - op.y);
+        if (distance > TILE_SIZE * 8) {
+          op.x = desiredX;
+          op.y = desiredY;
+        } else {
+          op.x += (desiredX - op.x) * correctionBlend;
+          op.y += (desiredY - op.y) * correctionBlend;
         }
       }
 
