@@ -463,7 +463,6 @@ const canvas = document.getElementById('gameCanvas');
         }
 
         document.getElementById('inv-dirt').innerText = player.inventory.dirt || 0;
-        document.getElementById('inv-iron').innerText = player.inventory.rawIron || 0;
         document.getElementById('inv-diamond').innerText = player.inventory.diamond || 0;
         document.getElementById('inv-coal').innerText = player.inventory.coal || 0;
         
