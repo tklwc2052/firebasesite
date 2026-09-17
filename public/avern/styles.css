@@ -147,66 +147,44 @@
     .chat-msg { color: white; font-size: 14px; margin: 2px 0; padding: 4px 10px; background: rgba(0, 0, 0, 0.5); width: fit-content; text-shadow: 1px 1px #000; }
     #chat-input { background: rgba(0, 0, 0, 0.9); border: 2px solid #555; color: white; padding: 10px; width: 100%; outline: none; display: none; font-family: 'MinecraftSeven'; }
 
-/* Full-screen, scrollable shop */
-#shop {
-  position: fixed;
-  inset: 0;
-  top: 0;
-  left: 0;
-  transform: none;
-  box-sizing: border-box;
-  width: 100vw;
-  height: 100dvh;
-  max-width: none;
-  max-height: none;
-  padding: 24px clamp(16px, 4vw, 60px) 48px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  z-index: 1000;
+
+/* Full-screen menus */
+#shop, .full-menu {
+  position: fixed; inset: 0; top: 0; left: 0; transform: none;
+  box-sizing: border-box; width: 100vw; height: 100dvh; max-width: none;
+  padding: 24px clamp(16px, 4vw, 60px) 48px; overflow-y: auto;
+  overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable;
+  background: #121212; color: #e0e0e0; z-index: 1000; display: none;
+  pointer-events: auto;
 }
+#shop h2 { position: sticky; top: -24px; z-index: 3; margin: 0 0 18px; padding: 20px 0 12px; background:#121212; }
+#shop .upgrade-section { width:min(900px,100%); margin:0 auto 20px; }
+#shop > button { display:block; width:min(900px,100%); margin:18px auto 0; }
+#inventory-btn { position:fixed; top:18px; right:18px; z-index:60; font-family:'MinecraftSeven'; background:#181818; color:#fff; border:2px solid #777; padding:10px 14px; cursor:pointer; }
+.menu-header { position:sticky; top:-24px; z-index:3; display:flex; align-items:center; justify-content:space-between; background:#121212; border-bottom:1px solid #444; padding:16px 0; }
+.menu-header h2 { margin:0; }
+.menu-header button { font-family:'MinecraftSeven'; background:#2a2a2a; color:#fff; border:1px solid #666; padding:8px 16px; cursor:pointer; }
+#inventory-capacity { width:min(1000px,100%); margin:18px auto; color:#aaa; }
+#inventory-grid { width:min(1000px,100%); margin:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
+.inventory-item { background:#1a1a1a; color:#fff; border:2px solid #333; min-height:100px; padding:12px; cursor:pointer; text-align:left; font-family:'MinecraftSeven'; }
+.inventory-item:hover,.inventory-item.selected { border-color:#ffaa00; background:#242424; }
+.inventory-item .count { color:#ffaa00; font-size:18px; margin-top:10px; }
+#inventory-details { width:min(1000px,100%); margin:18px auto; padding:16px; box-sizing:border-box; background:#181818; border:1px solid #444; }
+#inventory-details button { margin-right:8px; }
+.compact-menu { height:auto; min-height:100dvh; }
+.furnace-actions { display:flex; flex-wrap:wrap; gap:10px; margin:24px 0; }
+#game-toast { position:fixed; left:50%; top:18%; transform:translateX(-50%) translateY(-10px); z-index:2000; padding:12px 18px; color:#fff; background:rgba(0,0,0,.88); border:2px solid #ffaa00; opacity:0; pointer-events:none; transition:.18s; }
+#game-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+@media(max-width:600px){#shop,.full-menu{padding:14px 10px 36px}#shop h2,.menu-header{top:-14px}.upgrade-row{align-items:stretch;flex-direction:column;gap:8px}#inventory-btn{top:8px;right:8px;font-size:10px}}
 
-#shop h2 {
-  position: sticky;
-  top: -24px;
-  z-index: 2;
-  margin: 0 0 18px;
-  padding: 20px 0 12px;
-  background: #121212;
+.furnace-hotbar-icon {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  background: #444; border: 2px solid #888; color: #ff9a22;
+  font-size: 16px; box-sizing: border-box;
 }
+.danger-btn { border-color: #a33 !important; color: #ff9999 !important; }
 
-#shop .upgrade-section {
-  width: min(900px, 100%);
-  margin: 0 auto 20px;
-}
-
-#shop > .upgrade-btn,
-#shop > button {
-  display: block;
-  width: min(900px, 100%);
-  margin: 18px auto 0;
-}
-
-@media (max-width: 600px) {
-  #shop {
-    padding: 14px 10px 36px;
-  }
-
-  #shop h2 {
-    top: -14px;
-    padding-top: 14px;
-  }
-
-  #shop .upgrade-row {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  #shop .upgrade-row > span:last-child {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-}
+.furnace-slots { display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin:24px 0; }
+.furnace-slot { width:150px; min-height:90px; border:2px solid #666; background:#1b1b1b; display:flex; flex-direction:column; justify-content:center; text-align:center; gap:12px; }
+.furnace-slot span { color:#999; font-size:11px; }.furnace-slot strong{color:#fff}.furnace-slot.fuel{border-color:#d17a22}.furnace-slot.output{border-color:#5d9f52}.furnace-arrow{font-size:28px;color:#888}
+.sapling-hotbar-icon{font-size:28px;color:#59b85f;text-shadow:1px 1px #173d1c}.tree-note{color:#7fca78}
