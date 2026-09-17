@@ -131,6 +131,7 @@ const canvas = document.getElementById('gameCanvas');
         vx: 0, vy: 0, w: 40, h: 50,
         hp: savedData.hp ?? 500, baseHp: 500, maxHp: 500,
         baseSpeed: 400, moveSpeed: 400,
+        moveAcceleration: 3200, moveDeceleration: 4200,
         baseJump: BASE_JUMP, jumpForce: BASE_JUMP,
         baseGravity: BASE_GRAVITY, gravity: BASE_GRAVITY,
         onGround: false, jumpCount: 0, res: savedData.res || 0,
@@ -640,13 +641,28 @@ const canvas = document.getElementById('gameCanvas');
 
       
       player.vy += player.gravity * dt;
-      player.vx = 0;
       player.isMoving = false;
       player.isMining = false;
       player.isCrouching = keys['s'] && player.onGround;
 
-      if (!keys['shift'] && keys['a']) { player.vx = -player.moveSpeed; player.dir = 'side'; player.isMoving = true; player.flip = true; }
-      else if (!keys['shift'] && keys['d']) { player.vx = player.moveSpeed; player.dir = 'side'; player.isMoving = true; player.flip = false; }
+      // Smooth horizontal movement instead of instantly snapping to full speed.
+      let moveDirection = 0;
+      if (!keys['shift'] && keys['a']) moveDirection -= 1;
+      if (!keys['shift'] && keys['d']) moveDirection += 1;
+
+      const targetVx = moveDirection * player.moveSpeed;
+      const rate = moveDirection === 0 ? player.moveDeceleration : player.moveAcceleration;
+      const maxVelocityChange = rate * dt;
+      const velocityDifference = targetVx - player.vx;
+
+      if (Math.abs(velocityDifference) <= maxVelocityChange) player.vx = targetVx;
+      else player.vx += Math.sign(velocityDifference) * maxVelocityChange;
+
+      if (moveDirection !== 0) {
+          player.dir = 'side';
+          player.isMoving = true;
+          player.flip = moveDirection < 0;
+      }
 
       if (keys['shift']) {
           if (player.selectedSlot === 2) {
@@ -774,7 +790,10 @@ const canvas = document.getElementById('gameCanvas');
       }
 
       updateBombs(dt);
-      camera.x += (player.x - camera.x) * 0.1; camera.y += (player.y - camera.y) * 0.1;
+      // Frame-rate-independent camera smoothing.
+      const cameraFollow = 1 - Math.exp(-10 * dt);
+      camera.x += (player.x - camera.x) * cameraFollow;
+      camera.y += (player.y - camera.y) * cameraFollow;
       if (camera.shake > 0) camera.shake *= 0.9;
       for (let id in otherPlayers) {
         const op = otherPlayers[id];
@@ -786,8 +805,21 @@ const canvas = document.getElementById('gameCanvas');
     }
 
     function checkCollision(nx, ny) {
-      const l = Math.floor(nx/TILE_SIZE), r = Math.floor((nx+player.w)/TILE_SIZE), t = Math.floor(ny/TILE_SIZE), b = Math.floor((ny+player.h)/TILE_SIZE);
-      for (let i=l; i<=r; i++) for (let j=t; j<=b; j++) if (gameMap[j] && gameMap[j][i] > 0) return {x:i, y:j, type:gameMap[j][i]};
+      // Subtract a tiny amount from the right and bottom edges so standing
+      // exactly on a block does not count as being inside that block.
+      const edgePadding = 0.001;
+      const l = Math.floor(nx / TILE_SIZE);
+      const r = Math.floor((nx + player.w - edgePadding) / TILE_SIZE);
+      const t = Math.floor(ny / TILE_SIZE);
+      const b = Math.floor((ny + player.h - edgePadding) / TILE_SIZE);
+
+      for (let i = l; i <= r; i++) {
+        for (let j = t; j <= b; j++) {
+          if (gameMap[j] && gameMap[j][i] > 0) {
+            return { x: i, y: j, type: gameMap[j][i] };
+          }
+        }
+      }
       return null;
     }
 
