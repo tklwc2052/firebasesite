@@ -1,0 +1,148 @@
+/* Load your custom Minecraft Seven Font */
+    @font-face {
+      font-family: 'MinecraftSeven';
+      src: url('https://cdn.jsdelivr.net/gh/tklwc2052/gameimages@main/Minecraft%20Seven_2.ttf') format('truetype');
+    }
+
+    body { margin: 0; overflow: hidden; background: #0f0f1b; font-family: 'MinecraftSeven', monospace; }
+    canvas { display: block; }
+
+    /* HUD */
+    #ui { 
+      position: absolute; top: 20px; left: 20px; 
+      color: #ffffff; pointer-events: none; 
+      background: none; 
+      padding: 0; 
+      border: none;
+      box-shadow: none;
+      z-index: 10;
+    }
+    #ui div { margin-bottom: 5px; font-size: 16px; letter-spacing: 1px; text-shadow: 2px 2px #000; }
+    #status { font-size: 14px; }
+    #hp-display { color: #ff5555; font-size: 20px; }
+
+    /* Info Button (Bottom Left) - Now using custom SVG sprite */
+    #info-btn {
+      position: absolute; bottom: 20px; left: 20px;
+      width: 50px; height: 50px; cursor: pointer;
+      background-color: rgba(0, 0, 0, 0.8);
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="%23fff" d="M6 2h4v4H6V2zm2 6h2v6H8V8z"/></svg>');
+      background-size: 24px;
+      background-position: center;
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
+      border: 2px solid #555;
+      transition: transform 0.1s, border-color 0.1s; z-index: 100;
+      pointer-events: auto;
+      color: transparent; /* hides text if any */
+    }
+    #info-btn:hover { transform: scale(1.1); border-color: #fff; }
+    #info-btn:active { transform: scale(0.9); }
+
+    /* Info Menu Overlay */
+    #info-menu {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: #121212; border: 2px solid #555; 
+      color: #e0e0e0; padding: 25px; display: none; z-index: 200; 
+      width: 500px; max-height: 75vh; overflow-y: auto; pointer-events: auto;
+    }
+    #info-menu h2 { text-align: center; margin: 0 0 15px 0; color: #55ff55; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .info-content p, .info-content li { font-size: 12px; margin: 8px 0; line-height: 1.5; text-shadow: 1px 1px #000; }
+    .info-content ul { padding-left: 20px; }
+    .info-highlight { color: #ffaa00; }
+
+    /* Achievement Notification Popup */
+    #achievement-popup {
+      position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9); border: 2px solid #ffaa00;
+      padding: 15px 25px; color: #fff; text-align: center;
+      transition: top 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 1000; min-width: 250px;
+    }
+    #achievement-popup.show { top: 20px; }
+    #achievement-popup h4 { margin: 0; color: #ffaa00; font-size: 14px; }
+    #achievement-popup p { margin: 5px 0 0 0; font-size: 18px; }
+
+    /* Achievement Button (Bottom Right) */
+    #achievement-btn {
+      position: absolute; bottom: 20px; right: 20px;
+      width: 60px; height: 60px; cursor: pointer;
+      background-size: contain; background-repeat: no-repeat;
+      transition: transform 0.1s; z-index: 100;
+    }
+    #achievement-btn:hover { transform: scale(1.1); }
+    #achievement-btn:active { transform: scale(0.9); }
+
+    /* Achievement Menu Overlay */
+    #achievement-menu {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: #121212; border: 2px solid #555; 
+      color: #e0e0e0; padding: 25px; display: none; z-index: 200; 
+      width: 400px; max-height: 70vh; overflow-y: auto; pointer-events: auto;
+    }
+    #achievement-menu h2 { text-align: center; margin: 0 0 15px 0; color: #ffaa00; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .ach-row { 
+      display: flex; justify-content: space-between; align-items: center; 
+      margin: 8px 0; padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; 
+      opacity: 0.5;
+    }
+    .ach-row.completed { opacity: 1; border-color: #55ff55; background: #1e2a1e; }
+    .ach-info { display: flex; flex-direction: column; }
+    .ach-name { font-size: 14px; color: #fff; }
+    .ach-desc { font-size: 10px; color: #888; margin-top: 4px; }
+    .ach-status { color: #55ff55; font-size: 14px; }
+
+    /* Tab User List */
+    #user-list-overlay {
+      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff; padding: 5px 15px; display: none; z-index: 200;
+      width: auto; min-width: 120px; text-align: center;
+    }
+
+    /* Hotbar */
+    #hotbar {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; background: rgba(0, 0, 0, 0.8);
+      padding: 8px; border: 2px solid #555; pointer-events: auto;
+      z-index: 10; align-items: center;
+    }
+    .slot, .resource-slot {
+      border: 1px solid #333; background: #1a1a1a;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative; cursor: pointer;
+    }
+    .slot { width: 55px; height: 55px; color: #fff; font-size: 10px; }
+    .resource-slot { width: 45px; height: 55px; background: #0a0a0a; color: #aaa; font-size: 10px; }
+    .resource-slot div { margin-top: 4px; color: #fff; }
+    .slot.active, .resource-slot.active { border-color: #fff; background: #333; box-shadow: inset 0 0 5px rgba(255,255,255,0.2); }
+    
+    .slot-num { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #888; pointer-events: none; }
+    .slot.active .slot-num, .resource-slot.active .slot-num { color: #fff; }
+
+    /* Shop & Enchant Menu Styling */
+    #shop, #enchant-menu {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: #121212; border: 2px solid #555; 
+      color: #e0e0e0; padding: 25px; display: none; z-index: 100; 
+      width: 450px; pointer-events: auto;
+    }
+    #enchant-menu { border-color: #aa00aa; }
+    #shop h2, #enchant-menu h2 { text-align: center; font-size: 20px; color: #fff; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    #enchant-menu h2 { color: #ff55ff; border-bottom-color: #aa00aa; }
+    .upgrade-section h3 { font-size: 14px; color: #ffaa00; margin: 15px 0 5px 0; }
+    .enchant-section h3 { font-size: 14px; color: #ff55ff; margin: 15px 0 5px 0; }
+    .upgrade-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; padding: 10px; background: #1a1a1a; border: 1px solid #2a2a2a; }
+    .upgrade-btn { background: #2a2a2a; color: #fff; border: 1px solid #444; cursor: pointer; padding: 6px 14px; font-family: 'MinecraftSeven'; }
+    .upgrade-btn:disabled { opacity: 0.5; cursor: default; }
+    .enchant-btn { border-color: #aa00aa; }
+
+    #chat-container {
+      position: absolute; bottom: 140px; left: 20px; 
+      width: 400px; height: 220px; display: flex; flex-direction: column;
+      pointer-events: none; z-index: 50;
+    }
+    #chat-container.active { pointer-events: auto; }
+    #chat-box { flex-grow: 1; overflow-y: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 5px; }
+    .chat-msg { color: white; font-size: 14px; margin: 2px 0; padding: 4px 10px; background: rgba(0, 0, 0, 0.5); width: fit-content; text-shadow: 1px 1px #000; }
+    #chat-input { background: rgba(0, 0, 0, 0.9); border: 2px solid #555; color: white; padding: 10px; width: 100%; outline: none; display: none; font-family: 'MinecraftSeven'; }

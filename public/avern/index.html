@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="ui">
+    <div id="status">CONNECTING...</div>
+    <div id="hp-display">HP: 100/100</div>
+    <div id="coords">X: 0 Y: 0</div>
+    <div style="font-size: 10px; color: #aaa;">Shift: Place | Shift+WASD: Mine/Place/Interact | Space: Jump | B: Bomb | N: Dynamite</div>
+  </div>
+
+  <div id="achievement-popup">
+    <h4>ACHIEVEMENT UNLOCKED!</h4>
+    <p id="achievement-name"></p>
+  </div>
+
+  <div id="achievement-btn" onclick="toggleAchievementMenu()"></div>
+  <div id="info-btn" onclick="toggleInfoMenu()"></div>
+
+  <div id="info-menu">
+    <h2>HOW TO PLAY</h2>
+    <div class="info-content">
+      <p><span class="info-highlight">Movement:</span> A / D to move. Space to jump (jump against walls to wall-jump!).</p>
+      <p><span class="info-highlight">Mining & Interactions:</span> Select a slot on your hotbar, then press <span class="info-highlight">SHIFT + W/A/S/D</span> to interact with the block in that direction.</p>
+      <ul>
+        <li><span class="info-highlight">Slot 1 (Pickaxe):</span> Mine blocks to collect ores & resources.</li>
+        <li><span class="info-highlight">Slot 2 (Sword):</span> Hold Shift to attack nearby monsters.</li>
+        <li><span class="info-highlight">Slot 3 (Hand/Table):</span> Place your Enchanting Table, or open it once placed.</li>
+        <li><span class="info-highlight">Slot 4 (Dirt):</span> Place Dirt back into the world.</li>
+        <li><span class="info-highlight">Slot 5 (Torches):</span> Place Torches to light up the dark.</li>
+      </ul>
+      <p><span class="info-highlight">Hotkeys:</span></p>
+      <ul>
+        <li><span class="info-highlight">1-0:</span> Quickly select Hotbar Slots.</li>
+        <li><span class="info-highlight">E:</span> Open the Village Trader (Shop).</li>
+        <li><span class="info-highlight">T:</span> Open Chat to talk to other players.</li>
+        <li><span class="info-highlight">Tab:</span> View the active Player List.</li>
+        <li><span class="info-highlight">B / N:</span> Drop Bombs (20G) or Dynamite (10G).</li>
+      </ul>
+      <p>Dig deeper to find rarer ores like <span style="color:#00ffff">Diamond</span> and <span style="color:#5555ff">Lapis</span>. Watch out for monsters in the dark!</p>
+    </div>
+    <button class="upgrade-btn" style="width:100%; margin-top:15px;" onclick="toggleInfoMenu()">GOT IT</button>
+  </div>
+
+  <div id="achievement-menu">
+    <h2>ACHIEVEMENTS</h2>
+    <div id="achievement-list-content"></div>
+    <button class="upgrade-btn" style="width:100%; margin-top:15px;" onclick="toggleAchievementMenu()">CLOSE</button>
+  </div>
+
+  <div id="user-list-overlay">
+    <div id="user-list-content"></div>
+  </div>
+
+  <div id="hotbar">
+    <div class="slot active" id="slot-1" title="Pickaxe" onclick="setSlot(1)">
+        <div class="slot-num">1</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/picaxe.png" style="width: 32px; height: 32px; image-rendering: pixelated;">
+        <div style="font-size: 9px; margin-top:2px;">PICK</div>
+    </div>
+    <div class="slot" id="slot-2" title="Sword" onclick="setSlot(2)">
+        <div class="slot-num">2</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/sword.png" style="width: 32px; height: 32px; image-rendering: pixelated; filter: grayscale(50%);">
+        <div style="font-size: 9px; margin-top:2px;">SWORD</div>
+    </div>
+    <div class="slot" id="slot-3" title="Hand / Table" onclick="setSlot(3)">
+        <div class="slot-num">3</div>
+        <img id="slot-3-img" src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/idle.png" style="width: 32px; height: 32px; image-rendering: pixelated;">
+        <div id="slot-3-text" style="font-size: 9px; margin-top:2px;">HAND</div>
+    </div>
+
+
+    <div class="resource-slot" id="slot-4" title="Dirt/Stone" onclick="setSlot(4)">
+        <div class="slot-num">4</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/surface1.png" style="width: 24px; height: 24px; image-rendering: pixelated;">
+        <div id="inv-dirt">0</div>
+    </div>
+    <div class="resource-slot" id="slot-5" title="Torches" onclick="setSlot(5)">
+        <div class="slot-num">5</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/torch.png" style="width: 24px; height: 24px; image-rendering: pixelated;">
+        <div id="inv-torch">0</div>
+    </div>
+    <div class="resource-slot" id="slot-6" title="Gold" onclick="setSlot(6)">
+        <div class="slot-num">6</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/gold.png" style="width: 24px; height: 24px; image-rendering: pixelated;">
+        <div id="inv-gold">0</div>
+    </div>
+    <div class="resource-slot" id="slot-7" title="Iron" onclick="setSlot(7)">
+        <div class="slot-num">7</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/iron.png" style="width: 24px; height: 24px; image-rendering: pixelated; filter: grayscale(100%) brightness(150%);">
+        <div id="inv-iron">0</div>
+    </div>
+    <div class="resource-slot" id="slot-8" title="Diamond" onclick="setSlot(8)">
+        <div class="slot-num">8</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/diamond.png" style="width: 24px; height: 24px; image-rendering: pixelated;">
+        <div id="inv-diamond">0</div>
+    </div>
+    <div class="resource-slot" id="slot-9" title="Coal" onclick="setSlot(9)">
+        <div class="slot-num">9</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/coall.png" style="width: 24px; height: 24px; image-rendering: pixelated; filter: grayscale(100%) brightness(30%);">
+        <div id="inv-coal">0</div>
+    </div>
+    <div class="resource-slot" id="slot-10" title="Lapis" onclick="setSlot(10)">
+        <div class="slot-num">0</div>
+        <img src="https://raw.githubusercontent.com/tklwc2052/take2/refs/heads/main/lapis.png" style="width: 24px; height: 24px; image-rendering: pixelated; filter: sepia(1) hue-rotate(200deg) saturate(3) brightness(80%);">
+        <div id="inv-lapis">0</div>
+    </div>
+  </div>
+
+  <div id="chat-container">
+    <div id="chat-box"></div>
+    <input type="text" id="chat-input" maxlength="100" placeholder="words words words...">
+  </div>
+
+  <div id="shop">
+    <h2>VILLAGE TRADER</h2>
+    <div class="upgrade-section">
+        <h3>Character Customization</h3>
+        <div class="hat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+            <button class="upgrade-btn" onclick="setHat('none')">NONE</button>
+            <button class="upgrade-btn" onclick="setHat('hardHat')">HELMET</button>
+            <button class="upgrade-btn" onclick="setHat('crown')">CROWN</button>
+            <button class="upgrade-btn" onclick="setHat('goggles')">GLASSES</button>
+        </div>
+    </div>
+    <div class="upgrade-section"><h3>Supplies</h3>
+        <div class="upgrade-row"><span>REFILL TORCHES (x5)</span> <button class="upgrade-btn" onclick="buyTorches()">15 GOLD</button></div>
+        <div class="upgrade-row"><span>ENCHANTING TABLE</span> <button id="btn-buy-enchant" class="upgrade-btn" onclick="buyEnchantTable()">1000 GOLD</button></div>
+    </div>
+    <div class="upgrade-section"><h3>Mining Speed</h3><div id="eff-list"></div></div>
+    <div class="upgrade-section"><h3>Fortune Luck</h3><div id="fort-list"></div></div>
+    <button class="upgrade-btn" style="width:100%; margin-top:20px;" onclick="toggleShop()">CLOSE</button>
+  </div>
+
+  <div id="enchant-menu">
+    <h2>ANCIENT MAGICS</h2>
+    <p id="enchant-table-status" style="text-align: center; color: #ccc; font-size: 12px; margin-bottom: 20px;">READING RUNES...</p>
+    <div id="enchant-options-list"></div>
+    <button class="upgrade-btn enchant-btn" style="width:100%; margin-top:20px;" onclick="toggleEnchantMenu()">CLOSE</button>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+  <script src="client.js"></script>
+</body>
+</html>
