@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Avern Browser Reset</title>
+<style>body{font:16px system-ui;background:#111214;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0}.card{width:min(520px,90vw);background:#1e1f22;padding:24px;border-radius:12px}input,button{box-sizing:border-box;width:100%;padding:12px;margin:7px 0;border-radius:7px;border:1px solid #555;background:#2b2d31;color:#fff}button{background:#da373c;font-weight:800;cursor:pointer}button:disabled{opacity:.5}pre{white-space:pre-wrap;color:#b5bac1}</style></head>
+<body><main class="card"><h1>Avern hard reset</h1><p>This bypasses the Avern ban screen. It keeps <code>/server_channels</code> and deletes every other Realtime Database path. It does not require Firebase Console.</p>
+<input id="email" type="email" placeholder="Firebase account email"><input id="password" type="password" placeholder="Password">
+<button id="go">Sign in and hard reset</button><pre id="status">Nothing changed yet.</pre></main>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig={apiKey:"AIzaSyAgOggS_nTmOubBXXg6mjI9twxsOgRlluk",authDomain:"ilikespacedotcom.firebaseapp.com",databaseURL:"https://ilikespacedotcom-default-rtdb.firebaseio.com",projectId:"ilikespacedotcom",storageBucket:"ilikespacedotcom.firebasestorage.app",messagingSenderId:"535073068352",appId:"1:535073068352:web:9e4b7f30ee118154af56a5"};
+firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.database();
+const status=document.getElementById('status'),go=document.getElementById('go');
+function say(x){status.textContent=x}
+go.onclick=async()=>{go.disabled=true;try{
+ const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
+ if(!email||!password)throw new Error('Enter your email and password.');
+ say('Signing in...');await auth.signInWithEmailAndPassword(email,password);
+ say('Reading channel names...');const snap=await db.ref('server_channels').once('value');const channels=snap.val();
+ if(!channels||typeof channels!=='object')throw new Error('/server_channels is missing. Nothing was deleted.');
+ const names=Object.keys(channels);const phrase=prompt('This permanently deletes all database data except channel names/types. Type exactly: HARD RESET AVERN');
+ if(phrase!=='HARD RESET AVERN')throw new Error('Cancelled. Nothing was deleted.');
+ say('Resetting database...');await db.ref('/').set({server_channels:channels});
+ localStorage.clear();await auth.signOut();
+ say('DONE. Preserved channels: '+names.join(', ')+'\n\nYour profile and ban are gone. Open Avern, log into the same Firebase account, and it will ask you to claim/create a profile again. You can also log out and create another account with a different email.');
+}catch(e){console.error(e);say('FAILED: '+(e.message||e)+'\n\nIf this says Permission denied, your Realtime Database rules block root writes. Without Firebase Console, a service-account key, Firebase CLI access, or an already-authorized server endpoint, there is no legitimate way around those rules.');}finally{go.disabled=false}};
+</script></body></html>
