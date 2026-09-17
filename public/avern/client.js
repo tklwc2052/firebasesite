@@ -353,7 +353,7 @@ const canvas = document.getElementById('gameCanvas');
             myPlayerRef.update(state);
             lastSentPlayer = comparable;
         }
-    }, 200);
+    }, 50);
     function syncRemotePlayer(id, data) {
         if (id === myId || !data || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
         data.username = String(data.username || 'Miner').slice(0,16);
@@ -632,6 +632,20 @@ const canvas = document.getElementById('gameCanvas');
       }
     }
     function update(dt) {
+      // Smooth remote players every frame, even while a local menu or chat is open.
+      const remoteFollow = 1 - Math.exp(-18 * dt);
+      for (const id in otherPlayers) {
+        const op = otherPlayers[id];
+        const distance = Math.hypot(op.targetX - op.x, op.targetY - op.y);
+        if (distance > TILE_SIZE * 8) {
+          op.x = op.targetX;
+          op.y = op.targetY;
+        } else {
+          op.x += (op.targetX - op.x) * remoteFollow;
+          op.y += (op.targetY - op.y) * remoteFollow;
+        }
+      }
+
       if (shopOpen || enchantMenuOpen || achievementMenuOpen || infoMenuOpen || !isMapLoaded || isTyping) return;
       if (player.hp < player.maxHp) {
         player.hp += 1 * dt; 
@@ -645,7 +659,6 @@ const canvas = document.getElementById('gameCanvas');
       player.isMining = false;
       player.isCrouching = keys['s'] && player.onGround;
 
-      // Smooth horizontal movement instead of instantly snapping to full speed.
       let moveDirection = 0;
       if (!keys['shift'] && keys['a']) moveDirection -= 1;
       if (!keys['shift'] && keys['d']) moveDirection += 1;
@@ -654,7 +667,6 @@ const canvas = document.getElementById('gameCanvas');
       const rate = moveDirection === 0 ? player.moveDeceleration : player.moveAcceleration;
       const maxVelocityChange = rate * dt;
       const velocityDifference = targetVx - player.vx;
-
       if (Math.abs(velocityDifference) <= maxVelocityChange) player.vx = targetVx;
       else player.vx += Math.sign(velocityDifference) * maxVelocityChange;
 
@@ -790,34 +802,24 @@ const canvas = document.getElementById('gameCanvas');
       }
 
       updateBombs(dt);
-      // Frame-rate-independent camera smoothing.
       const cameraFollow = 1 - Math.exp(-10 * dt);
       camera.x += (player.x - camera.x) * cameraFollow;
       camera.y += (player.y - camera.y) * cameraFollow;
       if (camera.shake > 0) camera.shake *= 0.9;
-      for (let id in otherPlayers) {
-        const op = otherPlayers[id];
-        op.x += (op.targetX - op.x) * 0.2; op.y += (op.targetY - op.y) * 0.2;
-      }
       const curDepth = Math.floor(player.y / TILE_SIZE);
       if (curDepth > player.stats.maxDepth) { player.stats.maxDepth = curDepth; checkAchievements(); }
       document.getElementById('coords').innerText = `X: ${Math.floor(player.x/TILE_SIZE)} Y: ${curDepth}`;
     }
 
     function checkCollision(nx, ny) {
-      // Subtract a tiny amount from the right and bottom edges so standing
-      // exactly on a block does not count as being inside that block.
       const edgePadding = 0.001;
       const l = Math.floor(nx / TILE_SIZE);
       const r = Math.floor((nx + player.w - edgePadding) / TILE_SIZE);
       const t = Math.floor(ny / TILE_SIZE);
       const b = Math.floor((ny + player.h - edgePadding) / TILE_SIZE);
-
       for (let i = l; i <= r; i++) {
         for (let j = t; j <= b; j++) {
-          if (gameMap[j] && gameMap[j][i] > 0) {
-            return { x: i, y: j, type: gameMap[j][i] };
-          }
+          if (gameMap[j] && gameMap[j][i] > 0) return { x:i, y:j, type:gameMap[j][i] };
         }
       }
       return null;
