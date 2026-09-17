@@ -3265,6 +3265,27 @@ const firebaseConfig = {
             if (!str) return '';
             let escaped = escapeHtml(str);
 
+            // Colored text: ***color-name: text to be colored***
+            // Only these preset names are accepted, so message text cannot inject CSS.
+            const markdownColors = {
+                red: '#ed4245',
+                orange: '#f47b20',
+                yellow: '#f0b232',
+                green: '#57f287',
+                blue: '#5865f2',
+                cyan: '#22d3ee',
+                purple: '#a970ff',
+                pink: '#eb459e',
+                white: '#ffffff',
+                gray: '#949ba4',
+                grey: '#949ba4',
+                black: '#111214'
+            };
+            escaped = escaped.replace(/\*\*\*([a-zA-Z]+)\s*:\s*([\s\S]*?)\*\*\*/g, (match, colorName, content) => {
+                const color = markdownColors[String(colorName).toLowerCase()];
+                return color ? `<span class="msg-colored-text" style="color:${color}">${content}</span>` : match;
+            });
+
             // Basic markdown formatting
             escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
