@@ -7,27 +7,23 @@
       "**/.*",
       "**/node_modules/**"
     ],
-"rewrites": [
-{
-  "source": "/chat/me/**",
-  "destination": "/chat/me/index.html"
-},
-{
-  "source": "/chat/u/**",
-  "destination": "/chat/u/index.html"
-}
-
-  
-  {
-    "source": "/chat/**",
-    "destination": "/chat/index.html"
-  },
-  {
-    "source": "/about",
-    "destination": "/about/index.html"
-  }
-]
-
-    
+    "rewrites": [
+      {
+        "source": "/chat/me/**",
+        "destination": "/chat/me/index.html"
+      },
+      {
+        "source": "/chat/u/**",
+        "destination": "/chat/u/index.html"
+      },
+      {
+        "source": "/chat",
+        "destination": "/chat/index.html"
+      },
+      {
+        "source": "/about",
+        "destination": "/about/index.html"
+      }
+    ]
   }
 }
