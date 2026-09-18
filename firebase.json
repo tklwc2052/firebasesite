@@ -7,15 +7,21 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "rewrites": [
-      {
-        "source": "/chat",
-        "destination": "/chat/index.html"
-      },
-      {
-        "source": "/about",
-        "destination": "/about/index.html"
-      }
-    ]
+"rewrites": [
+  {
+    "source": "/chat/profile/**",
+    "destination": "/chat/profile/index.html"
+  },
+  {
+    "source": "/chat/**",
+    "destination": "/chat/index.html"
+  },
+  {
+    "source": "/about",
+    "destination": "/about/index.html"
+  }
+]
+
+    
   }
 }
