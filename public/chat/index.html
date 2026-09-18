@@ -5952,5 +5952,31 @@ function formatBellCountdown(ms){const x=Math.max(0,Math.ceil(ms/1000)),h=Math.f
 function updateBellScheduleWidget(){const w=document.getElementById('bell-status-widget'),a=document.getElementById('bell-current-period'),b=document.getElementById('bell-next-countdown');if(!w||!a||!b)return;const n=new Date(),day=n.getDay();w.className='bell-status-widget';if(day===0||day===6){w.classList.add('outside-school');a.textContent='No school today';b.textContent='Weekend';return}const p=AVERN_BELL_SCHEDULE.map(x=>({...x,startAt:bellTimeToday(x.start,n),endAt:bellTimeToday(x.end,n)})),cur=p.find(x=>n>=x.startAt&&n<x.endAt);if(cur){a.textContent=`${cur.name}  |  ${cur.start}-${cur.end}`;b.textContent=`Next bell in ${formatBellCountdown(cur.endAt-n)}`;return}const next=p.find(x=>n<x.startAt);if(next){const before=next===p[0];w.classList.add(before?'outside-school':'passing');a.textContent=before?'Before school':'Passing period';b.textContent=`${next.name} in ${formatBellCountdown(next.startAt-n)}`;return}w.classList.add('outside-school');a.textContent='School is over';b.textContent='Dismissed at 2:18 PM'}
 window.addEventListener('DOMContentLoaded',()=>{updateBellScheduleWidget();setInterval(updateBellScheduleWidget,1000)});
 </script>
+
+<script>
+/* New public user-page routing. All existing username/avatar/member clicks that
+   call inspectUser now open /chat/u/{username} in a new tab instead of the old popup. */
+function openAvernUserPage(username) {
+    const cleanUsername = String(username || '')
+        .trim()
+        .replace(/^@/, '')
+        .toLowerCase();
+
+    if (!cleanUsername || cleanUsername === 'system') return;
+
+    const userPageUrl = '/chat/u/' + encodeURIComponent(cleanUsername);
+    const newTab = window.open(userPageUrl, '_blank');
+
+    if (newTab) {
+        try { newTab.focus(); } catch (error) {}
+    } else {
+        // Only used if the browser blocks the new tab.
+        location.href = userPageUrl;
+    }
+}
+
+// Replace the old popup handler after every earlier script has loaded.
+inspectUser = openAvernUserPage;
+</script>
 </body>
 </html>
