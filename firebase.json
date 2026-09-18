@@ -9,8 +9,8 @@
     ],
 "rewrites": [
   {
-    "source": "/chat/profile/**",
-    "destination": "/chat/profile/index.html"
+    "source": "/chat/profiles/**",
+    "destination": "/chat/profiles/index.html"
   },
   {
     "source": "/chat/**",
