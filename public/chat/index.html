@@ -2493,7 +2493,7 @@ async function ingestImageFiles(files){const accepted=[...files].filter(f=>f.typ
 handleFileSelected=function(e){if(e.target.files?.length)ingestImageFiles(e.target.files);e.target.value=''};
 ingestImageBlob=function(file){ingestImageFiles([file])};
 const sendMessageBeforeAlbums=sendMessage;
-sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&sessionUser.username.toLowerCase()!=='kl_'){const role=serverRoles[sessionUser.rank||'Member'];const allowed=role?(role.allowedChannels||''):'';if(allowed!=='*'&&!allowed.split(',').map(x=>x.trim().toLowerCase()).includes(activeChannel.toLowerCase()))return alert('You do not have permission to write here.')}const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet);input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
+sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&sessionUser.username.toLowerCase()!=='kl_'){const role=serverRoles[sessionUser.rank||'Member'];const allowed=role?(role.allowedChannels||''):'';if(allowed!=='*'&&!allowed.split(',').map(x=>x.trim().toLowerCase()).includes(activeChannel.toLowerCase()))return alert('You do not have permission to write here.')}const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => awardMessageXp()).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
 function ensureImageViewer(){let o=document.getElementById('image-viewer-overlay');if(o)return o;o=document.createElement('div');o.id='image-viewer-overlay';o.className='image-viewer-overlay';o.hidden=true;o.innerHTML=`<div class="image-viewer-toolbar"><button class="viewer-tool" onclick="closeImageViewer()">${uiIcon('x')}<span>Close</span></button><button id="viewer-pan-tool" class="viewer-tool active" onclick="setViewerTool('pan')">${uiIcon('panels')}<span>Move</span></button><button id="viewer-draw-tool" class="viewer-tool" onclick="setViewerTool('draw')">✎<span>Draw</span></button><button id="viewer-arrow-tool" class="viewer-tool" onclick="setViewerTool('arrow')">↗<span>Arrow</span></button><button class="viewer-tool" onclick="openViewerTextDialog()">T<span>Text</span></button><input id="viewer-color" class="viewer-color" type="color" value="#ff3b3b"><button class="viewer-tool" onclick="viewerUndo()">↶<span>Undo</span></button><button class="viewer-tool" onclick="viewerRedo()">↷<span>Redo</span></button><button class="viewer-tool" onclick="resetViewerTransform()">1:1</button><div class="viewer-spacer"></div><button class="viewer-tool" onclick="downloadViewerImage()">↓<span>Download</span></button><button class="viewer-tool" onclick="copyViewerLink()">${uiIcon('message')}<span>Copy link</span></button><button class="viewer-tool showcase-star" onclick="addCurrentImageToShowcase()">★<span>Showcase</span></button><button class="viewer-tool" onclick="postViewerMarkup()">${uiIcon('upload')}<span>Post markup</span></button></div><div id="image-viewer-stage" class="image-viewer-stage"><div id="viewer-image-container" class="viewer-image-container"><img id="viewer-main-image" class="viewer-main-image"><canvas id="viewer-draw-canvas" class="viewer-draw-canvas"></canvas><div id="viewer-label-layer"></div></div></div><div class="image-viewer-footer"><button class="viewer-tool" onclick="viewerPrevious()">‹ Previous</button><span id="viewer-meta"></span><span id="viewer-counter" class="viewer-counter"></span><button class="viewer-tool" onclick="viewerNext()">Next ›</button></div>`;document.body.appendChild(o);bindViewerEvents();return o}
 function openImageViewer(images,index=0,messageKey=null,author=''){const o=ensureImageViewer();viewerState={images:Array.isArray(images)?images:[images],index:Number(index)||0,messageKey,author,scale:1,x:0,y:0,tool:'pan',drawing:false,startX:0,startY:0,history:[],redo:[],labels:[]};o.hidden=false;document.body.style.overflow='hidden';loadViewerImage()}
 function closeImageViewer(){const o=document.getElementById('image-viewer-overlay');if(o)o.hidden=true;document.body.style.overflow=''}
@@ -2607,6 +2607,38 @@ const firebaseConfig = {
         const auth = firebase.auth();
         const db = firebase.database();
         let sessionUser = { username: "", pfp: "", banner: "", pronouns: "", bio: "", status: "", nickname: "", rank: "Member" };
+        const XP_COOLDOWN_MS = 60 * 1000;
+        const XP_MIN_PER_MESSAGE = 5;
+        const XP_MAX_PER_MESSAGE = 10;
+        function levelFromXp(xp) {
+            return Math.floor(Math.sqrt(Math.max(0, Number(xp) || 0) / 100)) + 1;
+        }
+        function awardMessageXp() {
+            const username = String(sessionUser.username || '').trim().toLowerCase();
+            if (!username || username === 'system') return Promise.resolve(false);
+            const now = Date.now();
+            const amount = Math.floor(Math.random() * (XP_MAX_PER_MESSAGE - XP_MIN_PER_MESSAGE + 1)) + XP_MIN_PER_MESSAGE;
+            return new Promise(resolve => {
+                db.ref('chat_profiles/' + username).transaction(profile => {
+                    if (!profile) return profile;
+                    const lastAward = Number(profile.lastXpAt || 0);
+                    if (now - lastAward < XP_COOLDOWN_MS) return;
+                    const nextXp = Math.max(0, Number(profile.xp || 0)) + amount;
+                    profile.xp = nextXp;
+                    profile.level = levelFromXp(nextXp);
+                    profile.lastXpAt = now;
+                    return profile;
+                }, (error, committed, snapshot) => {
+                    if (error) console.error('XP award failed:', error);
+                    if (committed && snapshot) {
+                        const data = snapshot.val() || {};
+                        sessionUser.xp = Number(data.xp || 0);
+                        sessionUser.level = Number(data.level || 1);
+                    }
+                    resolve(!!committed);
+                }, false);
+            });
+        }
         let activeChannel = "announcements"; let isDmMode = false; let isForumMode = false; let activeForumPost = null; let activeForumPostData = null; let forumListRef = null; let forumPostCache = {}; let forumSearchQuery = ""; let openForumMenuKey = null; let activeRef = null; let activeChannelListenerCleanup = null; let pendingBase64Image = null; let activeReplyData = null;
         let typingTimer; let isTyping = false; let activeTypingRef = null;
         let oldestMessageKey = null; let newestMessageKey = null; let isLoadingOlder = false;
@@ -3209,6 +3241,8 @@ const firebaseConfig = {
             db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).on('value', (snap) => {
                 const data = snap.val() || {};
                 sessionUser.rank = data.rank || "Member";
+                sessionUser.xp = Number(data.xp || 0);
+                sessionUser.level = Number(data.level || levelFromXp(sessionUser.xp));
                 sessionUser.mutedUntil = data.mutedUntil || 0;
                 sessionUser.muteReason = data.muteReason || "";
                 sessionUser.bannedUntil = data.bannedUntil || 0;
@@ -4018,6 +4052,7 @@ const firebaseConfig = {
             if (activeReplyData) outboundPacket.replyContext = activeReplyData; 
             const outboundRef = db.ref(getChannelDatabasePath()).push();
  outboundRef.set(outboundPacket).then(() => {
+            awardMessageXp();
             const senderLower = sessionUser.username.toLowerCase();
             const profileUpdate = Promise.resolve(); // No profile fan-out write for every message.
             if (isDmMode) {
@@ -5632,7 +5667,7 @@ function bindChannelSync() {
                     timestamp:Date.now(),
                     poll:{ question:parsed.question.slice(0,180), options:parsed.options.map(option => option.slice(0,100)), votes:{}, creator:sessionUser.username, createdAt:Date.now(), closed:false }
                 };
-                db.ref(getChannelDatabasePath()).push(packet).catch(error => { console.error('Poll creation failed:', error); alert('The poll could not be created.'); });
+                db.ref(getChannelDatabasePath()).push(packet).then(() => awardMessageXp()).catch(error => { console.error('Poll creation failed:', error); alert('The poll could not be created.'); });
             }
             inputField.value = '';
             inputField.style.height = 'auto';
