@@ -18,8 +18,11 @@ const canvas = document.getElementById('gameCanvas');
     const BOMB_FALL_SPEED = 600;
 
     const WORLD_WIDTH = 150; 
-    const WORLD_HEIGHT = 10000; 
+    const WORLD_HEIGHT = 15000; 
     const SEED = 12345;
+    const CAVE_MIN_DEPTH = 9500;
+    const CAVE_MAX_DEPTH = 13500;
+    const CAVE_COUNT = 48;
     const BOMB_COST = 20; 
     const DYNAMITE_COST = 10;
     
@@ -197,33 +200,93 @@ const canvas = document.getElementById('gameCanvas');
     let isTyping = false;
 
     function initOrSyncMap() {
-        let s = SEED;
+        // Deterministic generation gives every player the same world.
+        let randomState = SEED >>> 0;
+        function seededRandom() {
+            randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+            return randomState / 4294967296;
+        }
+
+        // Build the base world. Ores and caves are generated afterward.
         for (let y = 0; y < WORLD_HEIGHT; y++) {
             gameMap[y] = [];
             for (let x = 0; x < WORLD_WIDTH; x++) {
-                let r = Math.sin(s++) * 10000; r = r - Math.floor(r);
-                if (y < 12) gameMap[y][x] = 0; 
-                else if (y === 12) gameMap[y][x] = 3; 
-                else {
-                    let block = 1 + (Math.floor(r * 3) / 10); // default dirt
-                    
-                    // Diamond (4): 5000 - 8500 (Rarer: r > 0.995)
-                    if (y >= 5000 && y <= 8500 && r > 0.995) block = 4;
-                    // Lapis (7): 500 - 9000
-                    else if (y >= 500 && y <= 9000 && r > 0.985) block = 7;
-                    // Gold (2): 100 - 7500
-                    else if (y >= 100 && y <= 7500 && r > 0.96) block = 2;
-                    // Iron (5): 1000 - 10000 (Spread out)
-                    else if (y >= 1000 && y <= 10000 && r > 0.94) block = 5;
-                    // Coal (6): 40 - 5000 (More common the deeper you are in its range)
-                    else if (y >= 40 && y <= 5000) {
-                        let depthFactor = (y - 40) / 4960;
-                        let chanceThreshold = 0.95 - (depthFactor * 0.1); // becomes more common deeper
-                        if (r > chanceThreshold) block = 6;
-                    }
-                    
-                    gameMap[y][x] = block;
+                if (y < 12) gameMap[y][x] = 0;
+                else if (y === 12) gameMap[y][x] = 3;
+                else gameMap[y][x] = 1 + (Math.floor(seededRandom() * 3) / 10);
+            }
+        }
+
+        function oreChance(type, y) {
+            if (type === 4) return y >= 5000 && y <= 8500 ? 0.00125 : 0;
+            if (type === 7) return y >= 500 && y <= 9000 ? 0.00375 : 0;
+            if (type === 2) return y >= 100 && y <= 7500 ? 0.01 : 0;
+            if (type === 5) return y >= 1000 && y <= 10000 ? 0.015 : 0;
+            if (type === 6 && y >= 40 && y <= 5000) {
+                const depthFactor = (y - 40) / 4960;
+                return (0.05 + depthFactor * 0.10) / 4;
+            }
+            return 0;
+        }
+
+        function placeOreVein(startX, startY, type) {
+            const targetSize = 3 + Math.floor(seededRandom() * 3);
+            let x = startX, y = startY, placed = 0, attempts = 0;
+            while (placed < targetSize && attempts < targetSize * 10) {
+                attempts++;
+                if (x >= 0 && x < WORLD_WIDTH && y > 12 && y < WORLD_HEIGHT &&
+                    gameMap[y][x] > 0 && ![2, 4, 5, 6, 7].includes(gameMap[y][x])) {
+                    gameMap[y][x] = type;
+                    placed++;
                 }
+                const direction = Math.floor(seededRandom() * 4);
+                if (direction === 0) x++;
+                else if (direction === 1) x--;
+                else if (direction === 2) y++;
+                else y--;
+                x = Math.max(0, Math.min(WORLD_WIDTH - 1, x));
+                y = Math.max(13, Math.min(WORLD_HEIGHT - 1, y));
+            }
+        }
+
+        // Vein-start chances are reduced to keep overall ore amounts balanced.
+        const oreTypes = [4, 7, 2, 5, 6];
+        for (let y = 13; y < WORLD_HEIGHT; y++) {
+            for (let x = 0; x < WORLD_WIDTH; x++) {
+                for (const type of oreTypes) {
+                    if (seededRandom() < oreChance(type, y)) {
+                        placeOreVein(x, y, type);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function carveCircle(cx, cy, radius) {
+            for (let y = cy - radius; y <= cy + radius; y++) {
+                for (let x = cx - radius; x <= cx + radius; x++) {
+                    if (x < 1 || x >= WORLD_WIDTH - 1 || y < CAVE_MIN_DEPTH || y > CAVE_MAX_DEPTH) continue;
+                    const dx = x - cx, dy = y - cy;
+                    if (dx * dx + dy * dy <= radius * radius) gameMap[y][x] = 0;
+                }
+            }
+        }
+
+        // Random cave tunnels only between depths 9,500 and 13,500.
+        for (let cave = 0; cave < CAVE_COUNT; cave++) {
+            let x = 4 + Math.floor(seededRandom() * (WORLD_WIDTH - 8));
+            let y = CAVE_MIN_DEPTH + Math.floor(seededRandom() * (CAVE_MAX_DEPTH - CAVE_MIN_DEPTH + 1));
+            let angle = seededRandom() * Math.PI * 2;
+            const length = 70 + Math.floor(seededRandom() * 151);
+            for (let step = 0; step < length; step++) {
+                carveCircle(Math.round(x), Math.round(y), 1 + Math.floor(seededRandom() * 3));
+                angle += (seededRandom() - 0.5) * 0.9;
+                x += Math.cos(angle) * (0.7 + seededRandom() * 0.8);
+                y += Math.sin(angle) * (0.45 + seededRandom() * 0.65);
+                if (x < 3 || x > WORLD_WIDTH - 4) angle = Math.PI - angle;
+                if (y < CAVE_MIN_DEPTH + 2 || y > CAVE_MAX_DEPTH - 2) angle = -angle;
+                x = Math.max(3, Math.min(WORLD_WIDTH - 4, x));
+                y = Math.max(CAVE_MIN_DEPTH + 2, Math.min(CAVE_MAX_DEPTH - 2, y));
             }
         }
         db.ref('world_breaks').once('value', (snap) => {
