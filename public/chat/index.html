@@ -2239,6 +2239,33 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
 
         .channel-item.has-unread-message:not(.active){color:#fff;font-weight:800}.channel-item.has-unread-message:not(.active)::before,.channel-item.has-unread-message:not(.active) .channel-type-icon{color:#fff;opacity:1}
         .chat-header{position:relative}.bell-status-widget{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:150px;padding:3px 12px;border-left:1px solid var(--line-clean,rgba(255,255,255,.07));border-right:1px solid var(--line-clean,rgba(255,255,255,.07));line-height:1.15;pointer-events:none;white-space:nowrap}.bell-current-period{color:var(--text-normal);font-size:12px;font-weight:800}.bell-next-countdown{margin-top:3px;color:var(--text-normal);font-size:10px;font-weight:650;font-variant-numeric:tabular-nums}.bell-status-widget.passing .bell-current-period{color:var(--text-normal)}.bell-status-widget.outside-school .bell-current-period,.bell-status-widget.outside-school .bell-next-countdown{color:var(--text-normal)}@media(max-width:1050px){.bell-status-widget{display:none}}
+
+        /* Polls stay inside the normal chat timeline. */
+        .msg-group.poll-message {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            flex: 0 0 auto;
+        }
+        .msg-group.poll-message .msg-main-layout {
+            width: 100%;
+            align-items: flex-start;
+        }
+        .msg-group.poll-message .msg-details {
+            width: 100%;
+            min-width: 0;
+            max-width: none;
+        }
+        .msg-group.poll-message .poll-card {
+            display: block;
+            width: min(560px, 100%);
+            max-width: 100%;
+            flex: 0 0 auto;
+            margin: 7px 0 2px;
+        }
+        .msg-group.poll-message.grouped .msg-details {
+            margin-left: 52px;
+        }
 </style>
 </head>
 <body>
@@ -3480,7 +3507,9 @@ const firebaseConfig = {
                 notifyMention(packet.user, isEveryonePing ? `@everyone ping from ${packet.user}` : packet.msg);
             }
             
-            row.innerHTML = generateMessageMarkup(key, packet); return row;
+            if (packet.poll) row.classList.add('poll-message');
+            row.innerHTML = generateMessageMarkup(key, packet);
+            return row;
         }
 
         function establishChannelListener() {
@@ -3558,6 +3587,10 @@ const firebaseConfig = {
                     const targetNode = document.getElementById(`msg-node-${snapshot.key}`);
                     if (targetNode) {
                         const packet = snapshot.val();
+                        const chatWasNearBottom = isChatNearBottom(chatBox);
+                        const previousScrollHeight = chatBox.scrollHeight;
+                        const previousScrollTop = chatBox.scrollTop;
+                        targetNode.classList.toggle('poll-message', !!packet.poll);
                         const isMentioned = packet.msg && textMentionsCurrentUser(String(packet.msg));
                         targetNode.className = 'msg-group';
                         if (isMentioned) targetNode.classList.add('msg-mentioned');
@@ -3566,6 +3599,13 @@ const firebaseConfig = {
                         targetNode.innerHTML = generateMessageMarkup(snapshot.key, packet);
                         applyGrouping(targetNode);
                         if (targetNode.nextElementSibling) applyGrouping(targetNode.nextElementSibling);
+                        requestAnimationFrame(() => {
+                            if (chatWasNearBottom) {
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            } else {
+                                chatBox.scrollTop = previousScrollTop + (chatBox.scrollHeight - previousScrollHeight);
+                            }
+                        });
                     }
                 };
                 currentRef.on('child_changed', changedCallback);
@@ -5589,6 +5629,10 @@ function bindChannelSync() {
             inputField.value = '';
             inputField.style.height = 'auto';
             hideCommandSuggestions();
+            cancelReplyData();
+            cancelAttachedFile();
+            shouldAutoScrollChat = true;
+            scrollChatToBottom('auto', true);
             inputField.focus();
         }
         const generateMessageMarkupBeforePolls = generateMessageMarkup;
