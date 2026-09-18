@@ -1,1 +1,298 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>User Profile</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      color: #f5f5f5;
+      background: #111318;
+    }
+
+    .profile-card {
+      width: 100%;
+      max-width: 520px;
+      padding: 28px;
+      border: 1px solid #30343d;
+      border-radius: 16px;
+      background: #1b1e25;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .profile-picture {
+      width: 88px;
+      height: 88px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border-radius: 50%;
+      background: #343945;
+      color: white;
+      font-size: 34px;
+      font-weight: bold;
+      object-fit: cover;
+    }
+
+    .profile-name {
+      margin: 0 0 6px;
+      font-size: 26px;
+      overflow-wrap: anywhere;
+    }
+
+    .profile-username {
+      margin: 0;
+      color: #a9afbd;
+      overflow-wrap: anywhere;
+    }
+
+    .profile-bio {
+      margin: 24px 0 0;
+      padding-top: 20px;
+      border-top: 1px solid #30343d;
+      color: #d7dae0;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .status-message {
+      text-align: center;
+      color: #a9afbd;
+    }
+
+    .error-message {
+      color: #ff7b7b;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 24px;
+      color: #7ab7ff;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="profile-card">
+    <div id="loading" class="status-message">
+      Loading profile...
+    </div>
+
+    <div id="error" class="status-message error-message" hidden></div>
+
+    <div id="profile" hidden>
+      <div class="profile-header">
+        <div id="fallbackPicture" class="profile-picture">?</div>
+
+        <img
+          id="profilePicture"
+          class="profile-picture"
+          alt="Profile picture"
+          hidden
+        >
+
+        <div>
+          <h1 id="displayName" class="profile-name">User</h1>
+          <p id="username" class="profile-username">@username</p>
+        </div>
+      </div>
+
+      <p id="bio" class="profile-bio">No bio provided.</p>
+
+      /chat/
+        Back to chat
+      </a>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+
+    import {
+      getDatabase,
+      ref,
+      get
+    } from
+      "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    /*
+      IMPORTANT:
+
+      Replace this firebaseConfig with the same firebaseConfig
+      already used inside your chat's index.html file.
+    */
+const firebaseConfig = {
+  apiKey: "AIzaSyAgOggS_nTmOubBXXg6mjI9twxsOgRlluk",
+  authDomain: "ilikespacedotcom.firebaseapp.com",
+  databaseURL: "https://ilikespacedotcom-default-rtdb.firebaseio.com",
+  projectId: "ilikespacedotcom",
+  storageBucket: "ilikespacedotcom.firebasestorage.app",
+  messagingSenderId: "535073068352",
+  appId: "1:535073068352:web:9e4b7f30ee118154af56a5",
+  measurementId: "G-ZRJ9DVTXEM"
+};
+
+
+    
+    const loadingElement = document.getElementById("loading");
+    const errorElement = document.getElementById("error");
+    const profileElement = document.getElementById("profile");
+
+    const displayNameElement = document.getElementById("displayName");
+    const usernameElement = document.getElementById("username");
+    const bioElement = document.getElementById("bio");
+
+    const profilePictureElement =
+      document.getElementById("profilePicture");
+
+    const fallbackPictureElement =
+      document.getElementById("fallbackPicture");
+
+    function showError(message) {
+      loadingElement.hidden = true;
+      profileElement.hidden = true;
+
+      errorElement.textContent = message;
+      errorElement.hidden = false;
+    }
+
+    function getUsernameFromURL() {
+      const pathParts = window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+      const profilePosition = pathParts.indexOf("profile");
+
+      if (
+        profilePosition === -1 ||
+        !pathParts[profilePosition + 1]
+      ) {
+        return null;
+      }
+
+      return decodeURIComponent(
+        pathParts[profilePosition + 1]
+      ).trim();
+    }
+
+    function showProfile(username, profileData) {
+      const displayName =
+        profileData.displayName ||
+        profileData.name ||
+        username;
+
+      const bio =
+        profileData.bio ||
+        "This user has not added a bio.";
+
+      const profilePicture =
+        profileData.profilePicture ||
+        profileData.avatar ||
+        profileData.photoURL ||
+        "";
+
+      document.title = `${displayName} | Profile`;
+
+      displayNameElement.textContent = displayName;
+      usernameElement.textContent = `@${username}`;
+      bioElement.textContent = bio;
+
+      fallbackPictureElement.textContent =
+        displayName.charAt(0).toUpperCase() || "?";
+
+      if (profilePicture) {
+        profilePictureElement.src = profilePicture;
+
+        profilePictureElement.addEventListener("load", () => {
+          profilePictureElement.hidden = false;
+          fallbackPictureElement.hidden = true;
+        });
+
+        profilePictureElement.addEventListener("error", () => {
+          profilePictureElement.hidden = true;
+          fallbackPictureElement.hidden = false;
+        });
+      }
+
+      loadingElement.hidden = true;
+      errorElement.hidden = true;
+      profileElement.hidden = false;
+    }
+
+    async function loadProfile() {
+      const username = getUsernameFromURL();
+
+      if (!username) {
+        showError(
+          "No username was provided in the profile URL."
+        );
+        return;
+      }
+
+      try {
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        /*
+          This assumes your profiles are saved like:
+
+          chat_profiles
+            tklwc2052
+              displayName: "tklwc2052"
+              bio: "Hello!"
+              profilePicture: "https://..."
+        */
+        const profileReference = ref(
+          database,
+          `chat_profiles/${username}`
+        );
+
+        const snapshot = await get(profileReference);
+
+        if (!snapshot.exists()) {
+          showError(`The user "${username}" was not found.`);
+          return;
+        }
+
+        showProfile(username, snapshot.val());
+      } catch (error) {
+        console.error("Could not load profile:", error);
+
+        showError(
+          "The profile could not be loaded. Check the Firebase configuration and database rules."
+        );
+      }
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>
