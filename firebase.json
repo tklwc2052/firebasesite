@@ -8,10 +8,16 @@
       "**/node_modules/**"
     ],
 "rewrites": [
-  {
-    "source": "/chat/profiles/**",
-    "destination": "/chat/profiles/index.html"
-  },
+{
+  "source": "/chat/me/**",
+  "destination": "/chat/me/index.html"
+},
+{
+  "source": "/chat/u/**",
+  "destination": "/chat/u/index.html"
+}
+
+  
   {
     "source": "/chat/**",
     "destination": "/chat/index.html"
