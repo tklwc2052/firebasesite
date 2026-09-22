@@ -24,7 +24,7 @@ const canvas = document.getElementById('gameCanvas');
     const CAVE_MAX_DEPTH = 13500;
     const CAVE_COUNT = 48;
     const BOMB_COST = 20; 
-    const DYNAMITE_COST = 10;
+    const DYNAMITE_COST = 2;
     
     // Default physics values (mutated by enchants)
     const BASE_GRAVITY = 1600;
