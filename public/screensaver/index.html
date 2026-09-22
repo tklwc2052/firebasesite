@@ -5,49 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Avern Bell Screensaver</title>
 <meta name="theme-color" content="#080a10">
-<!-- CUSTOM FONT: paste your font CSS link below. Google Fonts links work here. -->
-<link id="custom-font-link" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/tklwc2052/gameimages@main/Minecraft%20Seven_2.ttf">
+<!-- CUSTOM FONT: replace the URL below with your own .ttf, .otf, .woff, or .woff2 link. -->
 <style>
-/* CUSTOM FONT: change this to the font-family name from your link. */
-:root{--custom-font:"PASTE_FONT_FAMILY_NAME_HERE"}
+@font-face{
+  font-family:"AvernCustomFont";
+  src:url("https://cdn.jsdelivr.net/gh/tklwc2052/gameimages@main/Minecraft%20Seven_2.ttf") format("truetype");
+  font-display:swap;
+}
+:root{--custom-font:"AvernCustomFont"}
 :root{--accent:#7c5cff;--green:#2fd17c;--text:#f5f7ff;--muted:#9099b5}
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden}
-body{font-family:var(--custom-font,Inter),ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:#000;display:grid;place-items:center;cursor:none}
+body{font-family:var(--custom-font,Inter),ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:#000;display:grid;place-items:center;cursor:default}
 body.show-cursor{cursor:default}
-.bg{position:fixed;inset:0;background:#000;z-index:-2}
-.bg:after{content:none}
+.bg{position:fixed;inset:0;background:#000;z-index:-3}
+#gravity-grid{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:auto;touch-action:none}
 
-.wrap{text-align:center;width:min(700px,88vw);padding:20px}
-.brand{font-size:clamp(12px,1.5vw,16px);letter-spacing:.32em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.life-controls{position:fixed;left:14px;top:14px;z-index:20;display:flex;align-items:center;gap:7px;padding:7px;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(8,8,10,.72);backdrop-filter:blur(10px)}
+.life-controls button{border:0;border-radius:7px;background:#1c1d22;color:#e8e9ef;padding:8px 11px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}.life-controls button:hover{background:#292b32}.life-controls .life-status{min-width:54px;color:var(--muted);font-size:11px;text-align:center}.life-controls .reset-life{color:#bbb}
+
+.wrap{position:relative;z-index:2;pointer-events:none;text-align:center;width:min(700px,88vw);padding:20px}
 .status{margin-top:26px;font-size:clamp(22px,3.5vw,42px);font-weight:850;letter-spacing:-.035em}
-.time-range{margin-top:8px;color:var(--muted);font-size:clamp(14px,2vw,20px);font-weight:650}
-.countdown-label{margin-top:28px;color:var(--muted);font-size:clamp(12px,1.5vw,16px);text-transform:uppercase;letter-spacing:.18em;font-weight:800}
-.countdown{margin-top:4px;font-size:clamp(54px,11vw,120px);font-weight:850;line-height:.95;letter-spacing:-.065em;font-variant-numeric:tabular-nums;text-shadow:0 0 52px rgba(124,92,255,.22)}
-.progress{width:min(480px,70vw);height:4px;margin:25px auto 0;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
-.progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:inherit;transition:width 1s linear}
-.footer{position:fixed;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:12px;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
-.dot{opacity:.45}
-.fullscreen{position:fixed;right:18px;top:18px;border:1px solid rgba(255,255,255,.12);background:rgba(10,12,18,.45);color:var(--muted);border-radius:9px;padding:9px 12px;font:inherit;font-size:12px;font-weight:750;cursor:pointer;opacity:0;transition:opacity .2s,color .2s,background .2s;backdrop-filter:blur(10px)}
-body.show-cursor .fullscreen,.fullscreen:focus{opacity:1}.fullscreen:hover{color:#fff;background:rgba(255,255,255,.08)}
+.countdown{margin-top:4px;font-size:clamp(38px,7vw,78px);font-weight:850;line-height:.95;letter-spacing:-.065em;font-variant-numeric:tabular-nums;text-shadow:0 0 52px rgba(124,92,255,.22)}
 .passing .status{color:#d7d9ff}.outside .status{color:#d3d8e7}
-@media(max-width:520px){.wrap{padding:16px}.countdown-label{margin-top:32px}.footer{font-size:11px}}
-@media(prefers-reduced-motion:reduce){.bg{animation:none}.progress-fill{transition:none}}
-
+@media(max-width:520px){.wrap{padding:16px}@media(prefers-reduced-motion:reduce){.bg{animation:none}
 </style>
 </head>
 <body>
 <div class="bg"></div>
-<button class="fullscreen" onclick="toggleFullscreen()">Enter fullscreen</button>
+<canvas id="gravity-grid" aria-hidden="true"></canvas>
+<div class="life-controls"><button id="life-toggle" onclick="toggleLife()">Pause</button><span id="life-status" class="life-status">Running</span><button class="reset-life" onclick="randomizeLife()">Reset</button><button class="clear-life" onclick="clearLife()">Clear</button></div>
 <main class="wrap" aria-live="polite">
-  <div class="brand">Avern Bell Schedule</div>
   <div id="status" class="status">Loading schedule...</div>
-  <div id="time-range" class="time-range"></div>
-  <div id="countdown-label" class="countdown-label">Next bell in</div>
   <div id="countdown" class="countdown">--:--</div>
-  <div class="progress"><div id="progress-fill" class="progress-fill"></div></div>
 </main>
-<div class="footer"><span id="clock"></span><span class="dot">•</span><span id="date"></span></div>
 <script>
 const AVERN_BELL_SCHEDULE=[
  {name:'1st Period',start:'7:25',end:'8:45'},
@@ -60,11 +51,9 @@ const AVERN_BELL_SCHEDULE=[
 function timeToday(value,now=new Date()){const [h,m]=value.split(':').map(Number),d=new Date(now);d.setHours(h,m,0,0);return d}
 function formatCountdown(ms){const seconds=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`}
 function prettyTime(value){const [h,m]=value.split(':').map(Number);return new Date(2000,0,1,h,m).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
-function setView({status,range='',label,countdown,progress=0,mode=''}){document.body.classList.toggle('passing',mode==='passing');document.body.classList.toggle('outside',mode==='outside');document.getElementById('status').textContent=status;document.getElementById('time-range').textContent=range;document.getElementById('countdown-label').textContent=label;document.getElementById('countdown').textContent=countdown;document.getElementById('progress-fill').style.width=Math.max(0,Math.min(100,progress))+'%'}
+function setView({status,countdown,mode=''}){document.body.classList.toggle('passing',mode==='passing');document.body.classList.toggle('outside',mode==='outside');document.getElementById('status').textContent=status;document.getElementById('countdown').textContent=countdown}
 function update(){
  const now=new Date(),day=now.getDay();
- document.getElementById('clock').textContent=now.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'});
- document.getElementById('date').textContent=now.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});
  if(day===0||day===6){setView({status:'No school today',label:'Enjoy your weekend',countdown:'—',mode:'outside'});return}
  const periods=AVERN_BELL_SCHEDULE.map(p=>({...p,startAt:timeToday(p.start,now),endAt:timeToday(p.end,now)}));
  const current=periods.find(p=>now>=p.startAt&&now<p.endAt);
@@ -73,9 +62,88 @@ function update(){
  if(next){const before=next===periods[0],previous=periods[periods.indexOf(next)-1];const passingStart=previous?.endAt||new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0);const whole=Math.max(1,next.startAt-passingStart),elapsed=Math.max(0,now-passingStart);setView({status:before?'Before school':'Passing period',range:before?`First bell at ${prettyTime(next.start)}`:`Next: ${next.name}`,label:`${next.name} starts in`,countdown:formatCountdown(next.startAt-now),progress:before?0:elapsed/whole*100,mode:before?'outside':'passing'});return}
  setView({status:'School is over',range:'Dismissed at 2:18 PM',label:'See you tomorrow',countdown:'—',progress:100,mode:'outside'});
 }
-async function toggleFullscreen(){if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.();document.querySelector('.fullscreen').textContent=document.fullscreenElement?'Exit fullscreen':'Enter fullscreen'}
-let cursorTimer;function showCursor(){document.body.classList.add('show-cursor');clearTimeout(cursorTimer);cursorTimer=setTimeout(()=>document.body.classList.remove('show-cursor'),1800)}
-addEventListener('mousemove',showCursor);addEventListener('keydown',e=>{showCursor();if(e.key.toLowerCase()==='f')toggleFullscreen()});document.addEventListener('fullscreenchange',()=>document.querySelector('.fullscreen').textContent=document.fullscreenElement?'Exit fullscreen':'Enter fullscreen');
+const lifeCanvas=document.getElementById('gravity-grid');
+const lifeCtx=lifeCanvas.getContext('2d');
+const LIFE_CELL_SIZE=28;
+const LIFE_STEP_MS=115;
+let lifeCols=0,lifeRows=0,lifeGrid=[],lifeNext=[],lifeRunning=true,lastLifeStep=performance.now(),lifeDrawing=false,lifeDrawValue=1,lastEditedCell='';
+function makeLifeGrid(rows,cols,random=true){
+ return Array.from({length:rows},()=>Array.from({length:cols},()=>random&&Math.random()<.22?1:0));
+}
+function resizeLife(){
+ const dpr=Math.min(devicePixelRatio||1,2);
+ lifeCanvas.width=Math.round(innerWidth*dpr);lifeCanvas.height=Math.round(innerHeight*dpr);
+ lifeCanvas.style.width=innerWidth+'px';lifeCanvas.style.height=innerHeight+'px';
+ lifeCtx.setTransform(dpr,0,0,dpr,0,0);
+ const newCols=Math.ceil(innerWidth/LIFE_CELL_SIZE),newRows=Math.ceil(innerHeight/LIFE_CELL_SIZE);
+ const old=lifeGrid,oldRows=lifeRows,oldCols=lifeCols;
+ lifeCols=newCols;lifeRows=newRows;lifeGrid=makeLifeGrid(lifeRows,lifeCols,false);
+ if(old.length){
+   for(let y=0;y<Math.min(oldRows,lifeRows);y++)for(let x=0;x<Math.min(oldCols,lifeCols);x++)lifeGrid[y][x]=old[y][x];
+   for(let y=0;y<lifeRows;y++)for(let x=0;x<lifeCols;x++)if(y>=oldRows||x>=oldCols)lifeGrid[y][x]=Math.random()<.22?1:0;
+ }else lifeGrid=makeLifeGrid(lifeRows,lifeCols,true);
+ lifeNext=makeLifeGrid(lifeRows,lifeCols,false);
+}
+function countLifeNeighbors(x,y){
+ let count=0;
+ for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
+   if(!ox&&!oy)continue;
+   const nx=(x+ox+lifeCols)%lifeCols,ny=(y+oy+lifeRows)%lifeRows;
+   count+=lifeGrid[ny][nx];
+ }
+ return count;
+}
+function stepLife(){
+ for(let y=0;y<lifeRows;y++)for(let x=0;x<lifeCols;x++){
+   const neighbors=countLifeNeighbors(x,y),alive=lifeGrid[y][x]===1;
+   lifeNext[y][x]=(alive&&(neighbors===2||neighbors===3))||(!alive&&neighbors===3)?1:0;
+ }
+ [lifeGrid,lifeNext]=[lifeNext,lifeGrid];
+}
+function drawLife(){
+ lifeCtx.fillStyle='#000';lifeCtx.fillRect(0,0,innerWidth,innerHeight);
+ lifeCtx.strokeStyle='rgba(95,98,108,.13)';lifeCtx.lineWidth=.7;lifeCtx.beginPath();
+ for(let x=0;x<=innerWidth;x+=LIFE_CELL_SIZE){lifeCtx.moveTo(x+.5,0);lifeCtx.lineTo(x+.5,innerHeight)}
+ for(let y=0;y<=innerHeight;y+=LIFE_CELL_SIZE){lifeCtx.moveTo(0,y+.5);lifeCtx.lineTo(innerWidth,y+.5)}lifeCtx.stroke();
+ for(let y=0;y<lifeRows;y++)for(let x=0;x<lifeCols;x++)if(lifeGrid[y][x]){
+   lifeCtx.fillStyle='rgba(124,126,138,.48)';
+   lifeCtx.fillRect(x*LIFE_CELL_SIZE+2,y*LIFE_CELL_SIZE+2,LIFE_CELL_SIZE-3,LIFE_CELL_SIZE-3);
+ }
+}
+function lifeLoop(time){
+ if(lifeRunning&&time-lastLifeStep>=LIFE_STEP_MS){stepLife();lastLifeStep=time}
+ drawLife();requestAnimationFrame(lifeLoop);
+}
+function toggleLife(){
+ lifeRunning=!lifeRunning;
+ document.getElementById('life-toggle').textContent=lifeRunning?'Pause':'Start';
+ document.getElementById('life-status').textContent=lifeRunning?'Running':'Paused';
+}
+function randomizeLife(){lifeGrid=makeLifeGrid(lifeRows,lifeCols,true);lastLifeStep=performance.now()}
+function clearLife(){lifeGrid=makeLifeGrid(lifeRows,lifeCols,false);lifeNext=makeLifeGrid(lifeRows,lifeCols,false);lastLifeStep=performance.now()}
+function getLifeCell(event){
+ const rect=lifeCanvas.getBoundingClientRect();
+ return{x:Math.floor((event.clientX-rect.left)/LIFE_CELL_SIZE),y:Math.floor((event.clientY-rect.top)/LIFE_CELL_SIZE)};
+}
+function paintLifeCell(event){
+ const {x,y}=getLifeCell(event),key=x+','+y;
+ if(x<0||x>=lifeCols||y<0||y>=lifeRows||key===lastEditedCell)return;
+ lifeGrid[y][x]=lifeDrawValue;
+ lastEditedCell=key;
+}
+lifeCanvas.addEventListener('pointerdown',event=>{
+ event.preventDefault();
+ const {x,y}=getLifeCell(event);
+ if(x<0||x>=lifeCols||y<0||y>=lifeRows)return;
+ lifeDrawing=true;lastEditedCell='';lifeDrawValue=lifeGrid[y][x]?0:1;
+ lifeCanvas.setPointerCapture?.(event.pointerId);
+ paintLifeCell(event);
+});
+lifeCanvas.addEventListener('pointermove',event=>{if(lifeDrawing)paintLifeCell(event)});
+lifeCanvas.addEventListener('pointerup',event=>{lifeDrawing=false;lastEditedCell='';lifeCanvas.releasePointerCapture?.(event.pointerId)});
+lifeCanvas.addEventListener('pointercancel',()=>{lifeDrawing=false;lastEditedCell=''});
+document.getElementById('life-toggle').textContent='Pause';document.getElementById('life-status').textContent='Running';
+addEventListener('resize',resizeLife);resizeLife();requestAnimationFrame(lifeLoop);
 
 update();setInterval(update,250);
 </script>
