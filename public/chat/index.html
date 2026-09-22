@@ -2410,7 +2410,7 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         </div>
     </div>
 
-    <div id="account-menu" class="account-menu" hidden><button onclick="openMyPageEditor()">Edit my page</button><button onclick="openAccountSettings()">Account settings</button></div>
+    <div id="account-menu" class="account-menu" hidden><button onclick="openMyPageEditor()">Edit my page</button><button onclick="openThemeSettings()">Themes &amp; background</button><button onclick="openAccountSettings()">Account settings</button></div>
     <div id="account-settings-modal" role="dialog" aria-modal="true"><div class="account-settings-head"><div><h3>Account settings</h3><p id="account-settings-email"></p></div><button onclick="closeAccountSettings()">&times;</button></div><div class="account-settings-body"><button class="account-action password" onclick="changeAccountPassword()">Change password</button><button class="account-action logout" onclick="signOutAccount()">Log out</button><button class="account-action delete" onclick="deleteAccount()">Delete account</button></div></div>
     <div id="modal-overlay" onclick="closeProfilePopup(); closeEmojiCreator(); closeMediaGallery(); closeChatSearch(); closePinnedMessages(); closeForumPostCreator();"></div>
     <div id="profile-popup">
@@ -3296,6 +3296,19 @@ const firebaseConfig = {
         function closeAccountMenu(){const m=document.getElementById('account-menu'),b=document.getElementById('account-menu-btn');if(m)m.hidden=true;if(b)b.setAttribute('aria-expanded','false')}
         function toggleAccountMenu(event){event?.stopPropagation();const m=document.getElementById('account-menu'),b=document.getElementById('account-menu-btn');if(!m)return;m.hidden=!m.hidden;if(b)b.setAttribute('aria-expanded',String(!m.hidden))}
         function openMyPageEditor(){closeAccountMenu();location.href='/chat/me/'}
+        function openThemeSettings(){
+            closeAccountMenu();
+            const setupScreen=document.getElementById('setup-screen');
+            if(!setupScreen)return;
+            setupScreen.style.display='flex';
+            requestAnimationFrame(()=>{
+                const themeSelect=document.getElementById('theme-select');
+                if(themeSelect){
+                    themeSelect.scrollIntoView({behavior:'smooth',block:'center'});
+                    themeSelect.focus();
+                }
+            });
+        }
         function openAccountSettings(){closeAccountMenu();const m=document.getElementById('account-settings-modal'),e=document.getElementById('account-settings-email');if(e)e.textContent=auth.currentUser?.email?'Signed in as '+auth.currentUser.email:'';document.getElementById('modal-overlay').style.display='block';if(m)m.style.display='block'}
         function closeAccountSettings(){const m=document.getElementById('account-settings-modal');if(m)m.style.display='none';maybeHideModalOverlay()}
         function openSettings(){toggleAccountMenu()}
