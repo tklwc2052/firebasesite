@@ -1,7 +1,7 @@
 {
   "name": "real chat thing",
   "short_name": "chat",
-  "start_url": "/",
+  "start_url": "/public/chat",
   "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#000000",
