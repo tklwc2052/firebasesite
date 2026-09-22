@@ -2281,9 +2281,21 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         .channel-item.active {
             font-weight: 650;
         }
+
+/* MULTI SERVER UI */
+:root{--server-rail-width:68px}#app-container{padding-left:var(--server-rail-width)}
+#server-rail{position:fixed;inset:0 auto 0 0;width:68px;z-index:21000;display:flex;flex-direction:column;align-items:center;gap:9px;padding:10px 7px;background:#0a0b0e;border-right:1px solid rgba(255,255,255,.06);overflow-y:auto}#server-rail[hidden]{display:none!important}
+.server-orb{width:46px;height:46px;min-height:46px;border:0;border-radius:15px;background:#202228;color:#eee;font:800 14px inherit;cursor:pointer;overflow:hidden;display:grid;place-items:center;transition:.15s}.server-orb:hover,.server-orb.active{border-radius:12px;background:var(--primary-blurple);color:#fff}.server-orb img{width:100%;height:100%;object-fit:cover}.server-orb.add{font-size:25px;color:var(--online-green)}.server-orb.add:hover{background:var(--online-green);color:#fff}.server-divider{width:34px;height:1px;background:rgba(255,255,255,.1)}
+.ms-modal{display:none;position:fixed;inset:0;z-index:26000;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.74);backdrop-filter:blur(4px)}.ms-modal.open{display:flex}.ms-card{width:min(470px,100%);max-height:88vh;overflow:auto;background:#17181c;border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 24px 70px #000}.ms-head{display:flex;justify-content:space-between;gap:12px;padding:17px 18px;border-bottom:1px solid rgba(255,255,255,.07)}.ms-head h3{margin:0;color:#fff}.ms-head p{margin:5px 0 0;color:var(--text-muted);font-size:12px}.ms-x{border:0;background:none;color:var(--text-muted);font-size:24px;cursor:pointer}.ms-body{padding:18px;display:flex;flex-direction:column;gap:11px}.ms-body label{font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase}.ms-body input{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid transparent;border-radius:8px;background:var(--bg-input);color:#fff;outline:none}.ms-body input:focus{border-color:var(--primary-blurple)}.ms-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}.ms-tab,.ms-btn{border:0;border-radius:8px;padding:10px 12px;background:#32343b;color:#fff;font:750 13px inherit;cursor:pointer}.ms-tab.active,.ms-btn.primary{background:var(--primary-blurple)}.ms-btn.danger{background:#da373c}.ms-pane[hidden]{display:none!important}.ms-error{min-height:17px;color:#fa777c;font-size:12px}.ms-actions{display:grid;gap:8px}.ms-code{display:flex;gap:8px}.ms-code input{font-family:monospace;letter-spacing:.08em}.server-channel-add{margin:7px;border:1px dashed rgba(255,255,255,.12);border-radius:7px;padding:8px;text-align:center;color:var(--text-muted);font-size:12px;cursor:pointer}
+body.theme-abyss #server-rail{background:#000}body.theme-abyss .server-orb{background:#070707}body.theme-abyss .ms-card{background:#030303}
+@media(max-width:640px){:root{--server-rail-width:0px}#app-container{padding-left:0}#server-rail{width:58px}}
 </style>
 </head>
 <body>
+<div id="server-rail" hidden></div>
+<div id="ms-picker" class="ms-modal" onclick="if(event.target===this)msClosePicker()"><div class="ms-card"><div class="ms-head"><div><h3>Add a server</h3><p>Create one server or join one using an invite code.</p></div><button class="ms-x" onclick="msClosePicker()">&times;</button></div><div class="ms-body"><div class="ms-tabs"><button id="ms-create-tab" class="ms-tab active" onclick="msMode('create')">Create</button><button id="ms-join-tab" class="ms-tab" onclick="msMode('join')">Join</button></div><div id="ms-create" class="ms-pane"><label>Server name</label><input id="ms-name" maxlength="40" placeholder="My server"><label>Icon URL (optional)</label><input id="ms-icon" type="url" placeholder="https://..."><button class="ms-btn primary" onclick="msCreateServer()">Create server</button></div><div id="ms-join" class="ms-pane" hidden><label>Invite code</label><input id="ms-invite" maxlength="19" placeholder="AVRN-XXXX-XXXX"><button class="ms-btn primary" onclick="msJoinServer()">Join server</button></div><div id="ms-error" class="ms-error"></div></div></div></div>
+<div id="ms-settings" class="ms-modal" onclick="if(event.target===this)msCloseSettings()"><div class="ms-card"><div class="ms-head"><div><h3 id="ms-settings-title">Server settings</h3><p id="ms-settings-sub"></p></div><button class="ms-x" onclick="msCloseSettings()">&times;</button></div><div class="ms-body"><label>Invite code</label><div class="ms-code"><input id="ms-code" readonly><button class="ms-btn" onclick="msCopyCode()">Copy</button></div><div id="ms-owner-actions" class="ms-actions"><button class="ms-btn" onclick="msNewCode()">New invite code</button><button class="ms-btn" onclick="msCreateChannel()">Create channel</button><button class="ms-btn" onclick="msRename()">Rename server</button><button class="ms-btn danger" onclick="msDelete()">Delete server</button></div><button id="ms-leave" class="ms-btn danger" onclick="msLeave()">Leave server</button><div id="ms-settings-error" class="ms-error"></div></div></div></div>
+
 <div id="auth-screen"><div class="auth-card"><div id="auth-form" class="auth-form"><h1>Avern account</h1><p>okay gng, so like i dont trust any of yall so add a password and email. i was going to send u a email to confirm it but the school is a bum.</p><div class="auth-tabs"><button id="auth-login-tab" class="active" onclick="setAuthMode('login')">Log in</button><button id="auth-signup-tab" onclick="setAuthMode('signup')">Create account</button></div><div id="auth-username-wrap" class="auth-field" hidden><label>Username</label><input id="auth-username" maxlength="15" autocomplete="username" placeholder="Letters, numbers, underscores"></div><div class="auth-field"><label>Email</label><input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="auth-field"><label>Password</label><input id="auth-password" type="password" minlength="8" autocomplete="current-password" placeholder="At least 8 characters"></div><div class="auth-actions"><button id="auth-submit" class="auth-primary" onclick="submitAuth()">Log in</button><button class="auth-secondary" onclick="sendPasswordReset()">Forgot password?</button></div><div id="auth-message" class="auth-message" aria-live="polite"></div></div></div></div>
     
 
@@ -6087,59 +6099,39 @@ function openAvernUserPage(username) {
 // Replace the old popup handler after every earlier script has loaded.
 inspectUser = openAvernUserPage;
 </script>
+
 <script>
-/* Secure sequential server workflow required by database-rules.json. */
-createUserServer=async function(){
- const user=auth.currentUser,name=document.getElementById('new-server-name').value.trim(),iconUrl=document.getElementById('new-server-icon').value.trim();
- if(!user)return serverDialogMessage('Log in first.');
- if(name.length<2)return serverDialogMessage('Use a server name with at least 2 characters.');
- const ownershipRef=db.ref(`server_ownership/${user.uid}`),existing=await ownershipRef.once('value');
- if(existing.exists())return serverDialogMessage('You already own a server. You can still join other servers.');
- const serverId=makeServerId(),inviteCode=makeInviteCode(),now=Date.now();
- try{
-  await ownershipRef.set(serverId);
-  await db.ref(`servers/${serverId}/meta`).set({name:name.slice(0,40),iconUrl:iconUrl||'',ownerUid:user.uid,ownerName:sessionUser.username,inviteCode,createdAt:now});
-  await db.ref(`servers/${serverId}/members/${user.uid}`).set({username:sessionUser.username,role:'Owner',joinedAt:now});
-  await db.ref(`servers/${serverId}/channels/general`).set({type:'text',name:'general',createdAt:now,createdBy:sessionUser.username});
-  await db.ref(`servers/${serverId}/roles`).set({Owner:{allowedChannels:'*',visibleChannels:'*',allowedCommands:'*',color:'#f0b232'},Member:{allowedChannels:'*',visibleChannels:'*',allowedCommands:'',color:'#dbdee1'}});
-  await db.ref(`invite_codes/${inviteCode}`).set({serverId,active:true,createdAt:now});
-  await db.ref(`user_servers/${user.uid}/${serverId}`).set({joinedAt:now,role:'Owner'});
-  joinedServers[serverId]={joinedAt:now,role:'Owner'};
-  serverMetaCache[serverId]={name:name.slice(0,40),iconUrl:iconUrl||'',ownerUid:user.uid,inviteCode,createdAt:now};
-  closeServerPicker();await switchServer(serverId);
- }catch(err){
-  console.error(err);
-  try{const meta=await db.ref(`servers/${serverId}/meta`).once('value');if(!meta.exists())await ownershipRef.remove()}catch{}
-  serverDialogMessage('Could not create the server. Check that the new database rules are published.');
- }
-};
-joinServerWithCode=async function(){
- const user=auth.currentUser,code=normalizeInviteCode(document.getElementById('join-server-code').value);
- if(!user)return serverDialogMessage('Log in first.');if(!code)return serverDialogMessage('Enter an invite code.');
- try{
-  const invite=(await db.ref(`invite_codes/${code}`).once('value')).val();
-  if(!invite?.active||!invite.serverId)return serverDialogMessage('That invite code is invalid or expired.');
-  const serverId=safeServerId(invite.serverId),now=Date.now();
-  await db.ref(`servers/${serverId}/members/${user.uid}`).set({username:sessionUser.username,role:'Member',joinedAt:now,inviteCode:code});
-  await db.ref(`user_servers/${user.uid}/${serverId}`).set({joinedAt:now,role:'Member'});
-  joinedServers[serverId]={joinedAt:now,role:'Member'};
-  serverMetaCache[serverId]=(await db.ref(`servers/${serverId}/meta`).once('value')).val()||{};
-  closeServerPicker();await switchServer(serverId);
- }catch(err){console.error(err);serverDialogMessage('Could not join that server. Check the code and database rules.');}
-};
-deleteCurrentServer=async function(){
- if(!isCurrentServerOwner()||!confirm(`Permanently delete ${activeServerMeta.name}? This deletes its channels and messages.`))return;
- const uid=auth.currentUser.uid,serverId=activeServerId;
- try{
-  const members=(await db.ref(`${getServerRoot()}/members`).once('value')).val()||{};
-  const cleanup={};Object.keys(members).forEach(memberUid=>cleanup[`user_servers/${memberUid}/${serverId}`]=null);
-  if(Object.keys(cleanup).length)await db.ref().update(cleanup);
-  if(activeServerMeta.inviteCode)await db.ref(`invite_codes/${activeServerMeta.inviteCode}`).remove();
-  await db.ref(`servers/${serverId}`).remove();
-  await db.ref(`server_ownership/${uid}`).remove();
-  closeServerSettings();await switchServer(DEFAULT_SERVER_ID);
- }catch(err){console.error(err);settingsMessage('Could not delete the server.');}
-};
+/* MULTI SERVER SYSTEM */
+const DEFAULT_SERVER_ID='default';
+let activeServerId=DEFAULT_SERVER_ID,activeServerMeta={id:'default',name:'Avern',isDefault:true},joinedServers={},serverMetaCache={},msMembershipRef=null,msChannelsRef=null,msRolesRef=null;
+const msOriginalPath=getChannelDatabasePath,msOriginalChannels=bindChannelSync,msOriginalRoles=bindRolesSync,msOriginalAdmin=openAdminModal,msOriginalPresence=renderPresenceFromCache,msOriginalLogin=loginToGuild;
+const msSafe=v=>String(v||'').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,50);
+const msRoot=(id=activeServerId)=>`servers/${msSafe(id)}`;
+const msOwner=()=>!!auth.currentUser&&activeServerId!=='default'&&activeServerMeta.ownerUid===auth.currentUser.uid;
+function msId(){return 'srv_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8)}
+function msCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let x='AVRN-';for(let i=0;i<8;i++){if(i===4)x+='-';x+=c[Math.floor(Math.random()*c.length)]}return x}
+function msInitials(n){return String(n||'?').split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
+function msError(t,settings=false){document.getElementById(settings?'ms-settings-error':'ms-error').textContent=t||''}
+function msRenderRail(){const r=document.getElementById('server-rail');r.innerHTML='';const list=[{id:'default',name:'Avern'},...Object.keys(joinedServers).filter(id=>id!=='default').map(id=>({id,...(serverMetaCache[id]||{})}))];for(const v of list){const b=document.createElement('button');b.className='server-orb'+(v.id===activeServerId?' active':'');b.title=v.name||'Server';b.onclick=()=>msSwitch(v.id);b.innerHTML=v.iconUrl?`<img src="${escapeAttribute(v.iconUrl)}" alt="">`:escapeHtml(msInitials(v.name));r.appendChild(b)}const d=document.createElement('div');d.className='server-divider';r.appendChild(d);const plus=document.createElement('button');plus.className='server-orb add';plus.textContent='+';plus.onclick=msOpenPicker;r.appendChild(plus)}
+function msBindMemberships(){if(!auth.currentUser)return;if(msMembershipRef)msMembershipRef.off();msMembershipRef=db.ref(`user_servers/${auth.currentUser.uid}`);msMembershipRef.on('value',async snap=>{joinedServers=snap.val()||{};const ids=Object.keys(joinedServers).filter(x=>x!=='default');const pairs=await Promise.all(ids.map(async id=>[id,(await db.ref(`servers/${id}/meta`).once('value')).val()||{}]));serverMetaCache=Object.fromEntries(pairs);msRenderRail();if(activeServerId!=='default'&&!joinedServers[activeServerId])msSwitch('default')})}
+function msOpenPicker(){msError('');document.getElementById('ms-picker').classList.add('open');msMode('create')}function msClosePicker(){document.getElementById('ms-picker').classList.remove('open')}function msMode(m){const c=m==='create';document.getElementById('ms-create').hidden=!c;document.getElementById('ms-join').hidden=c;document.getElementById('ms-create-tab').classList.toggle('active',c);document.getElementById('ms-join-tab').classList.toggle('active',!c);msError('')}
+async function msCreateServer(){const u=auth.currentUser,n=document.getElementById('ms-name').value.trim(),icon=document.getElementById('ms-icon').value.trim();if(!u)return msError('Log in first.');if(n.length<2)return msError('Use at least 2 characters.');const own=db.ref(`server_ownership/${u.uid}`);if((await own.once('value')).exists())return msError('You already own a server.');const id=msId(),code=msCode(),now=Date.now();try{await own.set(id);await db.ref(`servers/${id}/meta`).set({name:n.slice(0,40),iconUrl:icon,ownerUid:u.uid,ownerName:sessionUser.username,inviteCode:code,createdAt:now});await db.ref(`servers/${id}/members/${u.uid}`).set({username:sessionUser.username,role:'Owner',joinedAt:now});await db.ref(`servers/${id}/channels/general`).set({name:'general',type:'text',createdAt:now});await db.ref(`servers/${id}/roles`).set({Owner:{allowedChannels:'*',visibleChannels:'*',allowedCommands:'*',color:'#f0b232'},Member:{allowedChannels:'*',visibleChannels:'*',allowedCommands:'',color:'#dbdee1'}});await db.ref(`invite_codes/${code}`).set({serverId:id,active:true,createdAt:now});await db.ref(`user_servers/${u.uid}/${id}`).set({joinedAt:now,role:'Owner'});joinedServers[id]={role:'Owner'};serverMetaCache[id]={name:n.slice(0,40),iconUrl:icon,ownerUid:u.uid,inviteCode:code};msClosePicker();await msSwitch(id)}catch(e){console.error(e);try{if(!(await db.ref(`servers/${id}/meta`).once('value')).exists())await own.remove()}catch{}msError('Creation failed. Make sure the new rules are published.')}}
+async function msJoinServer(){const u=auth.currentUser,code=String(document.getElementById('ms-invite').value||'').trim().toUpperCase();if(!u)return msError('Log in first.');try{const inv=(await db.ref(`invite_codes/${code}`).once('value')).val();if(!inv?.active)return msError('Invalid or expired code.');const id=msSafe(inv.serverId),now=Date.now();await db.ref(`servers/${id}/members/${u.uid}`).set({username:sessionUser.username,role:'Member',joinedAt:now,inviteCode:code});await db.ref(`user_servers/${u.uid}/${id}`).set({joinedAt:now,role:'Member'});joinedServers[id]={role:'Member'};serverMetaCache[id]=(await db.ref(`servers/${id}/meta`).once('value')).val()||{};msClosePicker();await msSwitch(id)}catch(e){console.error(e);msError('Could not join that server.')}}
+getChannelDatabasePath=function(){if(isDmMode||activeServerId==='default')return msOriginalPath();if(isForumMode&&activeForumPost)return `${msRoot()}/forums/${activeChannel}/posts/${activeForumPost}/messages`;return `${msRoot()}/messages/${activeChannel}`}
+function msDetach(){if(msChannelsRef){msChannelsRef.off();msChannelsRef=null}if(msRolesRef){msRolesRef.off();msRolesRef=null}db.ref('server_channels').off('value');db.ref('roles').off('value')}
+async function msSwitch(id){id=msSafe(id)||'default';if(id!=='default'&&!joinedServers[id])return alert('You are not a member.');stopCurrentConversationListeners?.();detachForumList?.();detachLeaderboard?.();msDetach();isDmMode=false;isForumMode=false;isLeaderboardMode=false;activeForumPost=null;if(id==='default'){activeServerId='default';activeServerMeta={id:'default',name:'Avern',isDefault:true};document.querySelector('.guild-header span').textContent='Avern chat';msOriginalRoles();msOriginalChannels();activeChannel='announcements';changeChannel('announcements',false)}else{activeServerId=id;activeServerMeta={id,...(await db.ref(`servers/${id}/meta`).once('value')).val()};document.querySelector('.guild-header span').textContent=activeServerMeta.name||'Server';msRolesRef=db.ref(`${msRoot()}/roles`);msRolesRef.on('value',x=>{serverRoles=x.val()||{};updateChatInputPermissions()});msChannelsRef=db.ref(`${msRoot()}/channels`);msChannelsRef.on('value',x=>msRenderChannels(x.val()||{}));const first=(await db.ref(`${msRoot()}/channels`).orderByKey().limitToFirst(1).once('value')).val();activeChannel=first?Object.keys(first)[0]:'general';changeChannel(activeChannel,false)}msRenderRail();msAdminButton();renderPresenceFromCache()}
+function msRenderChannels(ch){const box=document.getElementById('channels-container');box.innerHTML='';for(const [key,v] of Object.entries(ch)){const type=getServerChannelType(v),e=document.createElement('div');e.className=`channel-item server-chan ${type==='forum'?'forum-chan':''} ${activeChannel===key?'active':''}`;e.onclick=()=>changeChannel(key,false);e.innerHTML=(type==='forum'?uiIcon('forum','channel-type-icon'):'')+`<span>${escapeHtml(v.name||key)}</span>`;box.appendChild(e)}if(msOwner()){const a=document.createElement('div');a.className='server-channel-add';a.textContent='+ Create channel';a.onclick=msCreateChannel;box.appendChild(a)}}
+function msAdminButton(){const b=document.getElementById('admin-settings-btn');if(b)b.style.display=(activeServerId==='default'&&sessionUser.username.toLowerCase()==='kl_')||msOwner()?'block':'none'}openAdminModal=function(){return activeServerId==='default'?msOriginalAdmin():msOpenSettings()}
+function msOpenSettings(){document.getElementById('ms-settings-title').textContent=activeServerMeta.name;document.getElementById('ms-settings-sub').textContent=msOwner()?'You own this server.':'You are a member.';document.getElementById('ms-code').value=activeServerMeta.inviteCode||'';document.getElementById('ms-owner-actions').style.display=msOwner()?'grid':'none';document.getElementById('ms-leave').style.display=msOwner()?'none':'block';msError('',true);document.getElementById('ms-settings').classList.add('open')}function msCloseSettings(){document.getElementById('ms-settings').classList.remove('open')}
+async function msCopyCode(){const c=document.getElementById('ms-code').value;try{await navigator.clipboard.writeText(c);msError('Copied.',true)}catch{prompt('Copy:',c)}}
+async function msNewCode(){if(!msOwner())return;const old=activeServerMeta.inviteCode,code=msCode();if(old)await db.ref(`invite_codes/${old}`).remove();await db.ref(`${msRoot()}/meta/inviteCode`).set(code);await db.ref(`invite_codes/${code}`).set({serverId:activeServerId,active:true,createdAt:Date.now()});activeServerMeta.inviteCode=code;document.getElementById('ms-code').value=code}
+async function msCreateChannel(){if(!msOwner())return;const raw=prompt('Channel name:');if(!raw)return;const key=raw.toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');if(!key)return;const t=(prompt('Type: text, forum, or leaderboard','text')||'text').toLowerCase();await db.ref(`${msRoot()}/channels/${key}`).set({name:key,type:['forum','leaderboard'].includes(t)?t:'text',createdAt:Date.now()})}
+async function msRename(){if(!msOwner())return;const n=prompt('New name:',activeServerMeta.name);if(!n?.trim())return;await db.ref(`${msRoot()}/meta/name`).set(n.trim().slice(0,40));activeServerMeta.name=n.trim().slice(0,40);serverMetaCache[activeServerId]={...serverMetaCache[activeServerId],name:activeServerMeta.name};document.querySelector('.guild-header span').textContent=activeServerMeta.name;msRenderRail();msOpenSettings()}
+async function msLeave(){if(activeServerId==='default'||msOwner())return;const id=activeServerId,u=auth.currentUser;if(!confirm(`Leave ${activeServerMeta.name}?`))return;await db.ref(`servers/${id}/members/${u.uid}`).remove();await db.ref(`user_servers/${u.uid}/${id}`).remove();msCloseSettings();await msSwitch('default')}
+async function msDelete(){if(!msOwner()||!confirm(`Delete ${activeServerMeta.name} permanently?`))return;const id=activeServerId,u=auth.currentUser,m=(await db.ref(`${msRoot()}/members`).once('value')).val()||{},updates={};for(const uid of Object.keys(m))updates[`user_servers/${uid}/${id}`]=null;if(Object.keys(updates).length)await db.ref().update(updates);if(activeServerMeta.inviteCode)await db.ref(`invite_codes/${activeServerMeta.inviteCode}`).remove();await db.ref(`servers/${id}`).remove();await db.ref(`server_ownership/${u.uid}`).remove();msCloseSettings();await msSwitch('default')}
+renderPresenceFromCache=function(){if(activeServerId==='default')return msOriginalPresence();db.ref(`${msRoot()}/members`).once('value').then(x=>{const m=x.val()||{},old=globalProfiles;globalProfiles=Object.fromEntries(Object.values(m).map(v=>{const k=String(v.username||'').toLowerCase();return[k,old[k]||{username:v.username,presenceState:'offline'}]}));msOriginalPresence();globalProfiles=old})}
+loginToGuild=function(){const r=msOriginalLogin.apply(this,arguments);setTimeout(()=>{document.getElementById('server-rail').hidden=false;msBindMemberships();msAdminButton()},0);return r}
+window.addEventListener('DOMContentLoaded',()=>{msRenderRail();auth.onAuthStateChanged(u=>{document.getElementById('server-rail').hidden=!u;if(u)msBindMemberships()})});
 </script>
 </body>
 </html>
