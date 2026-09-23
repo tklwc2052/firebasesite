@@ -6368,40 +6368,18 @@ updateChatInputPermissions=function(){
 </script>
 
 <script>
-/* Friends-only DM list enforcement. */
-function removeNonFriendDmEntries(){
- const list=document.getElementById('dm-list-container');
- if(!list||typeof isFriendUsername!=='function')return;
- list.querySelectorAll('.dm-list-item').forEach(item=>{
-   const username=String(item.dataset.dmName||item.id.replace(/^dm-node-/, '')).toLowerCase();
-   if(!isFriendUsername(username))item.remove();
- });
- if(!list.querySelector('.dm-list-item')){
-   list.innerHTML='<div class="dm-empty-state">Add a friend to start a DM.</div>';
- }
-}
-const friendOnlyDmObserver=new MutationObserver(removeNonFriendDmEntries);
-window.addEventListener('DOMContentLoaded',()=>{
- const list=document.getElementById('dm-list-container');
- if(list)friendOnlyDmObserver.observe(list,{childList:true,subtree:true});
- setTimeout(removeNonFriendDmEntries,700);
-});
-</script>
-
-<script>
-/* ===== GLOBAL FRIEND DMS, INDEPENDENT OF ACTIVE SERVER ===== */
-function renderGlobalFriendDmList(){
+/* ===== SAFE GLOBAL FRIEND DMS ===== */
+function renderSafeGlobalFriendDms(){
  const container=document.getElementById('dm-list-container');
- if(!container||!sessionUser.username)return;
+ if(!container||!sessionUser.username||typeof friendships==='undefined')return;
  const myName=String(sessionUser.username).toLowerCase();
- container.innerHTML='';
+ const fragment=document.createDocumentFragment();
  const rows=[];
- for(const friendUid of Object.keys(friendships||{})){
-   const stored=friendships[friendUid]||{};
-   const profileEntry=Object.entries(globalProfiles||{}).find(([name,p])=>p&&p.uid===friendUid);
-   const username=String(profileEntry?.[0]||stored.username||'').toLowerCase();
+ for(const [friendUid,stored] of Object.entries(friendships||{})){
+   const found=Object.entries(globalProfiles||{}).find(([,profile])=>profile&&String(profile.uid||'')===String(friendUid));
+   const username=String(found?.[0]||stored?.username||'').toLowerCase();
    if(!username||username===myName)continue;
-   const profile=profileEntry?.[1]||globalProfiles[username]||{};
+   const profile=found?.[1]||globalProfiles[username]||{};
    const displayName=profile.nickname||profile.username||username;
    const online=profile.presenceState==='online'&&(Date.now()-Number(profile.lastSeen||0))<PRESENCE_ONLINE_TIMEOUT_MS;
    const lastAt=Number(dmRecentActivity[username]||0);
@@ -6416,39 +6394,46 @@ function renderGlobalFriendDmList(){
    rows.push(item);
  }
  rows.sort((a,b)=>Number(b.dataset.lastDmAt||0)-Number(a.dataset.lastDmAt||0)||String(a.dataset.dmName).localeCompare(String(b.dataset.dmName)));
- rows.forEach(row=>container.appendChild(row));
- if(!rows.length)container.innerHTML='<div class="dm-empty-state">Add a friend to start a DM.</div>';
- const badge=document.getElementById('dm-count');
- if(badge)badge.textContent=String(rows.length);
- updateAllUnreadBadges();
+ rows.forEach(row=>fragment.appendChild(row));
+ /* Replace the list once. No observer and no recursive empty-state rewrite. */
+ container.replaceChildren();
+ if(rows.length)container.appendChild(fragment);
+ else{
+   const empty=document.createElement('div');
+   empty.className='dm-empty-state';
+   empty.textContent='Add a friend to start a DM.';
+   container.appendChild(empty);
+ }
+ const count=document.getElementById('dm-count');
+ if(count)count.textContent=String(rows.length);
 }
-/* Keep server member rendering and global friend-DM rendering separate. */
-const globalDmPreviousPresenceRenderer=renderPresenceFromCache;
+const safeDmPresenceRenderer=renderPresenceFromCache;
 renderPresenceFromCache=function(){
- const result=globalDmPreviousPresenceRenderer.apply(this,arguments);
- Promise.resolve(result).finally(()=>setTimeout(renderGlobalFriendDmList,0));
+ const result=safeDmPresenceRenderer.apply(this,arguments);
+ /* Custom-server member rendering is asynchronous, so refresh global DMs after it settles too. */
+ setTimeout(renderSafeGlobalFriendDms,0);
+ setTimeout(renderSafeGlobalFriendDms,120);
  return result;
 };
-/* Updating friendships or DM recency refreshes the global list regardless of server. */
-const globalDmPreviousFriendHub=renderFriendHub;
+const safeDmFriendHubRenderer=renderFriendHub;
 renderFriendHub=function(mode='friends'){
- const result=globalDmPreviousFriendHub.apply(this,arguments);
- renderGlobalFriendDmList();
+ const result=safeDmFriendHubRenderer.apply(this,arguments);
+ renderSafeGlobalFriendDms();
  return result;
 };
-const globalDmPreviousRecency=refreshDmRecencyUi;
+const safeDmRecencyRenderer=refreshDmRecencyUi;
 refreshDmRecencyUi=function(otherUser,timestamp){
- const result=globalDmPreviousRecency.apply(this,arguments);
- renderGlobalFriendDmList();
+ const result=safeDmRecencyRenderer.apply(this,arguments);
+ renderSafeGlobalFriendDms();
  return result;
 };
-const globalDmPreviousSwitch=msSwitch;
+const safeDmServerSwitch=msSwitch;
 msSwitch=async function(id){
- const result=await globalDmPreviousSwitch.apply(this,arguments);
- renderGlobalFriendDmList();
+ const result=await safeDmServerSwitch.apply(this,arguments);
+ renderSafeGlobalFriendDms();
  return result;
 };
-window.addEventListener('DOMContentLoaded',()=>setTimeout(renderGlobalFriendDmList,900));
+window.addEventListener('DOMContentLoaded',()=>setTimeout(renderSafeGlobalFriendDms,800));
 </script>
 </body>
 </html>
