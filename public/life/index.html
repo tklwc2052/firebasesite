@@ -60,7 +60,7 @@ const ROOM="main",COLS=300,ROWS=200,TICK_MS=180,CELL=18;
 const world=document.querySelector('#world'),canvas=document.querySelector('#board'),ctx=canvas.getContext('2d');
 const tray=document.querySelector('#tray'),openTray=document.querySelector('#openTray'),editor=document.querySelector('#editor');
 const widthInput=document.querySelector('#patternWidth'),heightInput=document.querySelector('#patternHeight');
-let cells=new Set(),generation=0,running=true,patternW=20,patternH=14,design=new Set(),placing=false,preview=[];
+let cells=new Set(),generation=0,running=false,patternW=20,patternH=14,design=new Set(),placing=false,preview=[];
 let scale=1,offsetX=innerWidth/2-(COLS*CELL)/2,offsetY=innerHeight/2-(ROWS*CELL)/2;
 let dragging=false,lastX=0,lastY=0,moved=false,paintMode=true;
 let connected=true,seen=new Set();
@@ -68,7 +68,7 @@ const key=(x,y)=>`${x},${y}`;
 function toast(text){const el=document.querySelector('#status');el.textContent=text;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
 function sizeCanvas(){const dpr=devicePixelRatio||1;canvas.width=COLS*CELL*dpr;canvas.height=ROWS*CELL*dpr;canvas.style.width=COLS*CELL+'px';canvas.style.height=ROWS*CELL+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
 function draw(){ctx.fillStyle='#000';ctx.fillRect(0,0,COLS*CELL,ROWS*CELL);ctx.strokeStyle='#202020';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<=COLS;x++){ctx.moveTo(x*CELL+.5,0);ctx.lineTo(x*CELL+.5,ROWS*CELL)}for(let y=0;y<=ROWS;y++){ctx.moveTo(0,y*CELL+.5);ctx.lineTo(COLS*CELL,y*CELL+.5)}ctx.stroke();ctx.fillStyle='#fff';for(const k of cells){const [x,y]=k.split(',').map(Number);ctx.fillRect(x*CELL+1,y*CELL+1,CELL-2,CELL-2)}if(placing&&preview.length){ctx.fillStyle='rgba(28,139,255,.48)';ctx.strokeStyle='rgba(80,180,255,.95)';for(const [x,y] of preview){if(x<0||y<0||x>=COLS||y>=ROWS)continue;ctx.fillRect(x*CELL+1,y*CELL+1,CELL-2,CELL-2);ctx.strokeRect(x*CELL+1.5,y*CELL+1.5,CELL-3,CELL-3)}}canvas.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`}
-function nextGen(){const n=new Map();for(const k of cells){const [x,y]=k.split(',').map(Number);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=COLS||ny>=ROWS)continue;const q=key(nx,ny);n.set(q,(n.get(q)||0)+1)}}const out=new Set();for(const [k,c] of n)if(c===3||(c===2&&cells.has(k)))out.add(k);cells=out;generation++;draw()}
+function nextGen(){const n=new Map();for(const k of cells){const [x,y]=k.split(',').map(Number);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=COLS||ny>=ROWS)continue;const q=key(nx,ny);n.set(q,(n.get(q)||0)+1)}}const out=new Set();for(const [k,c] of n)if(c===3||(c===2&&cells.has(k)))out.add(k);cells=out;generation++;draw();scheduleStateSave()}
 setInterval(()=>{if(running)nextGen()},TICK_MS);
 function screenCell(e){const r=canvas.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)/(CELL*scale)),y:Math.floor((e.clientY-r.top)/(CELL*scale))}}
 world.addEventListener('pointerdown',e=>{if(placing)return;dragging=true;moved=false;lastX=e.clientX;lastY=e.clientY;canvas.classList.add('dragging');world.setPointerCapture(e.pointerId)});
@@ -89,6 +89,21 @@ document.querySelector('#cancelPlacement').onclick=stopPlacing;
 function refreshSaved(){const select=document.querySelector('#savedPatterns'),all=JSON.parse(localStorage.lifePatterns||'{}');select.innerHTML='<option value="">PATTERNS</option>'+Object.keys(all).map(n=>`<option>${n.replaceAll('<','&lt;')}</option>`).join('')}
 document.querySelector('#savePattern').onclick=()=>{if(!design.size)return toast('DRAW SOMETHING FIRST');const name=prompt('Pattern name:');if(!name)return;const all=JSON.parse(localStorage.lifePatterns||'{}');all[name]={w:patternW,h:patternH,cells:[...design]};localStorage.lifePatterns=JSON.stringify(all);refreshSaved();document.querySelector('#savedPatterns').value=name;toast('PATTERN SAVED')};
 document.querySelector('#loadPattern').onclick=()=>{const name=document.querySelector('#savedPatterns').value,all=JSON.parse(localStorage.lifePatterns||'{}');if(!name||!all[name])return toast('CHOOSE A PATTERN');patternW=all[name].w;patternH=all[name].h;design=new Set(all[name].cells);widthInput.value=patternW;heightInput.value=patternH;buildEditor();toast('PATTERN LOADED')};
+let saveTimer=null;
+function scheduleStateSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveState,250);
+}
+async function saveState(){
+  if(!connected)return;
+  try{
+    const response=await fetch(`${DATABASE_URL}/rooms/${ROOM}/state.json`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cells:[...cells],generation,updatedAt:Date.now()})
+    });
+    if(!response.ok)throw new Error(`State save failed: ${response.status}`);
+  }catch(error){connected=false;console.error(error);toast('SAVE FAILED')}
+}
 async function sendPlacement(x,y,points){
   try{
     const response=await fetch(`${DATABASE_URL}/rooms/${ROOM}/events.json`,{
@@ -96,23 +111,55 @@ async function sendPlacement(x,y,points){
       body:JSON.stringify({x,y,cells:points,createdAt:Date.now()})
     });
     if(!response.ok)throw new Error(`Firebase write failed: ${response.status}`);
-  }catch(error){connected=false;console.error(error);addPattern(x,y,points);toast('DATABASE WRITE FAILED')}
+  }catch(error){connected=false;console.error(error);addPattern(x,y,points);scheduleStateSave();toast('DATABASE WRITE FAILED')}
+}
+async function loadSavedBoard(){
+  const [stateResponse,eventsResponse]=await Promise.all([
+    fetch(`${DATABASE_URL}/rooms/${ROOM}/state.json`,{cache:'no-store'}),
+    fetch(`${DATABASE_URL}/rooms/${ROOM}/events.json`,{cache:'no-store'})
+  ]);
+  if(!stateResponse.ok||!eventsResponse.ok)throw new Error('Could not load saved board');
+  const state=await stateResponse.json();
+  const events=await eventsResponse.json()||{};
+  for(const id of Object.keys(events))seen.add(id);
+  if(state&&Array.isArray(state.cells)){
+    cells=new Set(state.cells.filter(k=>typeof k==='string'));
+    generation=Number.isInteger(state.generation)?state.generation:0;
+  }
+  draw();
 }
 async function pollFirebase(){
   try{
-    const response=await fetch(`${DATABASE_URL}/rooms/${ROOM}/events.json?shallow=false`,{cache:'no-store'});
+    const response=await fetch(`${DATABASE_URL}/rooms/${ROOM}/events.json`,{cache:'no-store'});
     if(!response.ok)throw new Error(`Firebase read failed: ${response.status}`);
     const events=await response.json()||{};
+    let changed=false;
     for(const [id,v] of Object.entries(events)){
       if(seen.has(id))continue;
       seen.add(id);
-      if(v&&Number.isInteger(v.x)&&Number.isInteger(v.y)&&Array.isArray(v.cells))addPattern(v.x,v.y,v.cells);
+      if(v&&Number.isInteger(v.x)&&Number.isInteger(v.y)&&Array.isArray(v.cells)){
+        addPattern(v.x,v.y,v.cells);
+        changed=true;
+      }
     }
-    if(!connected)toast('DATABASE CONNECTED');
+    if(changed)scheduleStateSave();
     connected=true;
   }catch(error){connected=false;console.error(error)}
 }
-function connectFirebase(){pollFirebase();setInterval(pollFirebase,700)}
+async function connectFirebase(){
+  try{
+    await loadSavedBoard();
+    connected=true;
+    running=true;
+    toast('SAVED BOARD LOADED');
+    setInterval(pollFirebase,700);
+  }catch(error){
+    console.error(error);
+    connected=false;
+    running=true;
+    toast('DATABASE LOAD FAILED');
+  }
+}
 addEventListener('resize',draw);buildEditor();refreshSaved();sizeCanvas();connectFirebase();
 </script>
 </body>
