@@ -2329,17 +2329,8 @@ body.dm-home-active #dm-sidebar-panel {
 .server-admin-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:rgba(240,178,50,.14);color:#f0b232;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.45px}
 .server-member-muted{opacity:.55}.server-member-banned{opacity:.35;text-decoration:line-through}
 
-/* ===== GLOBAL FRIEND LIST + SLEEK FRIEND CONTROLS ===== */
-.friend-hub-toolbar{gap:7px;padding:9px 9px 8px;background:rgba(0,0,0,.08)}
-.friend-hub-toolbar button{flex:0 1 auto;min-height:32px;padding:0 12px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:rgba(255,255,255,.035);color:var(--text-muted);font-size:11px;font-weight:800;letter-spacing:.01em;transition:background .14s,border-color .14s,color .14s,transform .12s}
-.friend-hub-toolbar button:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fff}
-.friend-hub-toolbar button.active{border-color:rgba(88,101,242,.55);background:rgba(88,101,242,.16);color:#fff}
-.friend-hub-toolbar button:last-child{margin-left:auto;border-color:rgba(88,101,242,.52);background:rgba(88,101,242,.12);color:#cfd3ff}
-.friend-hub-toolbar button:last-child:hover{border-color:rgba(88,101,242,.82);background:rgba(88,101,242,.25);color:#fff}
-.friend-add-row{align-items:center;padding:4px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(0,0,0,.12)}
-.friend-add-row input{border:0!important;background:transparent!important;padding:10px 11px!important;box-shadow:none!important}
-.friend-add-row button{min-height:36px;padding:0 15px;border:1px solid rgba(88,101,242,.58);border-radius:9px;background:rgba(88,101,242,.18);color:#fff;font-size:12px;font-weight:850;box-shadow:none;transition:background .14s,border-color .14s,transform .12s}
-.friend-add-row button:hover{transform:translateY(-1px);background:rgba(88,101,242,.32);border-color:rgba(88,101,242,.9)}
+/* ===== FRIENDS-ONLY DM NAVIGATION ===== */
+#dm-list-compat{display:none!important}#dm-sidebar-panel{overflow-y:auto!important}#friend-hub-list{flex:1;min-height:0;padding:8px 7px 14px}.friend-row{min-height:52px;padding:7px 9px;border:1px solid transparent;transition:background .14s,border-color .14s}.friend-row:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.055)}.friend-row-actions button{width:34px;height:34px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.035);transition:background .14s,border-color .14s,color .14s,transform .12s}.friend-row-actions button:hover{transform:translateY(-1px);border-color:rgba(88,101,242,.62);background:rgba(88,101,242,.18);color:#fff}.friend-row-actions button.danger:hover{border-color:rgba(218,55,60,.62);background:rgba(218,55,60,.18)}.friend-row-actions .ui-icon{width:16px;height:16px}
 </style>
 </head>
 <body>
@@ -2430,9 +2421,7 @@ body.dm-home-active #dm-sidebar-panel {
             </div>
             <div id="dm-sidebar-panel" class="sidebar-view-panel">
 <div class="friend-hub-toolbar"><button id="friends-tab-btn" onclick="renderFriendHub('friends')">Friends</button><button id="requests-tab-btn" onclick="renderFriendHub('requests')">Requests <span id="friend-request-count" class="friend-request-count" hidden>0</span></button><button onclick="openAddFriendModal()">Add</button></div><div id="friend-hub-list" class="friend-list-section"></div>
-                <div class="dm-panel-heading"><span>Direct Messages</span><span id="dm-count" class="dm-count-badge">0</span></div>
-                <div class="channel-list dm-list-open" id="dm-list-container"></div>
-                <span id="dm-collapse-arrow" style="display:none">▾</span>
+                <div id="dm-list-compat" hidden aria-hidden="true"><span id="dm-count">0</span><div id="dm-list-container"></div><span id="dm-collapse-arrow"></span></div>
             </div>
             <div class="user-footer">
                 <img id="footer-pfp" src="" alt="Me">
@@ -6185,7 +6174,7 @@ async function msCreateChannel(){if(!msOwner())return;const raw=prompt('Channel 
 async function msRename(){if(!msOwner())return;const n=prompt('New name:',activeServerMeta.name);if(!n?.trim())return;await db.ref(`${msRoot()}/meta/name`).set(n.trim().slice(0,40));activeServerMeta.name=n.trim().slice(0,40);serverMetaCache[activeServerId]={...serverMetaCache[activeServerId],name:activeServerMeta.name};document.querySelector('.guild-header span').textContent=activeServerMeta.name;msRenderRail();msOpenSettings()}
 async function msLeave(){if(activeServerId==='default'||msOwner())return;const id=activeServerId,u=auth.currentUser;if(!confirm(`Leave ${activeServerMeta.name}?`))return;await db.ref(`servers/${id}/members/${u.uid}`).remove();await db.ref(`user_servers/${u.uid}/${id}`).remove();msCloseSettings();await msSwitch('default')}
 async function msDelete(){if(!msOwner()||!confirm(`Delete ${activeServerMeta.name} permanently?`))return;const id=activeServerId,u=auth.currentUser,m=(await db.ref(`${msRoot()}/members`).once('value')).val()||{},updates={};for(const uid of Object.keys(m))updates[`user_servers/${uid}/${id}`]=null;if(Object.keys(updates).length)await db.ref().update(updates);if(activeServerMeta.inviteCode)await db.ref(`invite_codes/${activeServerMeta.inviteCode}`).remove();await db.ref(`servers/${id}`).remove();await db.ref(`server_ownership/${u.uid}`).remove();msCloseSettings();await msSwitch('default')}
-renderPresenceFromCache=function(){if(activeServerId==='default'){const result=msOriginalPresence();if(typeof renderGlobalFriendDmList==='function')renderGlobalFriendDmList();return result}db.ref(`${msRoot()}/members`).once('value').then(x=>{const m=x.val()||{},old=globalProfiles;globalProfiles=Object.fromEntries(Object.values(m).map(v=>{const k=String(v.username||'').toLowerCase();return[k,old[k]||{username:v.username,presenceState:'offline'}]}));msOriginalPresence();globalProfiles=old;if(typeof renderGlobalFriendDmList==='function')renderGlobalFriendDmList()})}
+renderPresenceFromCache=function(){if(activeServerId==='default')return msOriginalPresence();db.ref(`${msRoot()}/members`).once('value').then(x=>{const m=x.val()||{},old=globalProfiles;globalProfiles=Object.fromEntries(Object.values(m).map(v=>{const k=String(v.username||'').toLowerCase();return[k,old[k]||{username:v.username,presenceState:'offline'}]}));msOriginalPresence();globalProfiles=old})}
 loginToGuild=function(){const r=msOriginalLogin.apply(this,arguments);setTimeout(()=>{document.getElementById('server-rail').hidden=false;msBindMemberships();msAdminButton()},0);return r}
 window.addEventListener('DOMContentLoaded',()=>{msRenderRail();auth.onAuthStateChanged(u=>{document.getElementById('server-rail').hidden=!u;if(u)msBindMemberships()})});
 </script>
@@ -6382,43 +6371,11 @@ updateChatInputPermissions=function(){
 
 
 <script>
-/* Global friend and DM list. This never uses the active server member collection. */
-function renderGlobalFriendDmList(){
- const container=document.getElementById('dm-list-container');
- if(!container||!sessionUser.username||typeof friendships==='undefined')return;
- const me=String(sessionUser.username).toLowerCase();
- const rows=[];
- for(const [friendUid,friendRecord] of Object.entries(friendships||{})){
-  const profileEntry=Object.entries(globalProfiles||{}).find(([,profile])=>String(profile?.uid||'')===String(friendUid));
-  const username=String(profileEntry?.[0]||friendRecord?.username||'').toLowerCase();
-  if(!username||username===me)continue;
-  const profile=profileEntry?.[1]||globalProfiles?.[username]||friendRecord||{};
-  const displayName=profile.nickname||profile.username||username;
-  const online=profile.presenceState==='online'&&(Date.now()-Number(profile.lastSeen||0))<PRESENCE_ONLINE_TIMEOUT_MS;
-  const lastAt=Number(dmRecentActivity?.[username]||0);
-  const item=document.createElement('div');
-  item.className=`channel-item dm-chan dm-list-item ${isDmMode&&String(activeChannel).toLowerCase()===username?'active':''}`;
-  item.id=`dm-node-${username}`;
-  item.dataset.dmName=username;
-  item.dataset.lastDmAt=String(lastAt);
-  item.onclick=()=>startFriendDm(username);
-  item.innerHTML=`<div class="dm-list-avatar-wrap"><img class="dm-list-avatar" src="${escapeAttribute(profile.pfp||fallbackImg)}" alt=""><span class="status-dot ${online?'status-online':'status-offline'}"></span></div><span class="dm-list-copy"><span class="dm-list-name">${escapeHtml(displayName)}</span><span class="dm-list-time">${escapeHtml(formatDmListTime(lastAt))}</span></span>`;
-  ensureUnreadBadgeElement(item,getUnreadKey(username,true));
-  rows.push(item);
- }
- rows.sort((a,b)=>Number(b.dataset.lastDmAt||0)-Number(a.dataset.lastDmAt||0)||String(a.dataset.dmName).localeCompare(String(b.dataset.dmName)));
- container.replaceChildren(...rows);
- if(!rows.length){const empty=document.createElement('div');empty.className='dm-empty-state';empty.textContent='Add a friend to start a DM.';container.appendChild(empty)}
- const count=document.getElementById('dm-count');if(count)count.textContent=String(rows.length);
- updateAllUnreadBadges();
-}
-const globalFriendsOriginalHub=renderFriendHub;
-renderFriendHub=function(mode='friends'){const result=globalFriendsOriginalHub.apply(this,arguments);renderGlobalFriendDmList();return result};
-const globalFriendsOriginalRecency=refreshDmRecencyUi;
-refreshDmRecencyUi=function(otherUser,timestamp){const result=globalFriendsOriginalRecency.apply(this,arguments);renderGlobalFriendDmList();return result};
-const globalFriendsOriginalOpenHome=openGlobalDmHome;
-openGlobalDmHome=function(){const result=globalFriendsOriginalOpenHome.apply(this,arguments);renderGlobalFriendDmList();return result};
-window.addEventListener('DOMContentLoaded',()=>setTimeout(renderGlobalFriendDmList,900));
+/* Friends are the only DM navigation list. */
+function keepFriendListVisibleForDm(){if(!globalDmHome)return;const list=document.getElementById('friend-hub-list');if(list&&!list.children.length)renderFriendHub('friends');document.getElementById('friends-tab-btn')?.classList.add('active');document.getElementById('requests-tab-btn')?.classList.remove('active')}
+const friendsOnlyOriginalStartFriendDm=startFriendDm;startFriendDm=function(username){const result=friendsOnlyOriginalStartFriendDm.apply(this,arguments);keepFriendListVisibleForDm();return result};
+const friendsOnlyOriginalOpenHome=openGlobalDmHome;openGlobalDmHome=function(){const result=friendsOnlyOriginalOpenHome.apply(this,arguments);keepFriendListVisibleForDm();return result};
+window.addEventListener('DOMContentLoaded',()=>setTimeout(keepFriendListVisibleForDm,850));
 </script>
 </body>
 </html>
