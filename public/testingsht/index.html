@@ -4375,7 +4375,7 @@ function renderPresenceFromCache() {
 
             // 3. Render Direct Messages list cleanly down here
             // Ensure you don't list yourself in the DM channel tabs
-            if (rawLowerName !== sessionUser.username.toLowerCase()) {
+            if (rawLowerName !== sessionUser.username.toLowerCase() && isFriendUsername(rawLowerName)) {
                 const dmItem = document.createElement('div');
                 dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
                 dmItem.id = `dm-node-${rawLowerName}`;
@@ -6365,6 +6365,90 @@ updateChatInputPermissions=function(){
  input.disabled=!canWrite;wrapper.style.opacity=canWrite?'1':'.4';if(!canWrite)input.placeholder=`Your ${activeServerMemberRole} role cannot write in #${activeChannel}`;
 };
 /* Server owner and role permissions are kept local to the active custom server. */
+</script>
+
+<script>
+/* Friends-only DM list enforcement. */
+function removeNonFriendDmEntries(){
+ const list=document.getElementById('dm-list-container');
+ if(!list||typeof isFriendUsername!=='function')return;
+ list.querySelectorAll('.dm-list-item').forEach(item=>{
+   const username=String(item.dataset.dmName||item.id.replace(/^dm-node-/, '')).toLowerCase();
+   if(!isFriendUsername(username))item.remove();
+ });
+ if(!list.querySelector('.dm-list-item')){
+   list.innerHTML='<div class="dm-empty-state">Add a friend to start a DM.</div>';
+ }
+}
+const friendOnlyDmObserver=new MutationObserver(removeNonFriendDmEntries);
+window.addEventListener('DOMContentLoaded',()=>{
+ const list=document.getElementById('dm-list-container');
+ if(list)friendOnlyDmObserver.observe(list,{childList:true,subtree:true});
+ setTimeout(removeNonFriendDmEntries,700);
+});
+</script>
+
+<script>
+/* ===== GLOBAL FRIEND DMS, INDEPENDENT OF ACTIVE SERVER ===== */
+function renderGlobalFriendDmList(){
+ const container=document.getElementById('dm-list-container');
+ if(!container||!sessionUser.username)return;
+ const myName=String(sessionUser.username).toLowerCase();
+ container.innerHTML='';
+ const rows=[];
+ for(const friendUid of Object.keys(friendships||{})){
+   const stored=friendships[friendUid]||{};
+   const profileEntry=Object.entries(globalProfiles||{}).find(([name,p])=>p&&p.uid===friendUid);
+   const username=String(profileEntry?.[0]||stored.username||'').toLowerCase();
+   if(!username||username===myName)continue;
+   const profile=profileEntry?.[1]||globalProfiles[username]||{};
+   const displayName=profile.nickname||profile.username||username;
+   const online=profile.presenceState==='online'&&(Date.now()-Number(profile.lastSeen||0))<PRESENCE_ONLINE_TIMEOUT_MS;
+   const lastAt=Number(dmRecentActivity[username]||0);
+   const item=document.createElement('div');
+   item.className=`channel-item dm-chan dm-list-item ${isDmMode&&String(activeChannel).toLowerCase()===username?'active':''}`;
+   item.id=`dm-node-${username}`;
+   item.dataset.dmName=username;
+   item.dataset.lastDmAt=String(lastAt);
+   item.onclick=()=>startFriendDm(username);
+   item.innerHTML=`<div class="dm-list-avatar-wrap"><img class="dm-list-avatar" src="${escapeAttribute(profile.pfp||fallbackImg)}" alt=""><span class="status-dot ${online?'status-online':'status-offline'}"></span></div><span class="dm-list-copy"><span class="dm-list-name">${escapeHtml(displayName)}</span><span class="dm-list-time">${escapeHtml(formatDmListTime(lastAt))}</span></span>`;
+   ensureUnreadBadgeElement(item,getUnreadKey(username,true));
+   rows.push(item);
+ }
+ rows.sort((a,b)=>Number(b.dataset.lastDmAt||0)-Number(a.dataset.lastDmAt||0)||String(a.dataset.dmName).localeCompare(String(b.dataset.dmName)));
+ rows.forEach(row=>container.appendChild(row));
+ if(!rows.length)container.innerHTML='<div class="dm-empty-state">Add a friend to start a DM.</div>';
+ const badge=document.getElementById('dm-count');
+ if(badge)badge.textContent=String(rows.length);
+ updateAllUnreadBadges();
+}
+/* Keep server member rendering and global friend-DM rendering separate. */
+const globalDmPreviousPresenceRenderer=renderPresenceFromCache;
+renderPresenceFromCache=function(){
+ const result=globalDmPreviousPresenceRenderer.apply(this,arguments);
+ Promise.resolve(result).finally(()=>setTimeout(renderGlobalFriendDmList,0));
+ return result;
+};
+/* Updating friendships or DM recency refreshes the global list regardless of server. */
+const globalDmPreviousFriendHub=renderFriendHub;
+renderFriendHub=function(mode='friends'){
+ const result=globalDmPreviousFriendHub.apply(this,arguments);
+ renderGlobalFriendDmList();
+ return result;
+};
+const globalDmPreviousRecency=refreshDmRecencyUi;
+refreshDmRecencyUi=function(otherUser,timestamp){
+ const result=globalDmPreviousRecency.apply(this,arguments);
+ renderGlobalFriendDmList();
+ return result;
+};
+const globalDmPreviousSwitch=msSwitch;
+msSwitch=async function(id){
+ const result=await globalDmPreviousSwitch.apply(this,arguments);
+ renderGlobalFriendDmList();
+ return result;
+};
+window.addEventListener('DOMContentLoaded',()=>setTimeout(renderGlobalFriendDmList,900));
 </script>
 </body>
 </html>
