@@ -2306,6 +2306,28 @@ body.theme-abyss .sidebar-left,body.theme-abyss .sidebar-right,body.theme-abyss 
 .friends-modal{display:none;position:fixed;inset:0;z-index:27000;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.74);backdrop-filter:blur(4px)}.friends-modal.open{display:flex}.friends-modal-card{width:min(500px,100%);max-height:85vh;overflow:auto;background:#17181c;border:1px solid rgba(255,255,255,.09);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.7)}.friends-modal-head{display:flex;align-items:flex-start;justify-content:space-between;padding:17px 18px;border-bottom:1px solid rgba(255,255,255,.07)}.friends-modal-head h3{margin:0;color:#fff}.friends-modal-head p{margin:5px 0 0;color:var(--text-muted);font-size:12px}.friends-modal-head button{border:0;background:none;color:var(--text-muted);font-size:24px;cursor:pointer}.friends-modal-body{padding:18px}.friend-add-row{display:flex;gap:8px}.friend-add-row input{flex:1;min-width:0;border:1px solid transparent;border-radius:8px;background:var(--bg-input);color:#fff;padding:11px 12px;outline:none}.friend-add-row input:focus{border-color:var(--primary-blurple)}.friend-add-row button{border:0;border-radius:8px;background:var(--primary-blurple);color:#fff;padding:10px 13px;font-weight:800;cursor:pointer}.friend-feedback{min-height:20px;margin-top:9px;color:#fa777c;font-size:12px}.friend-search-results{margin-top:8px}
 body.dm-home-active #channel-sidebar-panel{display:none!important}body.dm-home-active #dm-sidebar-panel{display:flex!important}body.dm-home-active .sidebar-view-switcher{display:none!important}
 body.dm-home-active .guild-header span:first-child{font-size:0}body.dm-home-active .guild-header span:first-child::after{content:'Friends & DMs';font-size:15px}
+
+/* ===== STRICT SERVER / DM SEPARATION ===== */
+/* A selected server always shows channels only. */
+body:not(.dm-home-active) .sidebar-view-switcher,
+body:not(.dm-home-active) #dm-sidebar-panel {
+  display: none !important;
+}
+body:not(.dm-home-active) #channel-sidebar-panel {
+  display: flex !important;
+}
+/* The Friends home contains friends and DMs only, never server channels. */
+body.dm-home-active .sidebar-view-switcher,
+body.dm-home-active #channel-sidebar-panel {
+  display: none !important;
+}
+body.dm-home-active #dm-sidebar-panel {
+  display: flex !important;
+}
+
+/* ===== SERVER-SCOPED OWNER ADMINISTRATION ===== */
+.server-admin-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:rgba(240,178,50,.14);color:#f0b232;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.45px}
+.server-member-muted{opacity:.55}.server-member-banned{opacity:.35;text-decoration:line-through}
 </style>
 </head>
 <body>
@@ -2313,7 +2335,7 @@ body.dm-home-active .guild-header span:first-child{font-size:0}body.dm-home-acti
 
 <div id="server-rail" hidden></div>
 <div id="ms-picker" class="ms-modal" onclick="if(event.target===this)msClosePicker()"><div class="ms-card"><div class="ms-head"><div><h3>Add a server</h3><p>Create one server or join one using an invite code.</p></div><button class="ms-x" onclick="msClosePicker()">&times;</button></div><div class="ms-body"><div class="ms-tabs"><button id="ms-create-tab" class="ms-tab active" onclick="msMode('create')">Create</button><button id="ms-join-tab" class="ms-tab" onclick="msMode('join')">Join</button></div><div id="ms-create" class="ms-pane"><label>Server name</label><input id="ms-name" maxlength="40" placeholder="My server"><label>Icon URL (optional)</label><input id="ms-icon" type="url" placeholder="https://..."><button class="ms-btn primary" onclick="msCreateServer()">Create server</button></div><div id="ms-join" class="ms-pane" hidden><label>Invite code</label><input id="ms-invite" maxlength="19" placeholder="AVRN-XXXX-XXXX"><button class="ms-btn primary" onclick="msJoinServer()">Join server</button></div><div id="ms-error" class="ms-error"></div></div></div></div>
-<div id="ms-settings" class="ms-modal" onclick="if(event.target===this)msCloseSettings()"><div class="ms-card"><div class="ms-head"><div><h3 id="ms-settings-title">Server settings</h3><p id="ms-settings-sub"></p></div><button class="ms-x" onclick="msCloseSettings()">&times;</button></div><div class="ms-body"><label>Invite code</label><div class="ms-code"><input id="ms-code" readonly><button class="ms-btn" onclick="msCopyCode()">Copy</button></div><div id="ms-owner-actions" class="ms-actions"><button class="ms-btn" onclick="msNewCode()">New invite code</button><button class="ms-btn" onclick="msCreateChannel()">Create channel</button><button class="ms-btn" onclick="msRename()">Rename server</button><button class="ms-btn danger" onclick="msDelete()">Delete server</button></div><button id="ms-leave" class="ms-btn danger" onclick="msLeave()">Leave server</button><div id="ms-settings-error" class="ms-error"></div></div></div></div>
+<div id="ms-settings" class="ms-modal" onclick="if(event.target===this)msCloseSettings()"><div class="ms-card"><div class="ms-head"><div><h3 id="ms-settings-title">Server settings</h3><p id="ms-settings-sub"></p></div><button class="ms-x" onclick="msCloseSettings()">&times;</button></div><div class="ms-body"><label>Invite code</label><div class="ms-code"><input id="ms-code" readonly><button class="ms-btn" onclick="msCopyCode()">Copy</button></div><div id="ms-owner-actions" class="ms-actions"><button class="ms-btn" onclick="msNewCode()">New invite code</button><button class="ms-btn" onclick="msCreateChannel()">Create channel</button><button class="ms-btn" onclick="openCurrentServerRoleManager()">Manage roles & permissions</button><button class="ms-btn" onclick="msRename()">Rename server</button><button class="ms-btn danger" onclick="msDelete()">Delete server</button></div><button id="ms-leave" class="ms-btn danger" onclick="msLeave()">Leave server</button><div id="ms-settings-error" class="ms-error"></div></div></div></div>
 
 <div id="auth-screen"><div class="auth-card"><div id="auth-form" class="auth-form"><h1>Avern account</h1><p>okay gng, so like i dont trust any of yall so add a password and email. i was going to send u a email to confirm it but the school is a bum.</p><div class="auth-tabs"><button id="auth-login-tab" class="active" onclick="setAuthMode('login')">Log in</button><button id="auth-signup-tab" onclick="setAuthMode('signup')">Create account</button></div><div id="auth-username-wrap" class="auth-field" hidden><label>Username</label><input id="auth-username" maxlength="15" autocomplete="username" placeholder="Letters, numbers, underscores"></div><div class="auth-field"><label>Email</label><input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="auth-field"><label>Password</label><input id="auth-password" type="password" minlength="8" autocomplete="current-password" placeholder="At least 8 characters"></div><div class="auth-actions"><button id="auth-submit" class="auth-primary" onclick="submitAuth()">Log in</button><button class="auth-secondary" onclick="sendPasswordReset()">Forgot password?</button></div><div id="auth-message" class="auth-message" aria-live="polite"></div></div></div></div>
     
@@ -6189,6 +6211,160 @@ renderPresenceFromCache=function(){friendsOriginalPresence();const dm=document.g
 const friendOriginalLogin=loginToGuild;loginToGuild=function(){const result=friendOriginalLogin.apply(this,arguments);setTimeout(()=>{bindFriendSystem();msRenderRail()},0);return result}
 auth.onAuthStateChanged(user=>{if(user)setTimeout(bindFriendSystem,350)});
 window.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{msRenderRail();updateFriendRequestBadge()},500));
+</script>
+
+<script>
+/* Strict server / DM separation patch. */
+function enforceConversationAreaMode(){
+ const channelPanel=document.getElementById('channel-sidebar-panel');
+ const dmPanel=document.getElementById('dm-sidebar-panel');
+ const switcher=document.querySelector('.sidebar-view-switcher');
+ if(globalDmHome){
+   document.body.classList.add('dm-home-active');
+   if(channelPanel)channelPanel.style.display='none';
+   if(dmPanel)dmPanel.style.display='flex';
+   if(switcher)switcher.style.display='none';
+ }else{
+   document.body.classList.remove('dm-home-active');
+   if(channelPanel)channelPanel.style.display='flex';
+   if(dmPanel)dmPanel.style.display='none';
+   if(switcher)switcher.style.display='none';
+ }
+}
+const separatedOriginalOpenGlobalDmHome=openGlobalDmHome;
+openGlobalDmHome=function(){
+ const result=separatedOriginalOpenGlobalDmHome.apply(this,arguments);
+ enforceConversationAreaMode();
+ return result;
+};
+const separatedOriginalMsSwitch=msSwitch;
+msSwitch=async function(id){
+ globalDmHome=false;
+ document.body.classList.remove('dm-home-active');
+ enforceConversationAreaMode();
+ const result=await separatedOriginalMsSwitch.apply(this,arguments);
+ enforceConversationAreaMode();
+ return result;
+};
+const separatedOriginalStartFriendDm=startFriendDm;
+startFriendDm=function(username){
+ globalDmHome=true;
+ document.body.classList.add('dm-home-active');
+ enforceConversationAreaMode();
+ return separatedOriginalStartFriendDm.apply(this,arguments);
+};
+/* The old DMs tab can no longer open DMs from inside a server. */
+showSidebarView=function(viewName,shouldSave=true){
+ if(viewName==='dms'){
+   if(!globalDmHome)return openGlobalDmHome();
+   enforceConversationAreaMode();
+   return;
+ }
+ if(globalDmHome)return;
+ enforceConversationAreaMode();
+};
+window.addEventListener('DOMContentLoaded',()=>setTimeout(enforceConversationAreaMode,650));
+</script>
+
+<script>
+/* ===== SERVER-SCOPED OWNER ADMINISTRATION ===== */
+let activeServerMemberRole='Member',activeServerMemberData={};
+const defaultHasCommandPermission=hasCommandPermission;
+const defaultCreateNewRole=createNewRole;
+const defaultUpdateRoleChannels=updateRoleChannels;
+const defaultUpdateRoleVisibleChannels=updateRoleVisibleChannels;
+const defaultUpdateRoleCommands=updateRoleCommands;
+const defaultUpdateRoleColor=updateRoleColor;
+const defaultDeleteRole=deleteRole;
+const scopedMsSwitch=msSwitch;
+function serverRoleData(){return serverRoles[activeServerMemberRole]||serverRoles.Member||{}}
+function serverRoleAllows(command){
+ if(activeServerId==='default')return defaultHasCommandPermission(command);
+ if(msOwner())return true;
+ const allowed=String(serverRoleData().allowedCommands||'').split(',').map(v=>v.trim().toLowerCase()).filter(Boolean);
+ return allowed.includes('*')||allowed.includes(String(command||'').toLowerCase());
+}
+hasCommandPermission=function(command){return activeServerId==='default'?defaultHasCommandPermission(command):serverRoleAllows(command)};
+async function loadActiveServerMember(){
+ if(activeServerId==='default'||!auth.currentUser){activeServerMemberRole=sessionUser.rank||'Member';activeServerMemberData={};return}
+ const snap=await db.ref(`${msRoot()}/members/${auth.currentUser.uid}`).once('value');
+ activeServerMemberData=snap.val()||{};
+ activeServerMemberRole=msOwner()?'Owner':(activeServerMemberData.role||'Member');
+ updateChatInputPermissions();
+}
+msSwitch=async function(id){const result=await scopedMsSwitch.apply(this,arguments);await loadActiveServerMember();return result};
+function currentRolePath(role){return activeServerId==='default'?`roles/${role}`:`${msRoot()}/roles/${role}`}
+function openCurrentServerRoleManager(){
+ if(activeServerId==='default')return openAdminModal();
+ if(!msOwner())return alert('Only the server owner can create and manage roles.');
+ msCloseSettings();
+ document.getElementById('admin-overlay').style.display='block';
+ const title=document.querySelector('#admin-overlay h2');if(title)title.textContent=`${activeServerMeta.name} Roles`;
+ renderAdminModal();
+}
+createNewRole=function(){
+ if(activeServerId==='default')return defaultCreateNewRole();
+ if(!msOwner())return alert('Only the server owner can create roles.');
+ const input=document.getElementById('new-role-name'),name=input.value.trim();if(!name)return;
+ if(['Owner'].includes(name))return alert('That role name is reserved.');
+ db.ref(currentRolePath(name)).set({allowedChannels:'*',visibleChannels:'*',allowedCommands:'',color:'#dbdee1'});input.value='';
+};
+updateRoleChannels=function(role,channels){if(activeServerId==='default')return defaultUpdateRoleChannels(role,channels);if(msOwner())db.ref(`${currentRolePath(role)}/allowedChannels`).set(channels.trim())};
+updateRoleVisibleChannels=function(role,channels){if(activeServerId==='default')return defaultUpdateRoleVisibleChannels(role,channels);if(msOwner())db.ref(`${currentRolePath(role)}/visibleChannels`).set(channels.trim()||'*')};
+updateRoleCommands=function(role,commands){if(activeServerId==='default')return defaultUpdateRoleCommands(role,commands);if(msOwner())db.ref(`${currentRolePath(role)}/allowedCommands`).set(commands.trim())};
+updateRoleColor=function(role,color){if(activeServerId==='default')return defaultUpdateRoleColor(role,color);if(msOwner())db.ref(`${currentRolePath(role)}/color`).set(color)};
+deleteRole=function(role){
+ if(activeServerId==='default')return defaultDeleteRole(role);
+ if(!msOwner())return;
+ if(['Owner','Member'].includes(role))return alert(`${role} cannot be deleted.`);
+ if(confirm(`Delete the role ${role}? Members using it will fall back to Member.`)){
+  db.ref(`${msRoot()}/members`).once('value').then(snap=>{const updates={};snap.forEach(child=>{if(child.val()?.role===role)updates[`${msRoot()}/members/${child.key}/role`]='Member'});updates[currentRolePath(role)]=null;return db.ref().update(updates)});
+ }
+};
+function parseScopedDuration(value){const m=String(value||'').match(/^(\d+)(s|m|h|d)$/i);if(!m)return null;return Number(m[1])*({s:1000,m:60000,h:3600000,d:86400000}[m[2].toLowerCase()])}
+async function findServerMemberByUsername(username){
+ const wanted=String(username||'').replace(/^@/,'').toLowerCase(),snap=await db.ref(`${msRoot()}/members`).once('value');let found=null;
+ snap.forEach(child=>{const v=child.val()||{};if(String(v.username||'').toLowerCase()===wanted)found={uid:child.key,...v}});return found;
+}
+async function writeServerModLog(action,target,details={}){
+ const record={action,target:target||'',moderator:sessionUser.username,moderatorUid:auth.currentUser?.uid||'',reason:details.reason||'',duration:details.duration||'',channel:activeChannel,timestamp:Date.now()};
+ await db.ref(`${msRoot()}/moderation_logs`).push(record);
+}
+async function runScopedServerCommand(text,input){
+ if(activeServerId==='default'||!String(text).startsWith('/'))return false;
+ const parts=String(text).trim().split(/\s+/),command=parts[0].toLowerCase();
+ const permissionMap={'/setrank':'setrank','/mute':'mute','/unmute':'mute','/ban':'ban','/unban':'ban','/warn':'warn','/warnings':'warn'};
+ const permission=permissionMap[command];if(!permission)return false;
+ if(!serverRoleAllows(permission)){alert(`You do not have the ${permission} permission in this server.`);input.value='';return true}
+ const member=await findServerMemberByUsername(parts[1]);if(!member){alert('That user is not a member of this server.');input.value='';return true}
+ if(member.uid===activeServerMeta.ownerUid&&auth.currentUser?.uid!==member.uid){alert('The server owner cannot be moderated by another role.');input.value='';return true}
+ const memberRef=db.ref(`${msRoot()}/members/${member.uid}`),now=Date.now();
+ if(command==='/setrank'){
+  const role=parts.slice(2).join(' ').trim();if(!role||!serverRoles[role])alert('Choose an existing server role.');else{await memberRef.update({role});await writeServerModLog('setrank',member.username,{reason:role});pushSystemMessage(`**${member.username}** now has the **${role}** role in this server.`)}
+ }else if(command==='/mute'||command==='/ban'){
+  const duration=parts[2],ms=parseScopedDuration(duration),reason=parts.slice(3).join(' ').trim();if(!ms||!reason)alert(`Usage: ${command} username 10m reason`);else{const field=command==='/mute'?'mutedUntil':'bannedUntil';await memberRef.update({[field]:now+ms,[command==='/mute'?'muteReason':'banReason']:reason});await writeServerModLog(command.slice(1),member.username,{duration,reason});pushSystemMessage(`**${member.username}** was ${command==='/mute'?'muted':'banned'} in this server for **${duration}**. Reason: ${reason}`)}
+ }else if(command==='/unmute'||command==='/unban'){
+  const update=command==='/unmute'?{mutedUntil:0,muteReason:''}:{bannedUntil:0,banReason:''};await memberRef.update(update);await writeServerModLog(command.slice(1),member.username);pushSystemMessage(`**${member.username}** was ${command==='/unmute'?'unmuted':'unbanned'} in this server.`)
+ }else if(command==='/warn'){
+  const reason=parts.slice(2).join(' ').trim();if(!reason)alert('/warn username reason');else{await db.ref(`${msRoot()}/warnings/${member.uid}`).push({reason,moderator:sessionUser.username,timestamp:now});await writeServerModLog('warn',member.username,{reason});pushSystemMessage(`**${member.username}** was warned in this server. Reason: ${reason}`)}
+ }else if(command==='/warnings'){
+  const snap=await db.ref(`${msRoot()}/warnings/${member.uid}`).limitToLast(10).once('value'),warnings=[];snap.forEach(c=>warnings.push(c.val()));pushSystemMessage(warnings.length?`**Warnings for ${member.username}:**\n${warnings.map((w,i)=>`${i+1}. ${w.reason} — ${w.moderator}`).join('\n')}`:`**${member.username}** has no warnings in this server.`)
+ }
+ input.value='';input.style.height='auto';hideCommandSuggestions();return true;
+}
+const scopedSendMessage=sendMessage;
+sendMessage=async function(){const input=document.getElementById('chat-input');if(await runScopedServerCommand(input?.value||'',input))return;return scopedSendMessage.apply(this,arguments)};
+const scopedUpdatePermissions=updateChatInputPermissions;
+updateChatInputPermissions=function(){
+ scopedUpdatePermissions();
+ if(activeServerId==='default'||!auth.currentUser)return;
+ const input=document.getElementById('chat-input'),wrapper=document.querySelector('.input-box-wrapper'),now=Date.now();if(!input||!wrapper)return;
+ if(Number(activeServerMemberData.bannedUntil||0)>now){input.disabled=true;input.placeholder=`You are banned from ${activeServerMeta.name}. Reason: ${activeServerMemberData.banReason||'No reason provided'}`;wrapper.style.opacity='.4';return}
+ if(Number(activeServerMemberData.mutedUntil||0)>now){input.disabled=true;input.placeholder=`You are muted in ${activeServerMeta.name}. Reason: ${activeServerMemberData.muteReason||'No reason provided'}`;wrapper.style.opacity='.4';return}
+ const role=serverRoleData(),allowed=String(role.allowedChannels||'*');const canWrite=msOwner()||allowed==='*'||allowed.split(',').map(v=>v.trim().toLowerCase()).includes(String(activeChannel).toLowerCase());
+ input.disabled=!canWrite;wrapper.style.opacity=canWrite?'1':'.4';if(!canWrite)input.placeholder=`Your ${activeServerMemberRole} role cannot write in #${activeChannel}`;
+};
+/* Server owner and role permissions are kept local to the active custom server. */
 </script>
 </body>
 </html>
