@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Shared Life</title>
+<style>
+:root{color-scheme:dark;--cell:18px;--line:#202020;--blue:rgba(28,139,255,.48)}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:Arial,sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}
+#world{position:fixed;inset:0;overflow:hidden;background:#000;touch-action:none}
+#board{position:absolute;left:0;top:0;transform-origin:0 0;cursor:grab}
+#board.dragging{cursor:grabbing}#board.placing{cursor:crosshair}
+#status{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:8;padding:7px 10px;border:1px solid #303030;background:rgba(0,0,0,.72);color:#aaa;font:10px ui-monospace,monospace;letter-spacing:.12em;pointer-events:none;opacity:0;transition:opacity .2s}#status.show{opacity:1}
+#openTray{position:fixed;z-index:12;bottom:0;left:50%;transform:translateX(-50%);width:74px;height:30px;border:1px solid #444;border-bottom:0;border-radius:12px 12px 0 0;background:#080808;color:#fff;font-size:20px;line-height:24px;transition:bottom .28s ease}
+#openTray:hover{background:#121212;border-color:#777}
+#tray{position:fixed;z-index:11;left:50%;bottom:0;transform:translate(-50%,calc(100% + 2px));width:min(900px,calc(100% - 24px));height:min(620px,78vh);background:#050505;border:1px solid #444;border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -18px 60px rgba(0,0,0,.8);display:flex;flex-direction:column;transition:transform .28s ease}
+body.tray-open #tray{transform:translate(-50%,0)}body.tray-open #openTray{bottom:min(620px,78vh)}
+.trayHead{height:58px;flex:0 0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #292929}
+.trayHead button,.trayHead select{height:36px;border:1px solid #3b3b3b;border-radius:8px;background:#0a0a0a;color:#fff;padding:0 14px}.trayHead button:hover,.trayHead select:hover{border-color:#777}.trayHead .right{justify-self:end}.trayHead .left{justify-self:start}.trayHead select{min-width:150px;text-align:center}
+.editorWrap{position:relative;flex:1;min-height:0;overflow:auto;padding:22px;background:#000}
+#editor{display:grid;width:max-content;margin:auto;border-top:1px solid #282828;border-left:1px solid #282828;user-select:none;touch-action:none}
+.pixel{width:24px;height:24px;border-right:1px solid #282828;border-bottom:1px solid #282828;background:#000}.pixel.alive{background:#fff}.pixel:hover{box-shadow:inset 0 0 0 1px #777}
+.trayFoot{height:58px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid #292929;color:#777;font:11px ui-monospace,monospace}
+.sizeControls{display:flex;align-items:center;gap:7px}.sizeControls input{width:58px;height:32px;border:1px solid #333;border-radius:6px;background:#080808;color:#fff;padding:0 7px}.sizeControls button,.trayFoot>button{height:32px;border:1px solid #333;border-radius:6px;background:#080808;color:#ddd;padding:0 12px}.sizeControls button:hover,.trayFoot>button:hover{border-color:#777;color:#fff}
+#placeBtn{background:#fff!important;color:#000!important;border-color:#fff!important;font-weight:700}
+#cancelPlacement{position:fixed;right:14px;bottom:14px;z-index:9;display:none;border:1px solid #555;border-radius:8px;background:#080808;color:#fff;padding:9px 12px;font-size:11px;letter-spacing:.08em}body.is-placing #cancelPlacement{display:block}
+@media(max-width:600px){#tray{width:100%;height:76vh;border-radius:14px 14px 0 0}.trayHead{grid-template-columns:auto 1fr auto;padding:8px}.trayHead select{min-width:0;width:100%}.trayHead button{padding:0 10px}.pixel{width:21px;height:21px}.trayFoot{height:auto;min-height:58px;flex-wrap:wrap}.trayFoot .hint{display:none}body.tray-open #openTray{bottom:76vh}}
+</style>
+</head>
+<body>
+<div id="world"><canvas id="board"></canvas></div>
+<div id="status"></div>
+<button id="openTray" aria-label="Open pattern editor">⌃</button>
+<button id="cancelPlacement">CANCEL PLACEMENT</button>
+
+<section id="tray" aria-label="Pattern editor">
+  <div class="trayHead">
+    <button class="left" id="savePattern">SAVE</button>
+    <select id="savedPatterns" aria-label="Saved patterns"><option value="">PATTERNS</option></select>
+    <button class="right" id="loadPattern">LOAD</button>
+  </div>
+  <div class="editorWrap"><div id="editor"></div></div>
+  <div class="trayFoot">
+    <div class="sizeControls">
+      <span>W</span><input id="patternWidth" type="number" min="1" max="100" value="20">
+      <span>H</span><input id="patternHeight" type="number" min="1" max="100" value="14">
+      <button id="resizePattern">RESIZE</button>
+      <button id="clearPattern">CLEAR</button>
+    </div>
+    <span class="hint">CLICK OR DRAG TO DRAW</span>
+    <button id="placeBtn">PLACE</button>
+  </div>
+</section>
+
+<script type="module">
+const DATABASE_URL="https://avern-game-default-rtdb.firebaseio.com";
+const ROOM="main",COLS=300,ROWS=200,TICK_MS=180,CELL=18;
+const world=document.querySelector('#world'),canvas=document.querySelector('#board'),ctx=canvas.getContext('2d');
+const tray=document.querySelector('#tray'),openTray=document.querySelector('#openTray'),editor=document.querySelector('#editor');
+const widthInput=document.querySelector('#patternWidth'),heightInput=document.querySelector('#patternHeight');
+let cells=new Set(),generation=0,running=true,patternW=20,patternH=14,design=new Set(),placing=false,preview=[];
+let scale=1,offsetX=innerWidth/2-(COLS*CELL)/2,offsetY=innerHeight/2-(ROWS*CELL)/2;
+let dragging=false,lastX=0,lastY=0,moved=false,paintMode=true;
+let connected=true,seen=new Set();
+const key=(x,y)=>`${x},${y}`;
+function toast(text){const el=document.querySelector('#status');el.textContent=text;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
+function sizeCanvas(){const dpr=devicePixelRatio||1;canvas.width=COLS*CELL*dpr;canvas.height=ROWS*CELL*dpr;canvas.style.width=COLS*CELL+'px';canvas.style.height=ROWS*CELL+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
+function draw(){ctx.fillStyle='#000';ctx.fillRect(0,0,COLS*CELL,ROWS*CELL);ctx.strokeStyle='#202020';ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<=COLS;x++){ctx.moveTo(x*CELL+.5,0);ctx.lineTo(x*CELL+.5,ROWS*CELL)}for(let y=0;y<=ROWS;y++){ctx.moveTo(0,y*CELL+.5);ctx.lineTo(COLS*CELL,y*CELL+.5)}ctx.stroke();ctx.fillStyle='#fff';for(const k of cells){const [x,y]=k.split(',').map(Number);ctx.fillRect(x*CELL+1,y*CELL+1,CELL-2,CELL-2)}if(placing&&preview.length){ctx.fillStyle='rgba(28,139,255,.48)';ctx.strokeStyle='rgba(80,180,255,.95)';for(const [x,y] of preview){if(x<0||y<0||x>=COLS||y>=ROWS)continue;ctx.fillRect(x*CELL+1,y*CELL+1,CELL-2,CELL-2);ctx.strokeRect(x*CELL+1.5,y*CELL+1.5,CELL-3,CELL-3)}}canvas.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`}
+function nextGen(){const n=new Map();for(const k of cells){const [x,y]=k.split(',').map(Number);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=COLS||ny>=ROWS)continue;const q=key(nx,ny);n.set(q,(n.get(q)||0)+1)}}const out=new Set();for(const [k,c] of n)if(c===3||(c===2&&cells.has(k)))out.add(k);cells=out;generation++;draw()}
+setInterval(()=>{if(running)nextGen()},TICK_MS);
+function screenCell(e){const r=canvas.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)/(CELL*scale)),y:Math.floor((e.clientY-r.top)/(CELL*scale))}}
+world.addEventListener('pointerdown',e=>{if(placing)return;dragging=true;moved=false;lastX=e.clientX;lastY=e.clientY;canvas.classList.add('dragging');world.setPointerCapture(e.pointerId)});
+world.addEventListener('pointermove',e=>{if(placing){const c=screenCell(e),points=getDesignPoints();preview=points.map(([x,y])=>[c.x+x,c.y+y]);draw();return}if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(dx)+Math.abs(dy)>1)moved=true;offsetX+=dx;offsetY+=dy;lastX=e.clientX;lastY=e.clientY;draw()});
+world.addEventListener('pointerup',e=>{dragging=false;canvas.classList.remove('dragging')});
+world.addEventListener('wheel',e=>{e.preventDefault();const old=scale,next=Math.min(3,Math.max(.35,scale*Math.exp(-e.deltaY*.001)));offsetX=e.clientX-(e.clientX-offsetX)*(next/old);offsetY=e.clientY-(e.clientY-offsetY)*(next/old);scale=next;draw()},{passive:false});
+world.addEventListener('click',async e=>{if(!placing||moved)return;const c=screenCell(e),points=getDesignPoints();if(!points.length)return;if(connected){await sendPlacement(c.x,c.y,points)}else addPattern(c.x,c.y,points);stopPlacing();toast(connected?'PLACED + SYNCED':'PLACED LOCALLY')});
+function addPattern(ox,oy,points){for(const [px,py]of points){const x=ox+px,y=oy+py;if(x>=0&&y>=0&&x<COLS&&y<ROWS)cells.add(key(x,y))}draw()}
+function buildEditor(){patternW=Math.max(1,Math.min(100,+widthInput.value||1));patternH=Math.max(1,Math.min(100,+heightInput.value||1));widthInput.value=patternW;heightInput.value=patternH;design=new Set([...design].filter(k=>{const[x,y]=k.split(',').map(Number);return x<patternW&&y<patternH}));editor.style.gridTemplateColumns=`repeat(${patternW},auto)`;editor.innerHTML='';for(let y=0;y<patternH;y++)for(let x=0;x<patternW;x++){const d=document.createElement('div');d.className='pixel'+(design.has(key(x,y))?' alive':'');d.dataset.x=x;d.dataset.y=y;editor.appendChild(d)}}
+function paintCell(el,value){if(!el?.classList.contains('pixel'))return;const k=key(el.dataset.x,el.dataset.y);value?design.add(k):design.delete(k);el.classList.toggle('alive',value)}
+editor.addEventListener('pointerdown',e=>{if(!e.target.classList.contains('pixel'))return;paintMode=!e.target.classList.contains('alive');paintCell(e.target,paintMode);editor.setPointerCapture(e.pointerId)});editor.addEventListener('pointermove',e=>{if(!e.buttons)return;paintCell(document.elementFromPoint(e.clientX,e.clientY),paintMode)});
+function getDesignPoints(){if(!design.size)return[];const pts=[...design].map(k=>k.split(',').map(Number)),minX=Math.min(...pts.map(p=>p[0])),minY=Math.min(...pts.map(p=>p[1]));return pts.map(([x,y])=>[x-minX,y-minY])}
+openTray.onclick=()=>{const open=document.body.classList.toggle('tray-open');openTray.textContent=open?'⌄':'⌃'};
+document.querySelector('#resizePattern').onclick=buildEditor;document.querySelector('#clearPattern').onclick=()=>{design.clear();buildEditor()};
+document.querySelector('#placeBtn').onclick=()=>{if(!design.size)return toast('DRAW SOMETHING FIRST');document.body.classList.remove('tray-open');openTray.textContent='⌃';placing=true;preview=[];document.body.classList.add('is-placing');canvas.classList.add('placing');toast('MOVE IT, THEN CLICK TO PLACE')};
+function stopPlacing(){placing=false;preview=[];document.body.classList.remove('is-placing');canvas.classList.remove('placing');draw()}
+document.querySelector('#cancelPlacement').onclick=stopPlacing;
+function refreshSaved(){const select=document.querySelector('#savedPatterns'),all=JSON.parse(localStorage.lifePatterns||'{}');select.innerHTML='<option value="">PATTERNS</option>'+Object.keys(all).map(n=>`<option>${n.replaceAll('<','&lt;')}</option>`).join('')}
+document.querySelector('#savePattern').onclick=()=>{if(!design.size)return toast('DRAW SOMETHING FIRST');const name=prompt('Pattern name:');if(!name)return;const all=JSON.parse(localStorage.lifePatterns||'{}');all[name]={w:patternW,h:patternH,cells:[...design]};localStorage.lifePatterns=JSON.stringify(all);refreshSaved();document.querySelector('#savedPatterns').value=name;toast('PATTERN SAVED')};
+document.querySelector('#loadPattern').onclick=()=>{const name=document.querySelector('#savedPatterns').value,all=JSON.parse(localStorage.lifePatterns||'{}');if(!name||!all[name])return toast('CHOOSE A PATTERN');patternW=all[name].w;patternH=all[name].h;design=new Set(all[name].cells);widthInput.value=patternW;heightInput.value=patternH;buildEditor();toast('PATTERN LOADED')};
+async function sendPlacement(x,y,points){
+  try{
+    const response=await fetch(`${DATABASE_URL}/rooms/${ROOM}/events.json`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({x,y,cells:points,createdAt:Date.now()})
+    });
+    if(!response.ok)throw new Error(`Firebase write failed: ${response.status}`);
+  }catch(error){connected=false;console.error(error);addPattern(x,y,points);toast('DATABASE WRITE FAILED')}
+}
+async function pollFirebase(){
+  try{
+    const response=await fetch(`${DATABASE_URL}/rooms/${ROOM}/events.json?shallow=false`,{cache:'no-store'});
+    if(!response.ok)throw new Error(`Firebase read failed: ${response.status}`);
+    const events=await response.json()||{};
+    for(const [id,v] of Object.entries(events)){
+      if(seen.has(id))continue;
+      seen.add(id);
+      if(v&&Number.isInteger(v.x)&&Number.isInteger(v.y)&&Array.isArray(v.cells))addPattern(v.x,v.y,v.cells);
+    }
+    if(!connected)toast('DATABASE CONNECTED');
+    connected=true;
+  }catch(error){connected=false;console.error(error)}
+}
+function connectFirebase(){pollFirebase();setInterval(pollFirebase,700)}
+addEventListener('resize',draw);buildEditor();refreshSaved();sizeCanvas();connectFirebase();
+</script>
+</body>
+</html>
