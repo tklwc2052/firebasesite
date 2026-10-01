@@ -6118,5 +6118,63 @@ function openAvernUserPage(username) {
 // Replace the old popup handler after every earlier script has loaded.
 inspectUser = openAvernUserPage;
 </script>
+
+<script>
+/* Final Minecraft message renderer. Keep this after all other buildMessageRow wrappers. */
+(function () {
+    const originalBuildMessageRow = buildMessageRow;
+
+    function isMinecraftPacket(packet) {
+        const source = String(packet?.source || '').toLowerCase();
+        const message = String(packet?.msg || '');
+        return source === 'minecraft' || /^\[minecraft\]\s*/i.test(message);
+    }
+
+    buildMessageRow = function (key, packet) {
+        const row = originalBuildMessageRow(key, packet);
+        if (!isMinecraftPacket(packet)) return row;
+
+        const username = String(packet.user || 'Minecraft');
+        const cleanMessage = String(packet.msg || '').replace(/^\[minecraft\]\s*/i, '');
+        const time = new Date(Number(packet.timestamp) || Date.now())
+            .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        row.className = 'msg-group minecraft-bridge-message';
+        row.id = `msg-node-${key}`;
+        row.setAttribute('data-user', username);
+        row.setAttribute('data-time', packet.timestamp || 0);
+        row.setAttribute('data-has-reply', 'false');
+        row.innerHTML = `
+            <div class="minecraft-bridge-line">
+                <span class="minecraft-bridge-user">&lt;${escapeHtml(username)}&gt;</span><span class="minecraft-bridge-time">[${escapeHtml(time)}]</span><span> : </span><span>${escapeTextAndFormatMarkdown(cleanMessage)}</span>
+            </div>`;
+        return row;
+    };
+})();
+</script>
+<style>
+.msg-group.minecraft-bridge-message {
+    display: block !important;
+    padding: 1px 8px !important;
+    min-height: 0 !important;
+}
+.minecraft-bridge-line {
+    color: var(--text-normal);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.minecraft-bridge-user {
+    color: var(--text-normal) !important;
+    font-weight: 700;
+}
+.minecraft-bridge-time { color: var(--text-muted); }
+.minecraft-bridge-message .msg-pfp,
+.minecraft-bridge-message .msg-meta,
+.minecraft-bridge-message .msg-action-trigger-bar { display: none !important; }
+</style>
+
 </body>
 </html>
