@@ -83,6 +83,7 @@
         .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; min-height: 0; scroll-behavior: smooth; }
         .loading-history { text-align: center; color: var(--text-muted); font-size: 12px; padding: 10px; display: none; }
 
+
         /* Message Base Styles */
         .msg-group { display: flex; flex-direction: column; position: relative; padding: 4px 6px; border-radius: 4px; transition: background-color 0.2s ease; }
         .msg-group:hover { background: rgba(255, 255, 255, 0.015); }
@@ -3513,11 +3514,15 @@ const firebaseConfig = {
         }
 
         function generateMessageMarkup(key, packet) {
-            const authorPfp = escapeAttribute(packet.pfp || fallbackImg); 
             const actualUser = packet.user || "Unknown Miner";
-            const displayName = packet.nickname ? packet.nickname : actualUser;
+            const rawMessage = String(packet.msg || "");
+            const isMinecraftMessage = String(packet.source || "").toLowerCase() === "minecraft" || /^\[Minecraft\]\s*/i.test(rawMessage);
+            const bridgeProfile = globalProfiles['club-server'] || {};
+            const authorPfp = escapeAttribute(isMinecraftMessage ? (bridgeProfile.pfp || fallbackImg) : (packet.pfp || fallbackImg));
+            const displayName = isMinecraftMessage ? (bridgeProfile.nickname || "Minecraft") : (packet.nickname ? packet.nickname : actualUser);
+            const profileUser = isMinecraftMessage ? "club-server" : actualUser;
             
-            const safeActualUser = escapeTextAndFormatMarkdown(actualUser);
+            const safeActualUser = escapeTextAndFormatMarkdown(profileUser);
             const safeDisplayName = escapeTextAndFormatMarkdown(displayName);
             
             // Determine Custom Role Colors (Replacing the Text Tag)
@@ -3525,7 +3530,7 @@ const firebaseConfig = {
             if (packet.user === 'SYSTEM') {
                 userColor = "#da373c";
             } else {
-                const userProfile = globalProfiles[actualUser.toLowerCase()] || {};
+                const userProfile = globalProfiles[profileUser.toLowerCase()] || {};
                 const assignedRole = userProfile.role || packet.rank;
                 if (assignedRole && serverRoles[assignedRole] && serverRoles[assignedRole].color) {
                     userColor = serverRoles[assignedRole].color;
@@ -3533,8 +3538,11 @@ const firebaseConfig = {
             }
 
             const stampedTime = new Date(packet.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const isAuthorMe = (packet.user === sessionUser.username); 
-            const formattedMsg = escapeTextAndFormatMarkdown(packet.msg);
+            const isAuthorMe = (packet.user === sessionUser.username);
+            const cleanMinecraftMessage = rawMessage.replace(/^\[Minecraft\]\s*/i, "");
+            const formattedMsg = isMinecraftMessage
+                ? `<span>&lt;${escapeHtml(actualUser)}&gt;[${escapeHtml(stampedTime)}] : ${escapeTextAndFormatMarkdown(cleanMinecraftMessage)}</span>`
+                : escapeTextAndFormatMarkdown(packet.msg);
             const linkPreviewHTML = buildLinkPreviews(packet.msg);
 
             let ancestralReplyHTML = "";
@@ -3603,12 +3611,13 @@ const firebaseConfig = {
             const isEveryonePing = packet.pingEveryone === true || (packet.msg && String(packet.msg).toLowerCase().includes('@everyone'));
 
             row.className = 'msg-group';
+            const isMinecraftMessage = String(packet.source || '').toLowerCase() === 'minecraft' || /^\[Minecraft\]\s*/i.test(String(packet.msg || ''));
             if (isMentioned) row.classList.add('msg-mentioned');
             if (isEveryonePing) row.classList.add('msg-everyone');
             
             row.id = `msg-node-${key}`;
             
-            row.setAttribute('data-user', packet.user);
+            row.setAttribute('data-user', isMinecraftMessage ? 'club-server' : packet.user);
             row.setAttribute('data-time', packet.timestamp || 0);
             row.setAttribute('data-has-reply', packet.replyContext ? 'true' : 'false');
             
@@ -6118,6 +6127,5 @@ function openAvernUserPage(username) {
 // Replace the old popup handler after every earlier script has loaded.
 inspectUser = openAvernUserPage;
 </script>
-<script src="/chat/minecraft-chat-style.js"></script>
 </body>
 </html>
