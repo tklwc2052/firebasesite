@@ -19,7 +19,7 @@ bootAuthenticatedAccount = async function(user) {
 
     if (String(profile.tosAcceptedVersion || '') !== AVERN_TOS_VERSION) {
       const returnPath = encodeURIComponent('/chat/');
-      window.location.replace('/tos/?return=' + returnPath);
+      window.location.replace('/tos/index.html?return=' + returnPath);
       return;
     }
 
