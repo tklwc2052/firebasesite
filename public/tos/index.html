@@ -7,7 +7,7 @@
 <style>
 :root{color-scheme:dark;--bg:#111214;--card:#1e1f22;--text:#dbdee1;--muted:#949ba4;--accent:#5865f2;--line:rgba(255,255,255,.09)}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}.wrap{width:min(900px,calc(100% - 30px));margin:38px auto 70px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:clamp(20px,4vw,42px);box-shadow:0 18px 55px rgba(0,0,0,.38)}h1{margin:0;color:#fff;font-size:clamp(28px,5vw,42px)}h2{margin:32px 0 10px;color:#fff;font-size:21px}p,li{font-size:15px}.updated{color:var(--muted);margin:4px 0 22px}.notice{padding:12px 14px;border-left:4px solid var(--accent);background:rgba(88,101,242,.1);border-radius:0 8px 8px 0}ol,ul{padding-left:24px}li{margin:8px 0}strong{color:#fff}a{color:#9aa8ff}.footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
 
-.acceptance-box{margin-top:34px;padding:20px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#111214}.acceptance-box h2{margin:0 0 6px}.acceptance-user{margin:0 0 15px;color:var(--muted);font-size:14px}.acceptance-label{display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#191a1d;cursor:pointer}.acceptance-label input{width:19px;height:19px;margin-top:2px;accent-color:var(--accent)}.acceptance-label input:disabled{cursor:not-allowed}.acceptance-message{min-height:22px;margin:10px 0 0;font-size:13px}.acceptance-message.ok{color:#57f287}.acceptance-message.error{color:#fa777c}.acceptance-login{display:inline-block;margin-top:8px;padding:9px 13px;border-radius:7px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700}
+.acceptance-box{margin-top:34px;padding:20px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#111214}.acceptance-box h2{margin:0 0 6px}.acceptance-user{margin:0 0 15px;color:var(--muted);font-size:14px}.acceptance-label{display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#191a1d;cursor:pointer}.acceptance-label input{width:19px;height:19px;margin-top:2px;accent-color:var(--accent)}.acceptance-label input:disabled{cursor:not-allowed}.acceptance-message{min-height:22px;margin:10px 0 0;font-size:13px}.acceptance-message.ok{color:#57f287}.acceptance-message.error{color:#fa777c}.acceptance-login{display:inline-block;margin-top:8px;padding:9px 13px;border-radius:7px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700}.acceptance-continue{display:block;width:100%;margin-top:12px;padding:12px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:800;cursor:pointer}.acceptance-continue:disabled{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body><main class="wrap"><article class="card">
@@ -58,6 +58,7 @@
 <span>I have read and agree to these Terms of Service and the server rules.</span>
 </label>
 <p id="acceptance-message" class="acceptance-message" aria-live="polite"></p>
+<button id="tos-continue-button" class="acceptance-continue" type="button" disabled>Accept and continue</button>
 <a id="acceptance-login" class="acceptance-login" href="index.html" hidden>Return to login</a>
 </section>
 <p class="footer">TOS version: 2026-10-05</p>
@@ -81,11 +82,20 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 const checkbox = document.getElementById('tos-page-checkbox');
+const continueButton = document.getElementById('tos-continue-button');
 const userText = document.getElementById('acceptance-user');
 const message = document.getElementById('acceptance-message');
 const loginLink = document.getElementById('acceptance-login');
 let activeUsername = '';
+let alreadyAccepted = false;
 let saving = false;
+
+function returnLocation() {
+  const requested = new URLSearchParams(location.search).get('return');
+  return requested && requested.startsWith('/') && !requested.startsWith('//')
+    ? requested
+    : '/chat/';
+}
 
 function setMessage(text, type = '') {
   message.textContent = text;
@@ -97,47 +107,62 @@ async function loadAcceptance(user) {
     const usernameSnap = await db.ref('uid_usernames/' + user.uid).once('value');
     activeUsername = String(usernameSnap.val() || '').toLowerCase();
     if (!activeUsername) throw new Error('No username is connected to this account yet.');
+
     const profileSnap = await db.ref('chat_profiles/' + activeUsername).once('value');
     const profile = profileSnap.val() || {};
+    alreadyAccepted = String(profile.tosAcceptedVersion || '') === TOS_VERSION;
+
     userText.textContent = 'Signed in as @' + (profile.username || activeUsername);
-    checkbox.checked = String(profile.tosAcceptedVersion || '') === TOS_VERSION;
+    checkbox.checked = alreadyAccepted;
     checkbox.disabled = false;
-    setMessage(checkbox.checked ? 'You have accepted this version of the TOS.' : 'You have not accepted this version of the TOS.', checkbox.checked ? 'ok' : '');
+    continueButton.disabled = !checkbox.checked;
+    continueButton.textContent = alreadyAccepted ? 'Continue to chat' : 'Accept and continue';
+    setMessage(alreadyAccepted
+      ? 'You have already accepted this version of the TOS.'
+      : 'Check the box, then select Accept and continue.', alreadyAccepted ? 'ok' : '');
   } catch (error) {
     console.error(error);
     checkbox.disabled = true;
+    continueButton.disabled = true;
     setMessage(error.message || 'Could not load your acceptance status.', 'error');
   }
 }
 
-checkbox.addEventListener('change', async () => {
-  if (!auth.currentUser || !activeUsername || saving) return;
+checkbox.addEventListener('change', () => {
+  continueButton.disabled = !checkbox.checked || !activeUsername || saving;
+  continueButton.textContent = alreadyAccepted ? 'Continue to chat' : 'Accept and continue';
+  if (!checkbox.checked) {
+    setMessage('You must accept the Terms of Service to enter the chat.');
+  } else if (!alreadyAccepted) {
+    setMessage('Ready to save your acceptance.');
+  }
+});
+
+continueButton.addEventListener('click', async () => {
+  if (!auth.currentUser || !activeUsername || !checkbox.checked || saving) return;
+
   saving = true;
   checkbox.disabled = true;
-  setMessage('Saving...');
+  continueButton.disabled = true;
+  continueButton.textContent = 'Saving...';
+  setMessage('Saving your acceptance...');
+
   try {
-    if (checkbox.checked) {
+    if (!alreadyAccepted) {
       await db.ref('chat_profiles/' + activeUsername).update({
         tosAcceptedVersion: TOS_VERSION,
         tosAcceptedAt: firebase.database.ServerValue.TIMESTAMP,
         tosAcceptedUid: auth.currentUser.uid
       });
-      setMessage('Accepted. You can now use the chat.', 'ok');
-    } else {
-      await db.ref('chat_profiles/' + activeUsername).update({
-        tosAcceptedVersion: null,
-        tosAcceptedAt: null,
-        tosAcceptedUid: null
-      });
-      setMessage('Acceptance removed. The chat will require you to accept again.', 'error');
     }
+    window.location.replace(returnLocation());
   } catch (error) {
     console.error(error);
-    checkbox.checked = !checkbox.checked;
-    setMessage('Could not update your acceptance. Check your connection or database permissions.', 'error');
-  } finally {
     saving = false;
     checkbox.disabled = false;
+    continueButton.disabled = false;
+    continueButton.textContent = 'Accept and continue';
+    setMessage('Could not save your acceptance. Check your connection or database permissions.', 'error');
   }
 });
 
@@ -146,11 +171,14 @@ auth.onAuthStateChanged(user => {
     activeUsername = '';
     checkbox.checked = false;
     checkbox.disabled = true;
+    continueButton.disabled = true;
     userText.textContent = 'You are not signed in.';
-    setMessage('Sign in through the main chat page before changing your acceptance status.', 'error');
+    setMessage('Sign in through the main chat page before accepting the Terms of Service.', 'error');
+    loginLink.href = '/chat/';
     loginLink.hidden = false;
     return;
   }
+
   loginLink.hidden = true;
   loadAcceptance(user);
 });
