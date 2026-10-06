@@ -2650,7 +2650,7 @@ const firebaseConfig = {
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
-        let sessionUser = { username: "", pfp: "", banner: "", pronouns: "", bio: "", status: "", nickname: "", rank: "Member", ranks: ["Member"] };
+        let sessionUser = { username: "", pfp: "", banner: "", pronouns: "", bio: "", status: "", nickname: "", rank: "Member" };
         const XP_COOLDOWN_MS = 60 * 1000;
         const XP_MIN_PER_MESSAGE = 5;
         const XP_MAX_PER_MESSAGE = 10;
@@ -3075,7 +3075,7 @@ const firebaseConfig = {
         }
         function startServerUnreadWatchers(channels) {
             if (!sessionUser.username || !channels) return;
-            Object.keys(channels).filter(chan => chan !== MOD_LOGS_CHANNEL && canViewServerChannel(chan)).forEach(chan => {
+            Object.keys(channels).filter(chan => canViewServerChannel(chan)).forEach(chan => {
                 const cleanChan = String(chan).toLowerCase();
                 const key = getUnreadKey(cleanChan, false);
                 attachUnreadListener(key, getServerChannelPathForUnread(cleanChan));
@@ -3117,40 +3117,22 @@ const firebaseConfig = {
             return null;
         }
 
-        function normalizeUserRanks(profile = sessionUser) {
-            const raw = Array.isArray(profile?.ranks) ? profile.ranks : (profile?.ranks && typeof profile.ranks === 'object' ? Object.values(profile.ranks) : [profile?.rank || profile?.role || 'Member']);
-            const seen = new Set();
-            return raw.map(v => String(v || '').trim()).filter(v => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase()));
-        }
         function hasCommandPermission(command) {
             if (sessionUser.username.toLowerCase() === 'kl_') return true;
-            return normalizeUserRanks(sessionUser).some(rankName => {
-                const role = serverRoles[rankName];
-                if (!role || !role.allowedCommands) return false;
-                const allowed = String(role.allowedCommands).split(',').map(v => v.trim().toLowerCase());
-                return allowed.includes('*') || allowed.includes(String(command).toLowerCase());
-            });
+            const myRank = sessionUser.rank || "Member";
+            const roleData = serverRoles[myRank];
+            if (!roleData || !roleData.allowedCommands) return false;
+            
+            const allowed = roleData.allowedCommands.split(',').map(c => c.trim().toLowerCase());
+            return allowed.includes('*') || allowed.includes(command.toLowerCase());
         }
 
-        const MOD_LOGS_CHANNEL = 'logs';
-        function canViewLogsChannel() { return hasCommandPermission('viewlogs'); }
-        function writeModLog(action, details = {}) {
-            const entry = {
-                user: 'MOD LOG',
-                msg: details.message || `${action} action`,
-                pfp: 'https://cdn-icons-png.flaticon.com/512/1055/1055685.png',
-                timestamp: Date.now(),
-                isModLog: true,
-                action,
-                moderator: details.moderator || sessionUser.username || 'SYSTEM',
-                target: details.target || '',
-                reason: details.reason || '',
-                duration: details.duration || '',
-                sourceChannel: details.sourceChannel || activeChannel || '',
-                deletedMessageKey: details.deletedMessageKey || ''
-            };
-            return db.ref('channels/' + MOD_LOGS_CHANNEL).push(entry);
+        const MOD_LOGS_CHANNEL = null;
+        function canViewLogsChannel() { return false; }
+        function writeModLog() {
+            return Promise.resolve();
         }
+
         function deleteUserFromDB(usernameLower) {
             if (confirm(`Are you sure you want to delete user ${usernameLower} from the database?`)) {
                 db.ref('chat_profiles/' + usernameLower).remove().then(() => {
@@ -3290,8 +3272,7 @@ const firebaseConfig = {
             // Listen to our own profile for rank, mute, and ban changes
             db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).on('value', (snap) => {
                 const data = snap.val() || {};
-                sessionUser.ranks = normalizeUserRanks(data);
-                sessionUser.rank = data.rank || sessionUser.ranks[0] || "Member";
+                sessionUser.rank = data.rank || "Member";
                 sessionUser.xp = Number(data.xp || 0);
                 sessionUser.level = Number(data.level || levelFromXp(sessionUser.xp));
                 sessionUser.mutedUntil = data.mutedUntil || 0;
@@ -3353,10 +3334,6 @@ const firebaseConfig = {
 
         function changeChannel(targetId, DMFlag) {
             if (!DMFlag && !canViewServerChannel(targetId)) { alert('You do not have permission to view this channel.'); return; }
-            if (!DMFlag && String(targetId).toLowerCase() === MOD_LOGS_CHANNEL && !canViewLogsChannel()) {
-                alert('You do not have permission to view the moderation logs.');
-                return;
-            }
             // Only detach the active chat render listeners. Calling activeRef.off() here can also
             // remove the separate unread badge watcher for this Firebase path, which made unread
             // badges work once and then stop after you read/opened that channel.
@@ -3926,7 +3903,94 @@ const firebaseConfig = {
         }
 
 
-        function sendMessage() {
+        function canManageFolders() {
+            return String(sessionUser.username || '').toLowerCase() === 'kl_' || hasCommandPermission('folders.manage');
+        }
+        function cleanFolderName(value) {
+            return String(value || '').trim().replace(/^\[|\]$/g, '').trim();
+        }
+        function parseFolderAndChannels(raw) {
+            const text = String(raw || '').trim();
+            const bracket = text.match(/^\[([^\]]+)\]\s+(.+)$/);
+            if (bracket) return { folder:cleanFolderName(bracket[1]), channels:bracket[2].split(',').map(v=>v.trim().replace(/^#/,'').toLowerCase()).filter(Boolean) };
+            const pipe = text.split('|');
+            if (pipe.length >= 2) return { folder:cleanFolderName(pipe.shift()), channels:pipe.join('|').split(',').map(v=>v.trim().replace(/^#/,'').toLowerCase()).filter(Boolean) };
+            return null;
+        }
+        async function getAllFolderData() {
+            const snap = await db.ref('channel_folders').once('value');
+            return snap.val() || {};
+        }
+        async function handleFolderCommand(targetText, inputField) {
+            const text = String(targetText || '').trim();
+            const lower = text.toLowerCase();
+            if (!['/createfolder','/deletefolder','/reorderfolder','/assignchannel','/reorderchannels'].some(command => lower === command || lower.startsWith(command + ' '))) return false;
+            if (!canManageFolders()) {
+                alert('Permission Denied: You need the folders.manage permission node.');
+                inputField.value = '';
+                return true;
+            }
+            try {
+                if (lower.startsWith('/createfolder ')) {
+                    const folder = cleanFolderName(text.slice('/createfolder'.length));
+                    if (!folder) throw new Error('Usage: /createfolder Folder Name');
+                    const folders = await getAllFolderData();
+                    if (folders[folder]) throw new Error(`The folder "${folder}" already exists.`);
+                    const maxOrder = Math.max(0,...Object.values(folders).map(value=>Number(value?._order||0)));
+                    await db.ref(`channel_folders/${folder}`).set({_created:true,_order:maxOrder+1,_channelOrder:[]});
+                    alert(`Created folder: ${folder}`);
+                } else if (lower.startsWith('/deletefolder ')) {
+                    const folder = cleanFolderName(text.slice('/deletefolder'.length));
+                    if (!folder) throw new Error('Usage: /deletefolder Folder Name');
+                    const snap = await db.ref(`channel_folders/${folder}`).once('value');
+                    if (!snap.exists()) throw new Error(`Folder "${folder}" does not exist.`);
+                    if (!confirm(`Delete the folder "${folder}"? Its channels will become uncategorized.`)) { inputField.value=''; return true; }
+                    await db.ref(`channel_folders/${folder}`).remove();
+                } else if (lower.startsWith('/reorderfolder ')) {
+                    const requested = text.slice('/reorderfolder'.length).split(',').map(cleanFolderName).filter(Boolean);
+                    if (!requested.length) throw new Error('Usage: /reorderfolder Important, Minecraft, Text Channels');
+                    const folders = await getAllFolderData();
+                    const existing = Object.keys(folders);
+                    const unknown = requested.filter(name=>!folders[name]);
+                    if (unknown.length) throw new Error(`Unknown folder(s): ${unknown.join(', ')}`);
+                    const finalOrder = [...new Set([...requested,...existing.filter(name=>!requested.includes(name))])];
+                    const updates={}; finalOrder.forEach((name,index)=>updates[`channel_folders/${name}/_order`]=index+1);
+                    await db.ref().update(updates);
+                } else if (lower.startsWith('/assignchannel ')) {
+                    const parsed = parseFolderAndChannels(text.slice('/assignchannel'.length));
+                    if (!parsed || !parsed.channels.length) throw new Error('Usage: /assignchannel [Folder Name] channel1, channel2');
+                    const folders = await getAllFolderData();
+                    const unassign = ['none','uncategorized','remove'].includes(parsed.folder.toLowerCase());
+                    if (!unassign && !folders[parsed.folder]) throw new Error(`Folder "${parsed.folder}" does not exist.`);
+                    const updates={};
+                    Object.entries(folders).forEach(([folderName,data])=>parsed.channels.forEach(channel=>{if(data && data[channel])updates[`channel_folders/${folderName}/${channel}`]=null}));
+                    if (!unassign) parsed.channels.forEach(channel=>updates[`channel_folders/${parsed.folder}/${channel}`]=true);
+                    await db.ref().update(updates);
+                    if (!unassign) {
+                        const current = Array.isArray(folders[parsed.folder]?._channelOrder) ? folders[parsed.folder]._channelOrder : [];
+                        await db.ref(`channel_folders/${parsed.folder}/_channelOrder`).set([...current.filter(name=>!parsed.channels.includes(name)),...parsed.channels]);
+                    }
+                } else if (lower.startsWith('/reorderchannels ')) {
+                    const parsed = parseFolderAndChannels(text.slice('/reorderchannels'.length));
+                    if (!parsed || !parsed.channels.length) throw new Error('Usage: /reorderchannels [Folder Name] channel1, channel2, channel3');
+                    const folders = await getAllFolderData();
+                    const folderData = folders[parsed.folder];
+                    if (!folderData) throw new Error(`Folder "${parsed.folder}" does not exist.`);
+                    const existing = Object.keys(folderData).filter(key=>!['_created','_order','_channelOrder'].includes(key));
+                    const invalid = parsed.channels.filter(channel=>!existing.includes(channel));
+                    if (invalid.length) throw new Error(`Not in ${parsed.folder}: ${invalid.join(', ')}`);
+                    const finalOrder=[...new Set([...parsed.channels,...existing.filter(channel=>!parsed.channels.includes(channel))])];
+                    await db.ref(`channel_folders/${parsed.folder}/_channelOrder`).set(finalOrder);
+                }
+                inputField.value=''; hideCommandSuggestions();
+            } catch (error) {
+                console.error('Folder command failed:',error);
+                alert(error.message || 'The folder command failed.');
+                inputField.value='';
+            }
+            return true;
+        }
+        async function sendMessage() {
             if (!isDmMode && sessionUser.username.toLowerCase() !== 'kl_') {
                 const myRank = sessionUser.rank || "Member";
                 const roleData = serverRoles[myRank];
@@ -3942,6 +4006,7 @@ const firebaseConfig = {
 
             if (targetText.startsWith('/')) {
  if (handleAnnounceCommand(targetText, inputField)) { return; }
+ if (await handleFolderCommand(targetText, inputField)) { return; }
             if (processModerationCommand(targetText, inputField)) { inputField.value = ''; hideCommandSuggestions(); return; }
                 if (targetText === '/clear') {
                     if (!hasCommandPermission('clear')) {
@@ -3977,17 +4042,24 @@ const firebaseConfig = {
 
 
                 if (targetText.startsWith('/setrank ')) {
-                    if (!hasCommandPermission('setrank')) { alert("Permission Denied: You lack the required rank to use /setrank."); inputField.value = ''; return; }
-                    const match = targetText.match(/^\/setrank\s+@?([^\s]+)\s+(.+)$/i);
-                    if (!match) { alert('Usage: /setrank username Rank 1, Rank 2'); inputField.value = ''; return; }
-                    const targetUser = match[1].toLowerCase();
-                    const seen = new Set();
-                    const ranks = match[2].split(',').map(v => v.trim()).filter(v => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase())).slice(0, 12);
-                    if (!ranks.length) { alert('Add at least one rank.'); inputField.value = ''; return; }
-                    const primary = ranks[0];
-                    db.ref(`chat_profiles/${targetUser}`).update({ ranks, rank: primary, role: primary, ranksUpdatedAt: Date.now() }).then(() => db.ref(getChannelDatabasePath()).push({ user:'SYSTEM', msg:`**${match[1]}** was granted these ranks: **${ranks.join(', ')}**.`, pfp:'https://cdn-icons-png.flaticon.com/512/1055/1055685.png', timestamp:Date.now() })).catch(error => { console.error('Multi-rank update failed:', error); alert('Could not set the ranks. Check your Firebase rules.'); });
+                    if (!hasCommandPermission('setrank')) {
+                        alert("Permission Denied: You lack the required rank to use /setrank."); inputField.value = ''; return;
+                    }
+                    const parts = targetText.split(' ');
+                    if (parts.length >= 3) {
+                        const targetUser = parts[1].replace('@', '').toLowerCase(); 
+                        const newRank = parts.slice(2).join(' ');
+                        db.ref(`chat_profiles/${targetUser}`).update({ rank: newRank, role: newRank }); 
+                        db.ref(getChannelDatabasePath()).push({
+                            user: "SYSTEM",
+                            msg: `**${parts[1]}** was granted the rank of **${newRank}**.`,
+                            pfp: "https://cdn-icons-png.flaticon.com/512/1055/1055685.png", 
+                            timestamp: Date.now()
+                        });
+                    }
                     inputField.value = ''; return;
                 }
+
                 if (targetText.startsWith('/createchannel ')) {
                     if (!hasCommandPermission('createchannel')) {
                         alert("Permission Denied: You lack the required rank to use /createchannel."); inputField.value = ''; return;
@@ -3999,7 +4071,6 @@ const firebaseConfig = {
                     else if (/^text\s+/i.test(requested)) { requested = requested.replace(/^text\s+/i, ''); }
                     let newChan = requested.toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g,'-').replace(/^-|-$/g,'');
                     if (newChan) {
-                        if (newChan === MOD_LOGS_CHANNEL) { alert('The logs channel is permanent and already exists.'); inputField.value = ''; return; }
                         let chosenType = requestedType;
                         if (!/^\s*(forum|text|leaderboard)\s+/i.test(targetText.substring(15))) {
                             const answer = prompt(`Channel type for #${newChan}: type "text", "forum", or "leaderboard"`, 'text');
@@ -4018,7 +4089,7 @@ const firebaseConfig = {
                     }
                     let delChan = targetText.substring(15).trim().toLowerCase();
                     if (delChan) {
-                        if (delChan === 'game-chat' || delChan === MOD_LOGS_CHANNEL || delChan === 'events') { alert('Error: You cannot delete a permanent channel.'); inputField.value = ''; return; }
+                        if (delChan === 'game-chat' || delChan === 'events') { alert('Error: You cannot delete a permanent channel.'); inputField.value = ''; return; }
                         db.ref(`server_channels/${delChan}`).remove(); db.ref(`forum_channels/${delChan}`).remove(); db.ref(`channels/${delChan}`).remove();
                         db.ref(getChannelDatabasePath()).push({
                             user: "SYSTEM", msg: `**Channel deleted:** #${delChan}`, pfp: "https://cdn-icons-png.flaticon.com/512/1055/1055685.png", timestamp: Date.now()
@@ -4424,88 +4495,12 @@ function bindChannelSync() {
             
             const renderedChannels = new Set();
             const isAdmin = sessionUser.username && sessionUser.username.trim().toLowerCase() === 'kl_';
-            // The logs channel is permanent and permission-gated. It is not stored in server_channels,
+            // Moderation logs channel removed.
+
             // so normal create/delete/folder tools cannot remove or expose it.
-            if (canViewLogsChannel() && canViewServerChannel(MOD_LOGS_CHANNEL)) {
-                const logsElement = document.createElement('div');
-                logsElement.className = `channel-item server-chan ${(!isDmMode && activeChannel === MOD_LOGS_CHANNEL) ? 'active' : ''}`;
-                logsElement.id = 'chan-node-' + MOD_LOGS_CHANNEL;
-                logsElement.setAttribute('onclick', `changeChannel('${MOD_LOGS_CHANNEL}', false)`);
-                logsElement.innerText = MOD_LOGS_CHANNEL;
-                ensureUnreadBadgeElement(logsElement, getUnreadKey(MOD_LOGS_CHANNEL, false));
-                channelsContainer.appendChild(logsElement);
-                renderedChannels.add(MOD_LOGS_CHANNEL);
-            }
+            // The logs channel has been removed.
 
-            // --- ADMIN CONTROLS (Only visible to kl_) ---
-            if (isAdmin) {
-                const manageBtn = document.createElement('div');
-                manageBtn.style = 'padding: 6px; margin: 4px 0 8px 0; background: var(--primary-blurple); color: white; text-align: center; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: background 0.2s;';
-                manageBtn.innerText = '📁 Manage Folders / Order';
-                manageBtn.onmouseover = () => manageBtn.style.background = '#4752c4';
-                manageBtn.onmouseout = () => manageBtn.style.background = 'var(--primary-blurple)';
-                
-                manageBtn.onclick = () => {
-                    const action = prompt("Type 'create' (new folder), 'assign' (move channel), 'reorder' (change folder order), or 'remove' (delete folder):");
-                    if (!action) return;
-
-                    const choice = action.trim().toLowerCase();
-                    if (choice === 'create') {
-                        const fName = prompt("Enter new folder name:");
-                        if (fName && fName.trim()) {
-                            let maxOrder = 0;
-                            Object.keys(folders).forEach(f => {
-                                if (folders[f]._order && folders[f]._order > maxOrder) maxOrder = folders[f]._order;
-                            });
-                            db.ref(`channel_folders/${fName.trim()}`).set({ _created: true, _order: maxOrder + 1 });
-                        }
-                    } else if (choice === 'assign') {
-                        const cName = prompt("Enter the exact channel name to move (e.g. game-chat):");
-                        if (!cName || !cName.trim()) return;
-                        
-                        const fName = prompt("Enter folder name to assign it to (leave completely empty to unassign):");
-                        
-                        Object.keys(folders).forEach(f => {
-                            if (folders[f][cName.trim()]) {
-                                db.ref(`channel_folders/${f}/${cName.trim()}`).remove();
-                            }
-                        });
-
-                        if (fName && fName.trim()) {
-                            db.ref(`channel_folders/${fName.trim()}/${cName.trim()}`).set(true);
-                        }
-                    } else if (choice === 'reorder') {
-                        const fName = prompt("Enter the name of the folder you want to move:");
-                        if (!fName || !folders[fName.trim()]) {
-                            alert("Folder not found.");
-                            return;
-                        }
-                        const newPos = prompt("Enter the new position number (e.g., 1 for top, 2 for second, etc.):");
-                        const targetPos = parseInt(newPos);
-                        if (isNaN(targetPos) || targetPos < 1) return;
-
-                        const sortedFolderNames = Object.keys(folders).sort((a, b) => {
-                            const orderA = folders[a]._order || 0;
-                            const orderB = folders[b]._order || 0;
-                            return orderA - orderB;
-                        });
-
-                        const filtered = sortedFolderNames.filter(name => name !== fName.trim());
-                        filtered.splice(targetPos - 1, 0, fName.trim());
-
-                        filtered.forEach((name, idx) => {
-                            db.ref(`channel_folders/${name}/_order`).set(idx + 1);
-                        });
-                    } else if (choice === 'remove') {
-                        const fName = prompt("Enter folder name to delete:");
-                        if (fName && fName.trim()) {
-                            db.ref(`channel_folders/${fName.trim()}`).remove();
-                        }
-                    }
-                };
-                channelsContainer.appendChild(manageBtn);
-            }
-
+            // Folder management is handled by slash commands.
             // --- SORT AND RENDER FOLDERS WITH COLLAPSIBLE CAPABILITY ---
             const sortedFolders = Object.keys(folders).sort((a, b) => {
                 const orderA = folders[a]._order || 0;
@@ -4515,7 +4510,9 @@ function bindChannelSync() {
 
             sortedFolders.forEach(folderName => {
                 const folderChans = folders[folderName] || {};
-                const chanKeys = Object.keys(folderChans).filter(k => k !== '_created' && k !== '_order');
+                const savedChannelOrder = Array.isArray(folderChans._channelOrder) ? folderChans._channelOrder : [];
+                const rawChanKeys = Object.keys(folderChans).filter(k => !['_created','_order','_channelOrder'].includes(k));
+                const chanKeys = [...savedChannelOrder.filter(k => rawChanKeys.includes(k)), ...rawChanKeys.filter(k => !savedChannelOrder.includes(k))];
                 
                 if (chanKeys.length > 0 || folderChans._created) {
                     // Create wrapper wrapper that handles open/close locally per client
@@ -4557,7 +4554,7 @@ function bindChannelSync() {
             
             // --- RENDER UNCATEGORIZED CHANNELS ---
             let hasUncategorizedHeader = false;
-            Object.keys(channels).filter(chan => chan !== MOD_LOGS_CHANNEL).forEach(chan => {
+            Object.keys(channels).forEach(chan => {
                 if (!renderedChannels.has(chan)) {
                     if (!hasUncategorizedHeader && sortedFolders.length > 0) {
                         const uncatHeader = document.createElement('div');
@@ -4578,7 +4575,6 @@ function bindChannelSync() {
                 }
             });
         startServerUnreadWatchers(channels);
-        if (canViewLogsChannel()) attachUnreadListener(getUnreadKey(MOD_LOGS_CHANNEL, false), 'channels/' + MOD_LOGS_CHANNEL);
         updateAllUnreadBadges();
         });
     });
@@ -4891,7 +4887,12 @@ function bindChannelSync() {
             { command: '/slowmode', insert: '/slowmode ', permission: 'slowmode', description: 'Set slowmode. Usage: /slowmode 5s, 2m, 1h, or off.' },
             { command: '/lockchannel', insert: '/lockchannel', permission: 'lockchannel', description: 'Lock the current channel.' },
             { command: '/unlockchannel', insert: '/unlockchannel', permission: 'lockchannel', description: 'Unlock the current channel.' },
-            { command: '/setrank', insert: '/setrank ', permission: 'setrank', description: 'Assign multiple ranks. Usage: /setrank username Rank 1, Rank 2' },
+            { command: '/setrank', insert: '/setrank ', permission: 'setrank', description: 'Assign a user rank. Usage: /setrank username Rank Name' },
+            { command: '/createfolder', insert: '/createfolder ', permission: 'folders.manage', description: 'Create a channel folder. Usage: /createfolder Important' },
+            { command: '/deletefolder', insert: '/deletefolder ', permission: 'folders.manage', description: 'Delete a folder and leave its channels uncategorized.' },
+            { command: '/reorderfolder', insert: '/reorderfolder ', permission: 'folders.manage', description: 'Set folder order. Usage: /reorderfolder Important, Minecraft, Text Channels' },
+            { command: '/assignchannel', insert: '/assignchannel [] ', permission: 'folders.manage', description: 'Assign channels. Usage: /assignchannel [Important] announcements, rules' },
+            { command: '/reorderchannels', insert: '/reorderchannels [] ', permission: 'folders.manage', description: 'Reorder channels in a folder.' },
             { command: '/createchannel', insert: '/createchannel ', permission: 'createchannel', description: 'Create a text, forum, or leaderboard channel. Usage: /createchannel leaderboard speedruns' },
             { command: '/deletechannel', insert: '/deletechannel ', permission: 'deletechannel', description: 'Delete a text channel.' },
             { command: '/mute', insert: '/mute ', permission: 'mute', description: 'Mute a user. Usage: /mute username 10m reason' },
@@ -6278,6 +6279,7 @@ sendMessage=function(){if(isForumMode&&activeForumPost&&activeForumPostData?.loc
 
 </script>
 <script src="double-click-reply.js"></script>
-<script src="forum-owner-delete.js"></script>
+<script src="forum-owner-delete.js"></script>      
+<script src="multi-ranks.js"></script>      
 </body>
 </html>
