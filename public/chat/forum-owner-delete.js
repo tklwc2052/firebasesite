@@ -1,68 +1,100 @@
-/* Avern: allow forum creators to delete their own threads. */
+/* Avern: let regular users delete forum threads they created. */
 (function () {
-    function currentUsernameLower() {
-        return String(window.sessionUser?.username || '').trim().toLowerCase();
+    function normalize(value) {
+        return String(value || '').trim().toLowerCase();
     }
 
-    function isForumPostCreator(post) {
+    function isOwner(post) {
         return Boolean(
             post &&
-            String(post.author || '').trim().toLowerCase() === currentUsernameLower()
+            typeof sessionUser !== 'undefined' &&
+            normalize(post.author) === normalize(sessionUser.username)
         );
     }
 
-    function getForumPost(postKey) {
-        if (window.activeForumPost === postKey && window.activeForumPostData) {
-            return window.activeForumPostData;
+    function getCurrentPost() {
+        if (typeof activeForumPostData !== 'undefined' && activeForumPostData) {
+            return activeForumPostData;
         }
-        return window.forumPostCache?.[postKey] || null;
+
+        if (
+            typeof forumPostCache !== 'undefined' &&
+            typeof activeForumPost !== 'undefined' &&
+            activeForumPost
+        ) {
+            return forumPostCache[activeForumPost] || null;
+        }
+
+        return null;
     }
 
-    window.deleteOwnForumPost = async function (postKey) {
-        const post = getForumPost(postKey);
-        const canModerate = typeof window.forumCan === 'function' && window.forumCan('forums.delete');
+    async function deleteCurrentOwnedThread() {
+        const post = getCurrentPost();
 
-        if (!isForumPostCreator(post) && !canModerate) {
-            alert('Only the thread creator or a forum moderator can delete this thread.');
+        if (!post || !isOwner(post)) {
+            alert('Only the person who created this thread can use this button.');
             return;
         }
 
-        if (!confirm(`Delete "${post?.title || 'this thread'}" and all of its replies? This cannot be undone.`)) {
+        if (!confirm(`Delete "${post.title || 'this thread'}" and all replies? This cannot be undone.`)) {
             return;
         }
 
         try {
-            await db.ref(`forum_channels/${activeChannel}/posts/${postKey}`).remove();
+            const channel = activeChannel;
+            const postKey = activeForumPost;
 
-            if (activeForumPost === postKey) {
-                activeForumPost = null;
-                activeForumPostData = null;
-                openForumChannel(activeChannel);
-            }
+            await db.ref(`forum_channels/${channel}/posts/${postKey}`).remove();
+
+            activeForumPost = null;
+            activeForumPostData = null;
+
+            if (typeof closeForumSplitUi === 'function') closeForumSplitUi();
+            if (typeof changeChannel === 'function') changeChannel(channel, false);
         } catch (error) {
-            console.error('Forum thread deletion failed:', error);
-            alert('The thread could not be deleted. Check the Firebase database rules.');
+            console.error('Could not delete owned forum thread:', error);
+            alert('The thread could not be deleted. Your Firebase rules may be blocking the delete.');
         }
-    };
+    }
 
-    /* Keep moderator deletion working while adding creator-owned deletion. */
-    window.deleteForumPost = function (postKey) {
-        return window.deleteOwnForumPost(postKey);
-    };
+    function syncOwnerDeleteButton() {
+        const controls = document.querySelector('.forum-thread-op .forum-thread-actions');
+        const existing = document.getElementById('forum-owner-delete-button');
+        const post = getCurrentPost();
+        const forumOpen =
+            typeof isForumMode !== 'undefined' && isForumMode &&
+            typeof activeForumPost !== 'undefined' && activeForumPost;
 
-    /* Add the button to the expanded thread's main-post controls. */
-    if (typeof window.forumThreadActions === 'function') {
-        const originalForumThreadActions = window.forumThreadActions;
+        if (!controls || !forumOpen || !isOwner(post)) {
+            existing?.remove();
+            return;
+        }
 
-        window.forumThreadActions = function (post) {
-            let controls = originalForumThreadActions(post) || '';
-            const canModerate = typeof window.forumCan === 'function' && window.forumCan('forums.delete');
+        if (existing) return;
 
-            if (isForumPostCreator(post) && !canModerate) {
-                controls += `<button class="forum-subtle-btn" onclick="deleteOwnForumPost('${escapeForSingleQuote(activeForumPost)}')">Delete thread</button>`;
-            }
+        const button = document.createElement('button');
+        button.id = 'forum-owner-delete-button';
+        button.className = 'forum-subtle-btn';
+        button.type = 'button';
+        button.textContent = 'Delete thread';
+        button.addEventListener('click', deleteCurrentOwnedThread);
+        controls.appendChild(button);
+    }
 
-            return controls;
-        };
+    function initializeOwnerDelete() {
+        const chatBox = document.getElementById('chat-box');
+        if (!chatBox) return;
+
+        syncOwnerDeleteButton();
+        new MutationObserver(syncOwnerDeleteButton).observe(chatBox, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', initializeOwnerDelete);
+    } else {
+        initializeOwnerDelete();
     }
 })();
