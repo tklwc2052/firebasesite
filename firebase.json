@@ -23,6 +23,18 @@
       {
         "source": "/about",
         "destination": "/about/index.html"
+      },
+      {
+        "source": "/1.16.5",
+        "destination": "/1.16.5/index.html"
+      },
+      {
+        "source": "/tos",
+        "destination": "/tos/index.html"
+      },
+      {
+        "source": "/1.14.4",
+        "destination": "/1.14.4/index.html"
       }
     ]
   }
