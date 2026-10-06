@@ -2650,7 +2650,7 @@ const firebaseConfig = {
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
-        let sessionUser = { username: "", pfp: "", banner: "", pronouns: "", bio: "", status: "", nickname: "", rank: "Member" };
+        let sessionUser = { username: "", pfp: "", banner: "", pronouns: "", bio: "", status: "", nickname: "", rank: "Member", ranks: ["Member"] };
         const XP_COOLDOWN_MS = 60 * 1000;
         const XP_MIN_PER_MESSAGE = 5;
         const XP_MAX_PER_MESSAGE = 10;
@@ -3117,14 +3117,19 @@ const firebaseConfig = {
             return null;
         }
 
+        function normalizeUserRanks(profile = sessionUser) {
+            const raw = Array.isArray(profile?.ranks) ? profile.ranks : (profile?.ranks && typeof profile.ranks === 'object' ? Object.values(profile.ranks) : [profile?.rank || profile?.role || 'Member']);
+            const seen = new Set();
+            return raw.map(v => String(v || '').trim()).filter(v => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase()));
+        }
         function hasCommandPermission(command) {
             if (sessionUser.username.toLowerCase() === 'kl_') return true;
-            const myRank = sessionUser.rank || "Member";
-            const roleData = serverRoles[myRank];
-            if (!roleData || !roleData.allowedCommands) return false;
-            
-            const allowed = roleData.allowedCommands.split(',').map(c => c.trim().toLowerCase());
-            return allowed.includes('*') || allowed.includes(command.toLowerCase());
+            return normalizeUserRanks(sessionUser).some(rankName => {
+                const role = serverRoles[rankName];
+                if (!role || !role.allowedCommands) return false;
+                const allowed = String(role.allowedCommands).split(',').map(v => v.trim().toLowerCase());
+                return allowed.includes('*') || allowed.includes(String(command).toLowerCase());
+            });
         }
 
         const MOD_LOGS_CHANNEL = 'logs';
@@ -3285,7 +3290,8 @@ const firebaseConfig = {
             // Listen to our own profile for rank, mute, and ban changes
             db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).on('value', (snap) => {
                 const data = snap.val() || {};
-                sessionUser.rank = data.rank || "Member";
+                sessionUser.ranks = normalizeUserRanks(data);
+                sessionUser.rank = data.rank || sessionUser.ranks[0] || "Member";
                 sessionUser.xp = Number(data.xp || 0);
                 sessionUser.level = Number(data.level || levelFromXp(sessionUser.xp));
                 sessionUser.mutedUntil = data.mutedUntil || 0;
@@ -3344,11 +3350,6 @@ const firebaseConfig = {
         function openAccountSettings(){closeAccountMenu();const m=document.getElementById('account-settings-modal'),e=document.getElementById('account-settings-email');if(e)e.textContent=auth.currentUser?.email?'Signed in as '+auth.currentUser.email:'';document.getElementById('modal-overlay').style.display='block';if(m)m.style.display='block'}
         function closeAccountSettings(){const m=document.getElementById('account-settings-modal');if(m)m.style.display='none';maybeHideModalOverlay()}
         function openSettings(){toggleAccountMenu()}
-        function clearForumThreadUiState() {
-            document.querySelectorAll('.forum-locked-notice').forEach(notice => notice.remove());
-            const composer = document.querySelector('.chat-input-container');
-            if (composer) composer.style.display = '';
-        }
 
         function changeChannel(targetId, DMFlag) {
             if (!DMFlag && !canViewServerChannel(targetId)) { alert('You do not have permission to view this channel.'); return; }
@@ -3365,7 +3366,7 @@ const firebaseConfig = {
             } else if (activeRef) {
                 activeRef.off();
             }
-            closeForumSplitUi(); clearForumThreadUiState(); cancelReplyData(); isDmMode = DMFlag; isForumMode = false; activeForumPost = null; activeForumPostData = null; activeChannel = targetId; shouldAutoScrollChat = true; cachedSearchMessages = []; const forumToolbar = document.getElementById('forum-toolbar'); if (forumToolbar) forumToolbar.style.display = 'none'; document.querySelector('.chat-input-container').style.display = ''; document.getElementById('chat-box').className = 'chat-messages';
+            closeForumSplitUi(); cancelReplyData(); isDmMode = DMFlag; isForumMode = false; activeForumPost = null; activeForumPostData = null; activeChannel = targetId; shouldAutoScrollChat = true; cachedSearchMessages = []; const forumToolbar = document.getElementById('forum-toolbar'); if (forumToolbar) forumToolbar.style.display = 'none'; document.querySelector('.chat-input-container').style.display = ''; document.getElementById('chat-box').className = 'chat-messages';
             showSidebarView(DMFlag ? 'dms' : 'channels');
             document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
             if (isDmMode) {
@@ -3976,24 +3977,17 @@ const firebaseConfig = {
 
 
                 if (targetText.startsWith('/setrank ')) {
-                    if (!hasCommandPermission('setrank')) {
-                        alert("Permission Denied: You lack the required rank to use /setrank."); inputField.value = ''; return;
-                    }
-                    const parts = targetText.split(' ');
-                    if (parts.length >= 3) {
-                        const targetUser = parts[1].replace('@', '').toLowerCase(); 
-                        const newRank = parts.slice(2).join(' ');
-                        db.ref(`chat_profiles/${targetUser}`).update({ rank: newRank, role: newRank }); 
-                        db.ref(getChannelDatabasePath()).push({
-                            user: "SYSTEM",
-                            msg: `**${parts[1]}** was granted the rank of **${newRank}**.`,
-                            pfp: "https://cdn-icons-png.flaticon.com/512/1055/1055685.png", 
-                            timestamp: Date.now()
-                        });
-                    }
+                    if (!hasCommandPermission('setrank')) { alert("Permission Denied: You lack the required rank to use /setrank."); inputField.value = ''; return; }
+                    const match = targetText.match(/^\/setrank\s+@?([^\s]+)\s+(.+)$/i);
+                    if (!match) { alert('Usage: /setrank username Rank 1, Rank 2'); inputField.value = ''; return; }
+                    const targetUser = match[1].toLowerCase();
+                    const seen = new Set();
+                    const ranks = match[2].split(',').map(v => v.trim()).filter(v => v && !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase())).slice(0, 12);
+                    if (!ranks.length) { alert('Add at least one rank.'); inputField.value = ''; return; }
+                    const primary = ranks[0];
+                    db.ref(`chat_profiles/${targetUser}`).update({ ranks, rank: primary, role: primary, ranksUpdatedAt: Date.now() }).then(() => db.ref(getChannelDatabasePath()).push({ user:'SYSTEM', msg:`**${match[1]}** was granted these ranks: **${ranks.join(', ')}**.`, pfp:'https://cdn-icons-png.flaticon.com/512/1055/1055685.png', timestamp:Date.now() })).catch(error => { console.error('Multi-rank update failed:', error); alert('Could not set the ranks. Check your Firebase rules.'); });
                     inputField.value = ''; return;
                 }
-
                 if (targetText.startsWith('/createchannel ')) {
                     if (!hasCommandPermission('createchannel')) {
                         alert("Permission Denied: You lack the required rank to use /createchannel."); inputField.value = ''; return;
@@ -4897,7 +4891,7 @@ function bindChannelSync() {
             { command: '/slowmode', insert: '/slowmode ', permission: 'slowmode', description: 'Set slowmode. Usage: /slowmode 5s, 2m, 1h, or off.' },
             { command: '/lockchannel', insert: '/lockchannel', permission: 'lockchannel', description: 'Lock the current channel.' },
             { command: '/unlockchannel', insert: '/unlockchannel', permission: 'lockchannel', description: 'Unlock the current channel.' },
-            { command: '/setrank', insert: '/setrank ', permission: 'setrank', description: 'Assign a user rank. Usage: /setrank username Rank Name' },
+            { command: '/setrank', insert: '/setrank ', permission: 'setrank', description: 'Assign multiple ranks. Usage: /setrank username Rank 1, Rank 2' },
             { command: '/createchannel', insert: '/createchannel ', permission: 'createchannel', description: 'Create a text, forum, or leaderboard channel. Usage: /createchannel leaderboard speedruns' },
             { command: '/deletechannel', insert: '/deletechannel ', permission: 'deletechannel', description: 'Delete a text channel.' },
             { command: '/mute', insert: '/mute ', permission: 'mute', description: 'Mute a user. Usage: /mute username 10m reason' },
@@ -5591,9 +5585,6 @@ function bindChannelSync() {
             renderForumSplitList();
         }
         function closeForumSplitUi() {
-            document.querySelectorAll('.forum-locked-notice').forEach(notice => notice.remove());
-            const composer=document.querySelector('.chat-input-container');
-            if(composer) composer.style.display='';
             const area=document.querySelector('.chat-area'); if(!area) return;
             area.classList.remove('forum-thread-split','forum-thread-fullscreen');
             document.getElementById('forum-split-list')?.remove(); document.getElementById('forum-splitter')?.remove();
@@ -6272,22 +6263,7 @@ function forumThreadActions(post){const parts=[];if(forumCanEditPost(post))parts
 prependForumOriginalPost=function(force=false){if(!isForumMode||!activeForumPost||!activeForumPostData)return;const box=document.getElementById('chat-box');if(!box)return;if(force)box.querySelector('.forum-thread-op')?.remove();if(box.querySelector('.forum-thread-op'))return;const p=activeForumPostData,op=document.createElement('div');op.className='forum-thread-op';op.style.setProperty('--forum-accent',p.accentColor||'#5865f2');op.innerHTML=`<div class="forum-op-head"><img class="forum-op-avatar" src="${escapeAttribute(p.authorPfp||fallbackImg)}" onerror="this.src='${fallbackImg}'"><div class="forum-op-copy"><div class="forum-thread-op-title">${escapeHtml(p.title||'Untitled post')}</div><div class="forum-post-badges"><span class="forum-badge">${escapeHtml(forumCategory(p))}</span>${p.suggestionResolved?'<span class="forum-badge solved">Resolved</span>':''}${p.locked?'<span class="forum-badge locked">Locked</span>':''}</div>${forumTags(p.tags).length?`<div class="forum-tag-row">${forumTags(p.tags).map(t=>`<span class="forum-tag">#${escapeHtml(t)}</span>`).join('')}</div>`:''}<div class="forum-thread-op-body">${escapeTextAndFormatMarkdown(p.body||'')}</div><div class="forum-thread-op-meta">Started by ${escapeHtml(p.author||'Unknown')} · ${escapeHtml(formatRelativeTime(p.createdAt,'just now'))}${p.editedAt?' · edited':''}</div></div></div>${p.coverImage?`<img class="forum-op-image" src="${escapeAttribute(p.coverImage)}" loading="lazy">`:''}<div class="forum-thread-actions">${forumThreadActions(p)}</div>`;const loading=document.getElementById('loading-history');if(loading&&loading.parentNode===box)box.insertBefore(op,loading.nextSibling);else box.prepend(op)};
 const openForumThreadRevampOld=openForumThread;
 openForumThread=function(key,data){openForumThreadRevampOld(key,data);setTimeout(()=>applyForumThreadState(),0)};
-function applyForumThreadState(){
-    const container=document.querySelector('.chat-input-container'),input=document.getElementById('chat-input');
-    document.querySelectorAll('.forum-locked-notice').forEach(notice=>notice.remove());
-    if(!isForumMode||!activeForumPost){if(container)container.style.display='';return}
-    const locked=activeForumPostData?.locked===true;
-    if(locked&&!forumCan('forums.lock')){
-        container.style.display='none';
-        const notice=document.createElement('div');
-        notice.className='forum-locked-notice';
-        notice.textContent='This thread is locked. New replies are disabled.';
-        container.parentNode.insertBefore(notice,container);
-    }else{
-        container.style.display='';
-        if(input&&!input.disabled)input.placeholder=`Reply to ${activeForumPostData?.title||'thread'}`;
-    }
-}
+function applyForumThreadState(){if(!isForumMode||!activeForumPost)return;const locked=activeForumPostData?.locked===true,container=document.querySelector('.chat-input-container'),input=document.getElementById('chat-input');document.querySelector('.forum-locked-notice')?.remove();if(locked&&!forumCan('forums.lock')){container.style.display='none';const notice=document.createElement('div');notice.className='forum-locked-notice';notice.textContent='This thread is locked. New replies are disabled.';container.parentNode.insertBefore(notice,container)}else{container.style.display='';if(input&&!input.disabled)input.placeholder=`Reply to ${activeForumPostData?.title||'thread'}`}}
 const updateForumPermsOld=updateChatInputPermissions;
 updateChatInputPermissions=function(){updateForumPermsOld();if(isForumMode&&activeForumPost)applyForumThreadState()};
 function toggleSuggestionResolved(){if(!activeForumPost)return;if(!forumCan('forums.solution'))return alert('You need the forums.solution permission node to resolve posts.');const resolved=activeForumPostData?.suggestionResolved!==true;const patch={suggestionResolved:resolved,resolvedAt:resolved?Date.now():null,resolvedBy:resolved?sessionUser.username:null};db.ref(`forum_channels/${activeChannel}/posts/${activeForumPost}`).update(patch).then(()=>{Object.assign(activeForumPostData,patch);if(forumPostCache[activeForumPost])Object.assign(forumPostCache[activeForumPost],patch);renderActiveForumPostHeader();renderForumSplitList()}).catch(error=>{console.error('Forum resolve failed:',error);alert('Could not update the post status.')})}
@@ -6302,7 +6278,6 @@ sendMessage=function(){if(isForumMode&&activeForumPost&&activeForumPostData?.loc
 
 </script>
 <script src="double-click-reply.js"></script>
-<script src="forum-owner-delete.js"></script>      
-<script src="multi-ranks.js"></script>      
+<script src="forum-owner-delete.js"></script>
 </body>
 </html>
