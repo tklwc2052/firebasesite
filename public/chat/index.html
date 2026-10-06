@@ -3344,6 +3344,11 @@ const firebaseConfig = {
         function openAccountSettings(){closeAccountMenu();const m=document.getElementById('account-settings-modal'),e=document.getElementById('account-settings-email');if(e)e.textContent=auth.currentUser?.email?'Signed in as '+auth.currentUser.email:'';document.getElementById('modal-overlay').style.display='block';if(m)m.style.display='block'}
         function closeAccountSettings(){const m=document.getElementById('account-settings-modal');if(m)m.style.display='none';maybeHideModalOverlay()}
         function openSettings(){toggleAccountMenu()}
+        function clearForumThreadUiState() {
+            document.querySelectorAll('.forum-locked-notice').forEach(notice => notice.remove());
+            const composer = document.querySelector('.chat-input-container');
+            if (composer) composer.style.display = '';
+        }
 
         function changeChannel(targetId, DMFlag) {
             if (!DMFlag && !canViewServerChannel(targetId)) { alert('You do not have permission to view this channel.'); return; }
@@ -3360,7 +3365,7 @@ const firebaseConfig = {
             } else if (activeRef) {
                 activeRef.off();
             }
-            closeForumSplitUi(); cancelReplyData(); isDmMode = DMFlag; isForumMode = false; activeForumPost = null; activeForumPostData = null; activeChannel = targetId; shouldAutoScrollChat = true; cachedSearchMessages = []; const forumToolbar = document.getElementById('forum-toolbar'); if (forumToolbar) forumToolbar.style.display = 'none'; document.querySelector('.chat-input-container').style.display = ''; document.getElementById('chat-box').className = 'chat-messages';
+            closeForumSplitUi(); clearForumThreadUiState(); cancelReplyData(); isDmMode = DMFlag; isForumMode = false; activeForumPost = null; activeForumPostData = null; activeChannel = targetId; shouldAutoScrollChat = true; cachedSearchMessages = []; const forumToolbar = document.getElementById('forum-toolbar'); if (forumToolbar) forumToolbar.style.display = 'none'; document.querySelector('.chat-input-container').style.display = ''; document.getElementById('chat-box').className = 'chat-messages';
             showSidebarView(DMFlag ? 'dms' : 'channels');
             document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
             if (isDmMode) {
@@ -5586,6 +5591,9 @@ function bindChannelSync() {
             renderForumSplitList();
         }
         function closeForumSplitUi() {
+            document.querySelectorAll('.forum-locked-notice').forEach(notice => notice.remove());
+            const composer=document.querySelector('.chat-input-container');
+            if(composer) composer.style.display='';
             const area=document.querySelector('.chat-area'); if(!area) return;
             area.classList.remove('forum-thread-split','forum-thread-fullscreen');
             document.getElementById('forum-split-list')?.remove(); document.getElementById('forum-splitter')?.remove();
@@ -6264,7 +6272,22 @@ function forumThreadActions(post){const parts=[];if(forumCanEditPost(post))parts
 prependForumOriginalPost=function(force=false){if(!isForumMode||!activeForumPost||!activeForumPostData)return;const box=document.getElementById('chat-box');if(!box)return;if(force)box.querySelector('.forum-thread-op')?.remove();if(box.querySelector('.forum-thread-op'))return;const p=activeForumPostData,op=document.createElement('div');op.className='forum-thread-op';op.style.setProperty('--forum-accent',p.accentColor||'#5865f2');op.innerHTML=`<div class="forum-op-head"><img class="forum-op-avatar" src="${escapeAttribute(p.authorPfp||fallbackImg)}" onerror="this.src='${fallbackImg}'"><div class="forum-op-copy"><div class="forum-thread-op-title">${escapeHtml(p.title||'Untitled post')}</div><div class="forum-post-badges"><span class="forum-badge">${escapeHtml(forumCategory(p))}</span>${p.suggestionResolved?'<span class="forum-badge solved">Resolved</span>':''}${p.locked?'<span class="forum-badge locked">Locked</span>':''}</div>${forumTags(p.tags).length?`<div class="forum-tag-row">${forumTags(p.tags).map(t=>`<span class="forum-tag">#${escapeHtml(t)}</span>`).join('')}</div>`:''}<div class="forum-thread-op-body">${escapeTextAndFormatMarkdown(p.body||'')}</div><div class="forum-thread-op-meta">Started by ${escapeHtml(p.author||'Unknown')} · ${escapeHtml(formatRelativeTime(p.createdAt,'just now'))}${p.editedAt?' · edited':''}</div></div></div>${p.coverImage?`<img class="forum-op-image" src="${escapeAttribute(p.coverImage)}" loading="lazy">`:''}<div class="forum-thread-actions">${forumThreadActions(p)}</div>`;const loading=document.getElementById('loading-history');if(loading&&loading.parentNode===box)box.insertBefore(op,loading.nextSibling);else box.prepend(op)};
 const openForumThreadRevampOld=openForumThread;
 openForumThread=function(key,data){openForumThreadRevampOld(key,data);setTimeout(()=>applyForumThreadState(),0)};
-function applyForumThreadState(){if(!isForumMode||!activeForumPost)return;const locked=activeForumPostData?.locked===true,container=document.querySelector('.chat-input-container'),input=document.getElementById('chat-input');document.querySelector('.forum-locked-notice')?.remove();if(locked&&!forumCan('forums.lock')){container.style.display='none';const notice=document.createElement('div');notice.className='forum-locked-notice';notice.textContent='This thread is locked. New replies are disabled.';container.parentNode.insertBefore(notice,container)}else{container.style.display='';if(input&&!input.disabled)input.placeholder=`Reply to ${activeForumPostData?.title||'thread'}`}}
+function applyForumThreadState(){
+    const container=document.querySelector('.chat-input-container'),input=document.getElementById('chat-input');
+    document.querySelectorAll('.forum-locked-notice').forEach(notice=>notice.remove());
+    if(!isForumMode||!activeForumPost){if(container)container.style.display='';return}
+    const locked=activeForumPostData?.locked===true;
+    if(locked&&!forumCan('forums.lock')){
+        container.style.display='none';
+        const notice=document.createElement('div');
+        notice.className='forum-locked-notice';
+        notice.textContent='This thread is locked. New replies are disabled.';
+        container.parentNode.insertBefore(notice,container);
+    }else{
+        container.style.display='';
+        if(input&&!input.disabled)input.placeholder=`Reply to ${activeForumPostData?.title||'thread'}`;
+    }
+}
 const updateForumPermsOld=updateChatInputPermissions;
 updateChatInputPermissions=function(){updateForumPermsOld();if(isForumMode&&activeForumPost)applyForumThreadState()};
 function toggleSuggestionResolved(){if(!activeForumPost)return;if(!forumCan('forums.solution'))return alert('You need the forums.solution permission node to resolve posts.');const resolved=activeForumPostData?.suggestionResolved!==true;const patch={suggestionResolved:resolved,resolvedAt:resolved?Date.now():null,resolvedBy:resolved?sessionUser.username:null};db.ref(`forum_channels/${activeChannel}/posts/${activeForumPost}`).update(patch).then(()=>{Object.assign(activeForumPostData,patch);if(forumPostCache[activeForumPost])Object.assign(forumPostCache[activeForumPost],patch);renderActiveForumPostHeader();renderForumSplitList()}).catch(error=>{console.error('Forum resolve failed:',error);alert('Could not update the post status.')})}
