@@ -2785,13 +2785,9 @@ const firebaseConfig = {
         function canViewServerChannel(channelName) {
             if (!sessionUser.username || sessionUser.username.toLowerCase() === 'kl_') return true;
             const wanted = String(channelName || '').toLowerCase();
-            const ranks = typeof getSessionRanks === 'function' ? getSessionRanks() : [sessionUser.rank || 'Member'];
-            const roles = ranks.map(rank => serverRoles[rank]).filter(Boolean);
-            if (!roles.length) return true;
-            return roles.some(role => {
-                const visible = String(role.visibleChannels ?? '*').trim();
-                return !visible || visible === '*' || visible.split(',').map(v => v.trim().toLowerCase()).filter(Boolean).includes(wanted);
-            });
+            const roleRecords = getSessionRanks().map(rank => serverRoles[rank]).filter(Boolean);
+            if (!roleRecords.length) return true;
+            return roleRecords.some(role => { const visible = String(role.visibleChannels ?? '*').trim(); return !visible || visible === '*' || visible.split(',').map(v => v.trim().toLowerCase()).includes(wanted); });
         }
 
         
@@ -3127,10 +3123,22 @@ const firebaseConfig = {
             return null;
         }
 
+        function roleParentNames(rankName) {
+            const role = serverRoles[rankName] || {};
+            return Array.isArray(role.parents) ? role.parents.map(String).filter(Boolean) : String(role.parents || '').split(',').map(v => v.trim()).filter(Boolean);
+        }
+        function expandRanksWithParents(startRanks) {
+            const result = [], completed = new Set(), inPath = new Set();
+            function visit(rankName) {
+                const clean = String(rankName || '').trim();
+                if (!clean || completed.has(clean) || inPath.has(clean)) return;
+                inPath.add(clean); result.push(clean); roleParentNames(clean).forEach(visit); inPath.delete(clean); completed.add(clean);
+            }
+            (startRanks || []).forEach(visit); return result;
+        }
         function getSessionRanks() {
-            const values = Array.isArray(sessionUser.ranks) ? sessionUser.ranks : [];
-            const combined = [...values, sessionUser.rank || sessionUser.role || 'Member'];
-            return [...new Set(combined.map(rank => String(rank || '').trim()).filter(Boolean))];
+            const assigned = Array.isArray(sessionUser.ranks) ? sessionUser.ranks : [];
+            return expandRanksWithParents([...assigned, sessionUser.rank || sessionUser.role || 'Member']);
         }
 
         function hasCommandPermission(command) {
@@ -3292,11 +3300,11 @@ const firebaseConfig = {
             // Listen to our own profile for rank, mute, and ban changes
             db.ref('chat_profiles/' + sessionUser.username.toLowerCase()).on('value', (snap) => {
                 const data = snap.val() || {};
-                const oldRankState = JSON.stringify([sessionUser.rank || 'Member', ...(sessionUser.ranks || [])]);
+                const previousRankSignature = JSON.stringify([sessionUser.rank || 'Member', ...(sessionUser.ranks || [])]);
                 sessionUser.rank = data.rank || data.role || "Member";
                 sessionUser.role = data.role || sessionUser.rank;
                 sessionUser.ranks = Array.isArray(data.ranks) ? [...new Set(data.ranks.map(v => String(v || '').trim()).filter(Boolean))] : [sessionUser.rank];
-                const newRankState = JSON.stringify([sessionUser.rank, ...sessionUser.ranks]);
+                const nextRankSignature = JSON.stringify([sessionUser.rank, ...sessionUser.ranks]);
                 sessionUser.xp = Number(data.xp || 0);
                 sessionUser.level = Number(data.level || levelFromXp(sessionUser.xp));
                 sessionUser.mutedUntil = data.mutedUntil || 0;
@@ -3314,9 +3322,7 @@ const firebaseConfig = {
                     return;
                 }
                 updateChatInputPermissions();
-                if (oldRankState !== newRankState && typeof renderSharedChannelLayout === 'function') {
-                    renderSharedChannelLayout();
-                }
+                if (previousRankSignature !== nextRankSignature && typeof renderSharedChannelLayout === 'function') renderSharedChannelLayout();
             });
 
             bindPresenceSync();
@@ -4165,7 +4171,7 @@ const firebaseConfig = {
                 }
 
                 if (targetText.startsWith('/unmute ')) {
-                    if (!hasCommandPermission('mute')) { alert("Permission Denied."); inputField.value = ''; return; }
+                    if (!hasCommandPermission('unmute')) { alert("Permission Denied: You lack the unmute permission."); inputField.value = ''; return; }
                     const targetUser = targetText.split(' ')[1].replace('@', '').toLowerCase();
                     db.ref(`chat_profiles/${targetUser}`).update({ mutedUntil: 0, muteReason: "" });
                     db.ref(getChannelDatabasePath()).push({ user: "SYSTEM", msg: `🔊 **${targetUser}** has been unmuted.`, pfp: "https://cdn-icons-png.flaticon.com/512/1055/1055685.png", timestamp: Date.now() });
@@ -4173,7 +4179,7 @@ const firebaseConfig = {
                 }
 
                 if (targetText.startsWith('/ban ')) {
-                    if (!hasCommandPermission('ban')) { alert("Permission Denied."); inputField.value = ''; return; }
+                    if (!hasCommandPermission('unban')) { alert("Permission Denied: You lack the unban permission."); inputField.value = ''; return; }
                     
                     const parts = targetText.split(' ');
                     if (parts.length >= 4) {
@@ -4942,9 +4948,9 @@ function bindChannelSync() {
             { command: '/createchannel', insert: '/createchannel ', permission: 'createchannel', description: 'Create a text, forum, or leaderboard channel. Usage: /createchannel leaderboard speedruns' },
             { command: '/deletechannel', insert: '/deletechannel ', permission: 'deletechannel', description: 'Delete a text channel.' },
             { command: '/mute', insert: '/mute ', permission: 'mute', description: 'Mute a user. Usage: /mute username 10m reason' },
-            { command: '/unmute', insert: '/unmute ', permission: 'mute', description: 'Unmute a user.' },
+            { command: '/unmute', insert: '/unmute ', permission: 'unmute', description: 'Unmute a user.' },
             { command: '/ban', insert: '/ban ', permission: 'ban', description: 'Ban a user. Usage: /ban username 1h reason' },
-            { command: '/unban', insert: '/unban ', permission: 'ban', description: 'Unban a user.' },
+            { command: '/unban', insert: '/unban ', permission: 'unban', description: 'Unban a user.' },
             { command: '/announce', insert: '/announce ', permission: 'announce', description: 'Send an announcement to every server channel you can post in.' }
         ];
         let commandSuggestionState = { items: [], selectedIndex: 0, activeQuery: '' };
@@ -6326,49 +6332,14 @@ sendMessage=function(){if(isForumMode&&activeForumPost&&activeForumPostData?.loc
 </script>
 
 
-<script id="avern-live-rank-channel-sync">
-let sharedChannelData = {}, sharedFolderData = {}, sharedChannelsRef = null, sharedFoldersRef = null;
-function firebaseList(value){
-  if(Array.isArray(value)) return value.filter(Boolean);
-  if(value && typeof value === 'object') return Object.keys(value).sort((a,b)=>Number(a)-Number(b)).map(k=>value[k]).filter(Boolean);
-  return [];
-}
-function renderSharedChannelLayout(){
-  const host=document.getElementById('channels-container');
-  if(!host || !sessionUser.username) return;
-  host.innerHTML='';
-  const rendered=new Set();
-  const makeNode=name=>{
-    if(!sharedChannelData[name] || !canViewServerChannel(name)) return null;
-    const type=getServerChannelType(sharedChannelData[name]), el=document.createElement('div');
-    el.className=`channel-item server-chan ${type==='forum'?'forum-chan':type==='leaderboard'?'leaderboard-chan':type==='events'?'events-chan':''} ${!isDmMode&&activeChannel===name?'active':''}`;
-    el.dataset.channelType=type; el.id=`chan-node-${name}`; el.onclick=()=>changeChannel(name,false);
-    let icon=type==='forum'?uiIcon('forum','channel-type-icon'):type==='leaderboard'?uiIcon('trophy','channel-type-icon'):type==='events'&&typeof eventsChannelIcon==='function'?eventsChannelIcon():'';
-    el.innerHTML=icon+`<span>${escapeHtml(name)}</span>`; ensureUnreadBadgeElement(el,getUnreadKey(name,false)); return el;
-  };
-  Object.keys(sharedFolderData).sort((a,b)=>Number(sharedFolderData[a]?._order||0)-Number(sharedFolderData[b]?._order||0)||a.localeCompare(b)).forEach(folder=>{
-    const data=sharedFolderData[folder]||{}, raw=Object.keys(data).filter(k=>!['_created','_order','_channelOrder'].includes(k)&&data[k]);
-    const saved=firebaseList(data._channelOrder), ordered=[...saved.filter(k=>raw.includes(k)),...raw.filter(k=>!saved.includes(k)).sort()];
-    if(!ordered.length&&!data._created)return;
-    const details=document.createElement('details'); details.open=true;
-    const summary=document.createElement('summary'); summary.textContent=folder; summary.style.cssText='font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;padding:8px 4px 4px;cursor:pointer'; details.appendChild(summary);
-    const group=document.createElement('div'); group.style.cssText='padding-left:6px;display:flex;flex-direction:column;gap:2px';
-    ordered.forEach(name=>{const node=makeNode(name);if(node){rendered.add(name);group.appendChild(node)}}); details.appendChild(group); host.appendChild(details);
-  });
-  const loose=Object.keys(sharedChannelData).filter(n=>!rendered.has(n)&&canViewServerChannel(n)).sort();
-  if(loose.length&&Object.keys(sharedFolderData).length){const h=document.createElement('div');h.className='sidebar-section-heading';h.textContent='Uncategorized';host.appendChild(h)}
-  loose.forEach(n=>{const node=makeNode(n);if(node)host.appendChild(node)});
-  startServerUnreadWatchers(sharedChannelData); updateAllUnreadBadges();
-}
-bindChannelSync=function(){
-  if(sharedChannelsRef)sharedChannelsRef.off(); if(sharedFoldersRef)sharedFoldersRef.off();
-  sharedChannelsRef=db.ref('server_channels'); sharedFoldersRef=db.ref('channel_folders');
-  sharedChannelsRef.on('value',s=>{sharedChannelData=s.val()||{};renderSharedChannelLayout()});
-  sharedFoldersRef.on('value',s=>{sharedFolderData=s.val()||{};renderSharedChannelLayout()});
-};
+<script id="avern-permission-runtime">
+let sharedChannelData={},sharedFolderData={},sharedChannelsRef=null,sharedFoldersRef=null;
+function firebaseList(v){if(Array.isArray(v))return v.filter(Boolean);if(v&&typeof v==='object')return Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(Boolean);return[]}
+function renderSharedChannelLayout(){const host=document.getElementById('channels-container');if(!host||!sessionUser.username)return;host.innerHTML='';const rendered=new Set();const make=name=>{if(!sharedChannelData[name]||!canViewServerChannel(name))return null;const type=getServerChannelType(sharedChannelData[name]),el=document.createElement('div');el.className=`channel-item server-chan ${type==='forum'?'forum-chan':type==='leaderboard'?'leaderboard-chan':type==='events'?'events-chan':''} ${!isDmMode&&activeChannel===name?'active':''}`;el.id=`chan-node-${name}`;el.dataset.channelType=type;el.onclick=()=>changeChannel(name,false);let icon=type==='forum'?uiIcon('forum','channel-type-icon'):type==='leaderboard'?uiIcon('trophy','channel-type-icon'):type==='events'&&typeof eventsChannelIcon==='function'?eventsChannelIcon():'';el.innerHTML=icon+`<span>${escapeHtml(name)}</span>`;ensureUnreadBadgeElement(el,getUnreadKey(name,false));return el};Object.keys(sharedFolderData).sort((a,b)=>Number(sharedFolderData[a]?._order||0)-Number(sharedFolderData[b]?._order||0)||a.localeCompare(b)).forEach(folder=>{const d=sharedFolderData[folder]||{},raw=Object.keys(d).filter(k=>!['_created','_order','_channelOrder'].includes(k)&&d[k]),saved=firebaseList(d._channelOrder),order=[...saved.filter(k=>raw.includes(k)),...raw.filter(k=>!saved.includes(k)).sort()];if(!order.length&&!d._created)return;const details=document.createElement('details');details.open=true;const summary=document.createElement('summary');summary.textContent=folder;summary.style.cssText='font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;padding:8px 4px 4px;cursor:pointer';details.appendChild(summary);const group=document.createElement('div');group.style.cssText='padding-left:6px;display:flex;flex-direction:column;gap:2px';order.forEach(name=>{const el=make(name);if(el){rendered.add(name);group.appendChild(el)}});details.appendChild(group);host.appendChild(details)});const loose=Object.keys(sharedChannelData).filter(n=>!rendered.has(n)&&canViewServerChannel(n)).sort();if(loose.length&&Object.keys(sharedFolderData).length){const h=document.createElement('div');h.className='sidebar-section-heading';h.textContent='Uncategorized';host.appendChild(h)}loose.forEach(n=>{const el=make(n);if(el)host.appendChild(el)});startServerUnreadWatchers(sharedChannelData);updateAllUnreadBadges()}
+bindChannelSync=function(){if(sharedChannelsRef)sharedChannelsRef.off();if(sharedFoldersRef)sharedFoldersRef.off();sharedChannelsRef=db.ref('server_channels');sharedFoldersRef=db.ref('channel_folders');sharedChannelsRef.on('value',s=>{sharedChannelData=s.val()||{};renderSharedChannelLayout()});sharedFoldersRef.on('value',s=>{sharedFolderData=s.val()||{};renderSharedChannelLayout()})};
+const originalBindRolesForLivePermissions=bindRolesSync;bindRolesSync=function(){originalBindRolesForLivePermissions();db.ref('roles').on('value',()=>{updateChatInputPermissions();renderSharedChannelLayout()})};
 </script>
-<script id="avern-double-click-reply">
-/* Avern: double-click or double-tap messages to reply. */
+<script id="avern-double-click-reply">/* Avern: double-click or double-tap messages to reply. */
 (function () {
     const DOUBLE_TAP_MS = 330;
     let lastTapNode = null;
@@ -6480,10 +6451,8 @@ bindChannelSync=function(){
         initializeDoubleClickReply();
     }
 })();
-
 </script>
-<script id="avern-forum-owner-delete">
-/* Avern: let regular users delete forum threads they created. */
+<script id="avern-forum-owner-delete">/* Avern: let regular users delete forum threads they created. */
 (function () {
     function normalize(value) {
         return String(value || '').trim().toLowerCase();
@@ -6583,7 +6552,6 @@ bindChannelSync=function(){
         initializeOwnerDelete();
     }
 })();
-
 </script>
 </body>
 </html>
