@@ -4018,6 +4018,65 @@ const firebaseConfig = {
             }
             return true;
         }
+        const SGA_MAP = Object.freeze({
+            a: 'ᔑ', b: 'ʖ', c: 'ᓵ', d: '↸', e: 'ᒷ', f: '⎓', g: '⊣',
+            h: '⍑', i: '╎', j: '⋮', k: 'ꖌ', l: 'ꖎ', m: 'ᒲ', n: 'リ',
+            o: '𝙹', p: '!¡', q: 'ᑑ', r: '∷', s: 'ᓭ', t: 'ℸ̣', u: '⚍',
+            v: '⍊', w: '∴', x: '̇/', y: '||', z: '⨅'
+        });
+        const SGA_REVERSE_MAP = Object.freeze(
+            Object.fromEntries(Object.entries(SGA_MAP).map(([letter, glyph]) => [glyph, letter]))
+        );
+        const SGA_GLYPHS_LONGEST_FIRST = Object.keys(SGA_REVERSE_MAP).sort((a, b) => b.length - a.length);
+
+        function textToSGA(value) {
+            return Array.from(String(value || '')).map(character => SGA_MAP[character.toLowerCase()] || character).join('');
+        }
+
+        function sgaToText(value) {
+            const source = String(value || '');
+            let result = '';
+            for (let index = 0; index < source.length;) {
+                const glyph = SGA_GLYPHS_LONGEST_FIRST.find(candidate => source.startsWith(candidate, index));
+                if (glyph) {
+                    result += SGA_REVERSE_MAP[glyph];
+                    index += glyph.length;
+                } else {
+                    result += source[index];
+                    index += 1;
+                }
+            }
+            return result;
+        }
+
+        function showPrivateSgaTranslation(translatedText, replyData) {
+            const chatBox = document.getElementById('chat-box');
+            if (!chatBox) return;
+
+            const row = document.createElement('div');
+            row.className = 'msg-group';
+            row.setAttribute('data-private-sga-translation', 'true');
+            row.innerHTML = `
+                <div class="msg-reply-ancestor">
+                    <span class="reply-curve">↳</span>
+                    <span class="reply-ancestor-user">@${escapeHtml(replyData?.user || 'message')}</span>
+                    <span class="reply-ancestor-text">${escapeHtml(String(replyData?.msg || '').slice(0, 120))}</span>
+                </div>
+                <div class="msg-main-layout">
+                    <div class="msg-details" style="max-width:100%; margin-left:48px;">
+                        <div class="msg-meta">
+                            <span class="msg-user">SGA Translation</span>
+                            <span class="msg-time">Only you can see this</span>
+                        </div>
+                        <div class="msg-body" style="font-style:italic;">${escapeHtml(translatedText)}</div>
+                    </div>
+                </div>`;
+
+            chatBox.appendChild(row);
+            shouldAutoScrollChat = true;
+            scrollChatToBottom('smooth');
+        }
+
         async function sendMessage() {
             if (!isDmMode && sessionUser.username.toLowerCase() !== 'kl_') {
                 const myRank = sessionUser.rank || "Member";
@@ -4031,6 +4090,73 @@ const firebaseConfig = {
 
             const inputField = document.getElementById('chat-input'); 
             const targetText = inputField.value.trim(); 
+
+            // Standard Galactic Alphabet command addon.
+            if (/^\/sga(?:\s|:)/i.test(targetText)) {
+                const plainText = targetText.replace(/^\/sga\s*:?\s*/i, '').trim();
+                if (!plainText) {
+                    alert('Usage: /sga [text]');
+                    inputField.value = '';
+                    hideCommandSuggestions();
+                    return;
+                }
+
+                const packet = {
+                    user: sessionUser.username,
+                    nickname: sessionUser.nickname || null,
+                    rank: sessionUser.rank || 'Member',
+                    msg: textToSGA(plainText),
+                    source: 'sga',
+                    pfp: sessionUser.pfp,
+                    timestamp: Date.now()
+                };
+                if (activeReplyData) packet.replyContext = activeReplyData;
+
+                try {
+                    await db.ref(getChannelDatabasePath()).push(packet);
+                    if (typeof awardMessageXp === 'function') awardMessageXp();
+                } catch (error) {
+                    console.error('SGA message failed:', error);
+                    alert('The SGA message could not be sent.');
+                    return;
+                }
+
+                inputField.value = '';
+                inputField.style.height = 'auto';
+                hideCommandSuggestions();
+                cancelReplyData();
+                inputField.focus();
+                return;
+            }
+
+            if (/^\/translate\s*$/i.test(targetText)) {
+                if (!activeReplyData) {
+                    alert('Reply to an SGA message, then use /translate.');
+                    inputField.value = '';
+                    hideCommandSuggestions();
+                    return;
+                }
+
+                const originalText = String(activeReplyData.msg || '');
+                const translatedText = sgaToText(originalText).trim();
+                if (!translatedText || translatedText === originalText.trim()) {
+                    alert('That replied message does not appear to contain Standard Galactic Alphabet text.');
+                    inputField.value = '';
+                    hideCommandSuggestions();
+                    return;
+                }
+
+                // Render the translation locally instead of saving it to Firebase.
+                // This means only the person who ran /translate can see it.
+                showPrivateSgaTranslation(translatedText, activeReplyData);
+
+                inputField.value = '';
+                inputField.style.height = 'auto';
+                hideCommandSuggestions();
+                cancelReplyData();
+                inputField.focus();
+                return;
+            }
 
             if (targetText.startsWith('/')) {
  if (handleAnnounceCommand(targetText, inputField)) { return; }
@@ -4951,7 +5077,9 @@ function bindChannelSync() {
             { command: '/unmute', insert: '/unmute ', permission: 'unmute', description: 'Unmute a user.' },
             { command: '/ban', insert: '/ban ', permission: 'ban', description: 'Ban a user. Usage: /ban username 1h reason' },
             { command: '/unban', insert: '/unban ', permission: 'unban', description: 'Unban a user.' },
-            { command: '/announce', insert: '/announce ', permission: 'announce', description: 'Send an announcement to every server channel you can post in.' }
+            { command: '/announce', insert: '/announce ', permission: 'announce', description: 'Send an announcement to every server channel you can post in.' },
+            { command: '/sga', insert: '/sga ', permission: null, description: 'Convert normal text to Standard Galactic Alphabet.' },
+            { command: '/translate', insert: '/translate', permission: null, description: 'Reply to an SGA message and translate it back to normal text.' }
         ];
         let commandSuggestionState = { items: [], selectedIndex: 0, activeQuery: '' };
         function canUseCommandDefinition(def) { return !def.permission || hasCommandPermission(def.permission); }
