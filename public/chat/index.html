@@ -1541,14 +1541,6 @@ body.theme-light #custom-emoji-picker { background: #ffffff; }
         .member-avatar-wrap,
         .member-avatar { width:30px; height:30px; }
         .member-name { font-size:14px; }
-        .member-rank-heading {
-            display:flex; align-items:center; gap:6px;
-            padding:10px 8px 4px; color:var(--text-muted);
-            font-size:11px; font-weight:750; text-transform:uppercase;
-            letter-spacing:.05em;
-        }
-        .member-rank-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
-        .member-rank-count { margin-left:auto; font-size:10px; opacity:.75; }
         .member-avatar,
         .user-footer img,
         .msg-pfp,
@@ -2545,7 +2537,7 @@ async function ingestImageFiles(files){const accepted=[...files].filter(f=>f.typ
 handleFileSelected=function(e){if(e.target.files?.length)ingestImageFiles(e.target.files);e.target.value=''};
 ingestImageBlob=function(file){ingestImageFiles([file])};
 const sendMessageBeforeAlbums=sendMessage;
-sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&sessionUser.username.toLowerCase()!=='kl_'){const role=serverRoles[sessionUser.rank||'Member'];const allowed=role?(role.allowedChannels||''):'';if(allowed!=='*'&&!allowed.split(',').map(x=>x.trim().toLowerCase()).includes(activeChannel.toLowerCase()))return alert('You do not have permission to write here.')}const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => awardMessageXp()).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
+sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&!canWriteServerChannel(activeChannel))return alert('You do not have permission to write here.');const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => awardMessageXp()).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
 function ensureImageViewer(){let o=document.getElementById('image-viewer-overlay');if(o)return o;o=document.createElement('div');o.id='image-viewer-overlay';o.className='image-viewer-overlay';o.hidden=true;o.innerHTML=`<div class="image-viewer-toolbar"><button class="viewer-tool" onclick="closeImageViewer()">${uiIcon('x')}<span>Close</span></button><button id="viewer-pan-tool" class="viewer-tool active" onclick="setViewerTool('pan')">${uiIcon('panels')}<span>Move</span></button><button id="viewer-draw-tool" class="viewer-tool" onclick="setViewerTool('draw')">✎<span>Draw</span></button><button id="viewer-arrow-tool" class="viewer-tool" onclick="setViewerTool('arrow')">↗<span>Arrow</span></button><button class="viewer-tool" onclick="openViewerTextDialog()">T<span>Text</span></button><input id="viewer-color" class="viewer-color" type="color" value="#ff3b3b"><button class="viewer-tool" onclick="viewerUndo()">↶<span>Undo</span></button><button class="viewer-tool" onclick="viewerRedo()">↷<span>Redo</span></button><button class="viewer-tool" onclick="resetViewerTransform()">1:1</button><div class="viewer-spacer"></div><button class="viewer-tool" onclick="downloadViewerImage()">↓<span>Download</span></button><button class="viewer-tool" onclick="copyViewerLink()">${uiIcon('message')}<span>Copy link</span></button><button class="viewer-tool showcase-star" onclick="addCurrentImageToShowcase()">★<span>Showcase</span></button><button class="viewer-tool" onclick="postViewerMarkup()">${uiIcon('upload')}<span>Post markup</span></button></div><div id="image-viewer-stage" class="image-viewer-stage"><div id="viewer-image-container" class="viewer-image-container"><img id="viewer-main-image" class="viewer-main-image"><canvas id="viewer-draw-canvas" class="viewer-draw-canvas"></canvas><div id="viewer-label-layer"></div></div></div><div class="image-viewer-footer"><button class="viewer-tool" onclick="viewerPrevious()">‹ Previous</button><span id="viewer-meta"></span><span id="viewer-counter" class="viewer-counter"></span><button class="viewer-tool" onclick="viewerNext()">Next ›</button></div>`;document.body.appendChild(o);bindViewerEvents();return o}
 function openImageViewer(images,index=0,messageKey=null,author=''){const o=ensureImageViewer();viewerState={images:Array.isArray(images)?images:[images],index:Number(index)||0,messageKey,author,scale:1,x:0,y:0,tool:'pan',drawing:false,startX:0,startY:0,history:[],redo:[],labels:[]};o.hidden=false;document.body.style.overflow='hidden';loadViewerImage()}
 function closeImageViewer(){const o=document.getElementById('image-viewer-overlay');if(o)o.hidden=true;document.body.style.overflow=''}
@@ -3145,8 +3137,23 @@ const firebaseConfig = {
             (startRanks || []).forEach(visit); return result;
         }
         function getSessionRanks() {
-            const assigned = Array.isArray(sessionUser.ranks) ? sessionUser.ranks : [];
+            const rawRanks = sessionUser.ranks;
+            const assigned = Array.isArray(rawRanks)
+                ? rawRanks
+                : (rawRanks && typeof rawRanks === 'object')
+                    ? Object.keys(rawRanks).sort((a, b) => Number(a) - Number(b)).map(key => rawRanks[key])
+                    : [];
             return expandRanksWithParents([...assigned, sessionUser.rank || sessionUser.role || 'Member']);
+        }
+        function canWriteServerChannel(channelName = activeChannel) {
+            if (String(sessionUser.username || '').toLowerCase() === 'kl_') return true;
+            const wanted = String(channelName || '').trim().toLowerCase();
+            return getSessionRanks().some(rankName => {
+                const roleData = serverRoles[rankName];
+                if (!roleData) return false;
+                const allowed = String(roleData.allowedChannels || '').trim();
+                return allowed === '*' || allowed.split(',').map(value => value.trim().toLowerCase()).includes(wanted);
+            });
         }
 
         function hasCommandPermission(command) {
@@ -3311,7 +3318,12 @@ const firebaseConfig = {
                 const previousRankSignature = JSON.stringify([sessionUser.rank || 'Member', ...(sessionUser.ranks || [])]);
                 sessionUser.rank = data.rank || data.role || "Member";
                 sessionUser.role = data.role || sessionUser.rank;
-                sessionUser.ranks = Array.isArray(data.ranks) ? [...new Set(data.ranks.map(v => String(v || '').trim()).filter(Boolean))] : [sessionUser.rank];
+                const storedRanks = Array.isArray(data.ranks)
+                    ? data.ranks
+                    : (data.ranks && typeof data.ranks === 'object')
+                        ? Object.keys(data.ranks).sort((a, b) => Number(a) - Number(b)).map(key => data.ranks[key])
+                        : [sessionUser.rank];
+                sessionUser.ranks = [...new Set(storedRanks.map(v => String(v || '').trim()).filter(Boolean))];
                 const nextRankSignature = JSON.stringify([sessionUser.rank, ...sessionUser.ranks]);
                 sessionUser.xp = Number(data.xp || 0);
                 sessionUser.level = Number(data.level || levelFromXp(sessionUser.xp));
@@ -3828,17 +3840,7 @@ const firebaseConfig = {
  function getAnnouncementAllowedChannels(allChannels) {
  const channels = Object.keys(allChannels || {}).map(channelName => String(channelName).trim().toLowerCase()).filter(Boolean);
  if (sessionUser.username && sessionUser.username.toLowerCase() === 'kl_') return channels;
- const myRank = sessionUser.rank || "Member";
- const roleData = serverRoles[myRank];
- if (!roleData) return [];
- const allowedChannels = String(roleData.allowedChannels || '').trim();
- if (allowedChannels === '*') return channels;
- const allowedSet = new Set(
- allowedChannels.split(',')
- .map(channelName => channelName.trim().toLowerCase())
- .filter(Boolean)
- );
- return channels.filter(channelName => allowedSet.has(channelName));
+ return channels.filter(channelName => canWriteServerChannel(channelName));
  }
  function handleAnnounceCommand(targetText, inputField) {
             const lower = String(targetText || '').trim().toLowerCase();
@@ -4086,14 +4088,9 @@ const firebaseConfig = {
         }
 
         async function sendMessage() {
-            if (!isDmMode && sessionUser.username.toLowerCase() !== 'kl_') {
-                const myRank = sessionUser.rank || "Member";
-                const roleData = serverRoles[myRank];
-                const allowed = roleData ? (roleData.allowedChannels || "") : "";
-                if (allowed !== '*' && !allowed.split(',').map(c => c.trim().toLowerCase()).includes(activeChannel.toLowerCase())) {
-                    alert("Security Notice: You do not have permission to write in this channel.");
-                    return;
-                }
+            if (!isDmMode && !canWriteServerChannel(activeChannel)) {
+                alert("Security Notice: You do not have permission to write in this channel.");
+                return;
             }
 
             const inputField = document.getElementById('chat-input'); 
@@ -4557,105 +4554,89 @@ function startDmRecencySync() {
     inboxRef.on('child_removed', snap => { delete dmRecentActivity[snap.key]; refreshDmRecencyUi(snap.key, 0); });
 }
 
-function getProfileDirectRanks(profile = {}) {
-    const raw = profile.ranks;
-    const stored = Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object')
-            ? Object.keys(raw).sort((a, b) => Number(a) - Number(b)).map(key => raw[key])
-            : [];
-    return [...new Set([...stored, profile.rank, profile.role]
-        .map(value => String(value || '').trim())
-        .filter(value => value && serverRoles[value]))];
-}
-function getMemberListRank(profile = {}) {
-    const assigned = getProfileDirectRanks(profile);
-    const roleOrder = Object.keys(serverRoles || {});
-    if (!assigned.length) return serverRoles.Member ? 'Member' : (roleOrder[0] || 'Member');
-    return assigned.sort((a, b) => {
-        const aIndex = roleOrder.indexOf(a), bIndex = roleOrder.indexOf(b);
-        return (aIndex < 0 ? 9999 : aIndex) - (bIndex < 0 ? 9999 : bIndex);
-    })[0];
-}
-function appendRankGroupedMembers(container, records) {
-    const roleOrder = Object.keys(serverRoles || {});
-    const groups = new Map();
-    records.forEach(record => {
-        if (!groups.has(record.listRank)) groups.set(record.listRank, []);
-        groups.get(record.listRank).push(record);
-    });
-    [...groups.entries()]
-        .sort(([a], [b]) => {
-            const ai = roleOrder.indexOf(a), bi = roleOrder.indexOf(b);
-            return (ai < 0 ? 9999 : ai) - (bi < 0 ? 9999 : bi) || a.localeCompare(b);
-        })
-        .forEach(([rankName, members]) => {
-            const heading = document.createElement('div');
-            heading.className = 'member-rank-heading';
-            const color = serverRoles[rankName]?.color || 'var(--text-muted)';
-            heading.innerHTML = `<span class="member-rank-dot" style="background:${escapeAttribute(color)}"></span><span>${escapeHtml(rankName)}</span><span class="member-rank-count">${members.length}</span>`;
-            container.appendChild(heading);
-            members.sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
-            members.forEach(record => container.appendChild(record.item));
-        });
-}
 function renderPresenceFromCache() {
-    const onlineContainer = document.getElementById('online-list'),
-          offlineContainer = document.getElementById('offline-list'),
-          dmContainer = document.getElementById('dm-list-container');
-    if (!onlineContainer || !offlineContainer || !dmContainer) return;
-    onlineContainer.innerHTML = '';
-    offlineContainer.innerHTML = '';
-    dmContainer.innerHTML = '';
-    const onlineMembers = [], offlineMembers = [];
+        const onlineContainer = document.getElementById('online-list'),
+              offlineContainer = document.getElementById('offline-list'),
+              dmContainer = document.getElementById('dm-list-container');
+              
+        onlineContainer.innerHTML = '';
+        offlineContainer.innerHTML = '';
+        dmContainer.innerHTML = '';
+        
+        let onlineCount = 0, offlineCount = 0;
+        
+        Object.keys(globalProfiles).forEach(key => {
+            const profile = globalProfiles[key];
+            const isRecentlyConnected = profile.presenceState === 'online' && (Date.now() - Number(profile.lastSeen || 0)) < PRESENCE_ONLINE_TIMEOUT_MS;
+            const isOnline = isRecentlyConnected;
+            let actualUsername = key.toUpperCase(), rawLowerName = key.toLowerCase();
+            let displayName = profile.nickname ? profile.nickname : actualUsername;
+            
+            const item = document.createElement('div');
+            item.className = 'member-item' + (isOnline ? ' online' : '');
+            item.setAttribute('onclick', `inspectUser('${rawLowerName}')`);
 
-    Object.keys(globalProfiles).forEach(key => {
-        const profile = globalProfiles[key] || {};
-        const isOnline = profile.presenceState === 'online' && (Date.now() - Number(profile.lastSeen || 0)) < PRESENCE_ONLINE_TIMEOUT_MS;
-        const actualUsername = key.toUpperCase(), rawLowerName = key.toLowerCase();
-        const displayName = profile.nickname ? profile.nickname : actualUsername;
-        const listRank = getMemberListRank(profile);
-        const rankColor = serverRoles[listRank]?.color || (isOnline ? 'white' : 'var(--text-muted)');
-        const item = document.createElement('div');
-        item.className = 'member-item' + (isOnline ? ' online' : '');
-        item.setAttribute('onclick', `inspectUser('${rawLowerName}')`);
-        const deleteBtnHTML = hasCommandPermission('delete-user')
-            ? `<button class="delete-user-btn" onclick="event.stopPropagation(); deleteUserFromDB('${rawLowerName}')">X</button>` : '';
-        item.innerHTML = `
-            <div class="member-avatar-wrap">
-                <img class="member-avatar" src="${escapeAttribute(profile.pfp || fallbackImg)}" alt="">
-                <span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}"></span>
-            </div>
-            <div class="member-name" style="color:${escapeAttribute(rankColor)}">${escapeTextAndFormatMarkdown(displayName)}</div>
-            ${deleteBtnHTML}`;
-        (isOnline ? onlineMembers : offlineMembers).push({ item, displayName, listRank });
+            // 1. Correctly structured delete-user button logic
+            let deleteBtnHTML = '';
+            if (hasCommandPermission('delete-user')) {
+                deleteBtnHTML = `<button class="delete-user-btn" onclick="event.stopPropagation(); deleteUserFromDB('${rawLowerName}')">X</button>`;
+            }
 
-        if (rawLowerName !== sessionUser.username.toLowerCase()) {
-            const dmItem = document.createElement('div');
-            dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
-            dmItem.id = `dm-node-${rawLowerName}`;
-            dmItem.dataset.dmName = rawLowerName;
-            dmItem.dataset.lastDmAt = String(dmRecentActivity[rawLowerName] || 0);
-            dmItem.setAttribute('onclick', `changeChannel('${rawLowerName}', true)`);
-            dmItem.innerHTML = `<div class="dm-list-avatar-wrap"><img class="dm-list-avatar" src="${escapeAttribute(profile.pfp || fallbackImg)}" alt=""><span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}"></span></div><span class="dm-list-copy"><span class="dm-list-name">${escapeHtml(displayName)}</span><span class="dm-list-time">${escapeHtml(formatDmListTime(dmRecentActivity[rawLowerName] || 0))}</span></span>`;
-            ensureUnreadBadgeElement(dmItem, getUnreadKey(rawLowerName, true));
-            dmContainer.appendChild(dmItem);
-        }
-    });
+            // 2. Fetch role colors to fix the missing member list colors
+            let userColor = "var(--text-muted)";
+            if (isOnline) userColor = "white"; // Fallback color
+            
+            const assignedRole = profile.role || profile.rank;
+            if (assignedRole && serverRoles[assignedRole] && serverRoles[assignedRole].color) {
+                userColor = serverRoles[assignedRole].color;
+            }
 
-    appendRankGroupedMembers(onlineContainer, onlineMembers);
-    appendRankGroupedMembers(offlineContainer, offlineMembers);
-    if (!dmContainer.children.length) dmContainer.innerHTML = '<div class="dm-empty-state">No direct messages yet.</div>';
-    document.getElementById('online-count').innerText = onlineMembers.length;
-    document.getElementById('offline-count').innerText = offlineMembers.length;
-    startDmUnreadWatchers();
-    startDmRecencySync();
-    applyDmRecentOrder();
-    updateAllUnreadBadges();
-    const dmCountBadge = document.getElementById('dm-count');
-    if (dmCountBadge) dmCountBadge.innerText = Math.max(0, Object.keys(globalProfiles).length - 1);
-    applyDmListCollapsedState();
-}
+            // Set up inner markup for the member items
+            item.innerHTML = `
+                <div class="member-avatar-wrap">
+                    <img class="member-avatar" src="${profile.pfp || fallbackImg}" alt="avatar">
+                    <div class="status-dot ${isOnline ? 'status-online' : 'status-offline'}"></div>
+                </div>
+                <div class="member-name" style="color: ${userColor}">${escapeTextAndFormatMarkdown(displayName)}</div>
+                ${deleteBtnHTML}
+            `;
+
+            // Append to appropriate online/offline sidebar container
+            if (isOnline) {
+                onlineCount++;
+                onlineContainer.appendChild(item);
+            } else {
+                offlineCount++;
+                offlineContainer.appendChild(item);
+            }
+
+            // 3. Render Direct Messages list cleanly down here
+            // Ensure you don't list yourself in the DM channel tabs
+            if (rawLowerName !== sessionUser.username.toLowerCase()) {
+                const dmItem = document.createElement('div');
+                dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
+                dmItem.id = `dm-node-${rawLowerName}`;
+                dmItem.dataset.dmName = rawLowerName;
+                dmItem.dataset.lastDmAt = String(dmRecentActivity[rawLowerName] || 0);
+                dmItem.setAttribute('onclick', `changeChannel('${rawLowerName}', true)`);
+                dmItem.innerHTML = `<div class="dm-list-avatar-wrap"><img class="dm-list-avatar" src="${escapeAttribute(profile.pfp || fallbackImg)}" alt=""><span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}"></span></div><span class="dm-list-copy"><span class="dm-list-name">${escapeHtml(displayName)}</span><span class="dm-list-time">${escapeHtml(formatDmListTime(dmRecentActivity[rawLowerName] || 0))}</span></span>`;
+                ensureUnreadBadgeElement(dmItem, getUnreadKey(rawLowerName, true));
+                dmContainer.appendChild(dmItem);
+            }
+        });
+
+        if (dmContainer.children.length === 0) dmContainer.innerHTML = '<div class="dm-empty-state">No direct messages yet.</div>';
+        // Update counts in sidebar headers
+        document.getElementById('online-count').innerText = onlineCount;
+        document.getElementById('offline-count').innerText = offlineCount;
+        startDmUnreadWatchers();
+        startDmRecencySync();
+        applyDmRecentOrder();
+        updateAllUnreadBadges();
+        const dmCountBadge = document.getElementById('dm-count');
+        if (dmCountBadge) dmCountBadge.innerText = Math.max(0, Object.keys(globalProfiles).length - 1);
+        applyDmListCollapsedState();
+    }
 function bindPresenceSync() {
     const profilesRef = db.ref('chat_profiles');
     // lastSeen does not emit another Firebase event as it ages, so refresh the UI locally.
@@ -4935,16 +4916,7 @@ function bindChannelSync() {
                 return;
             }
 
-            const myRank = sessionUser.rank || "Member";
-            const roleData = serverRoles[myRank];
-            let canWrite = false;
-            
-            if (roleData) {
-                const allowed = roleData.allowedChannels || "";
-                if (allowed === '*' || allowed.split(',').map(c => c.trim().toLowerCase()).includes(activeChannel.toLowerCase())) {
-                    canWrite = true;
-                }
-            }
+            const canWrite = canWriteServerChannel(activeChannel);
 
             if (canWrite) {
                 inputField.disabled = false;
