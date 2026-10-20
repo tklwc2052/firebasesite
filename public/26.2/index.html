@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading Minecraft...</title>
+    <title>Loading</title>
     <style>
         html, body {
             margin: 0;
@@ -33,16 +33,16 @@
 </head>
 <body>
 <div id="loading">
-    <div>Loading Minecraft...</div>
+    <div>Loading...</div>
     <div id="progress">Starting...</div>
 </div>
 <script>
 (async () => {
     const PART_URLS = [
-        "https://raw.githubusercontent.com/tklwc2052/26.2/main/eaglercraft-26.2-u2pt1.html",
-        "https://raw.githubusercontent.com/tklwc2052/26.2/main/eaglercraft-26.2-u2pt2.html",
-        "https://raw.githubusercontent.com/tklwc2052/26.2/main/eaglercraft-26.2-u2pt3.html",
-        "https://raw.githubusercontent.com/tklwc2052/26.2/main/eaglercraft-26.2-u2pt4.html"
+        "https://raw.githubusercontent.com/tklwc2052/26.2/main/26.2-u2pt1.html",
+        "https://raw.githubusercontent.com/tklwc2052/26.2/main/26.2-u2pt2.html",
+        "https://raw.githubusercontent.com/tklwc2052/26.2/main/26.2-u2pt3.html",
+        "https://raw.githubusercontent.com/tklwc2052/26.2/main/26.2-u2pt4.html"
     ];
 
     const progress = document.getElementById("progress");
@@ -64,7 +64,7 @@
             html += await response.text();
         }
 
-        progress.textContent = "Starting Minecraft...";
+        progress.textContent = "Starting...";
         document.open();
         document.write(html);
         document.close();
