@@ -3694,7 +3694,7 @@ const firebaseConfig = {
             }
 
             const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = '<div class="loading-history" id="loading-history">Loading older messages...</div>';
+            chatBox.innerHTML = '<div class="loading-history" id="loading-history">Loading messages...</div>';
             prependForumOriginalPost();
             oldestMessageKey = null;
             newestMessageKey = null;
@@ -3715,7 +3715,7 @@ const firebaseConfig = {
                 if (chatBox) { chatBox.onscroll = null; chatBox.onwheel = null; chatBox.ontouchstart = null; chatBox.ontouchmove = null; } cancelForcedBottomScrolls();
             };
 
-            currentRef.orderByKey().limitToLast(40).once('value', (snapshot) => {
+            currentRef.orderByKey().limitToLast(20).once('value', (snapshot) => {
                 if (listenerDisposed || currentRef !== activeRef) return;
 
                 const messages = [];
@@ -3725,13 +3725,18 @@ const firebaseConfig = {
                     newestMessageKey = messages[messages.length - 1].key;
                 }
 
+                const initialRows = [];
+                const initialFragment = document.createDocumentFragment();
                 messages.forEach(({key, packet}) => {
                     if (isHiddenControlPacket(packet)) return;
                     const row = buildMessageRow(key, packet);
-                    chatBox.appendChild(row);
-                    applyGrouping(row);
+                    initialRows.push(row);
+                    initialFragment.appendChild(row);
                 });
-                shouldAutoScrollChat = true; scrollChatToBottom('auto', true);
+                chatBox.appendChild(initialFragment);
+                initialRows.forEach(applyGrouping);
+                shouldAutoScrollChat = true;
+                requestAnimationFrame(() => scrollChatToBottom('auto', true));
 
                 liveAddedCallback = (childSnap) => {
                     if (listenerDisposed || currentRef !== activeRef) return;
@@ -5597,6 +5602,14 @@ function bindChannelSync() {
             activeForumPost = null;
             activeForumPostData = null;
             if (DMFlag) { isForumMode = false; return originalChangeChannel(targetId, true); }
+            const cachedMeta = (typeof sharedChannelData !== 'undefined' && sharedChannelData)
+                ? sharedChannelData[targetId]
+                : undefined;
+            if (cachedMeta !== undefined) {
+                if (getServerChannelType(cachedMeta) === 'forum') return openForumChannel(targetId);
+                isForumMode = false;
+                return originalChangeChannel(targetId, false);
+            }
             return getChannelMeta(targetId).then(meta => {
                 if (getServerChannelType(meta) === 'forum') return openForumChannel(targetId);
                 isForumMode = false;
