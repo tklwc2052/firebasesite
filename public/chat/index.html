@@ -2748,6 +2748,14 @@ const firebaseConfig = {
         const PRESENCE_ONLINE_TIMEOUT_MS = 90 * 1000;
         const PRESENCE_RENDER_INTERVAL_MS = 15 * 1000;
         let presenceRenderInterval = null;
+        let presenceRenderTimer = null;
+        function schedulePresenceRender() {
+            if (presenceRenderTimer) return;
+            presenceRenderTimer = setTimeout(() => {
+                presenceRenderTimer = null;
+                renderPresenceFromCache();
+            }, 50);
+        }
         let dragDropListenersInitialized = false;
         let globalMentionListenersStarted = false;
         const mentionListenerRefs = new Set();
@@ -4568,9 +4576,16 @@ function startDmRecencySync() {
     dmRecencyListenerStarted = true;
     const myName = sessionUser.username.toLowerCase();
     const inboxRef = db.ref(`dm_inbox/${myName}`);
-    inboxRef.on('child_added', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
-    inboxRef.on('child_changed', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
-    inboxRef.on('child_removed', snap => { delete dmRecentActivity[snap.key]; refreshDmRecencyUi(snap.key, 0); });
+    const applyInboxItem = snap => {
+        refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt);
+        schedulePresenceRender();
+    };
+    inboxRef.on('child_added', applyInboxItem);
+    inboxRef.on('child_changed', applyInboxItem);
+    inboxRef.on('child_removed', snap => {
+        delete dmRecentActivity[snap.key];
+        schedulePresenceRender();
+    });
 }
 
 function renderPresenceFromCache() {
@@ -4628,7 +4643,9 @@ function renderPresenceFromCache() {
 
             // 3. Render Direct Messages list cleanly down here
             // Ensure you don't list yourself in the DM channel tabs
-            if (rawLowerName !== sessionUser.username.toLowerCase()) {
+            if (rawLowerName !== sessionUser.username.toLowerCase() &&
+                (Object.prototype.hasOwnProperty.call(dmRecentActivity, rawLowerName) ||
+                 (isDmMode && activeChannel.toLowerCase() === rawLowerName))) {
                 const dmItem = document.createElement('div');
                 dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
                 dmItem.id = `dm-node-${rawLowerName}`;
@@ -4650,7 +4667,7 @@ function renderPresenceFromCache() {
         applyDmRecentOrder();
         updateAllUnreadBadges();
         const dmCountBadge = document.getElementById('dm-count');
-        if (dmCountBadge) dmCountBadge.innerText = Math.max(0, Object.keys(globalProfiles).length - 1);
+        if (dmCountBadge) dmCountBadge.innerText = Object.keys(dmRecentActivity).length;
         applyDmListCollapsedState();
     }
 function bindPresenceSync() {
@@ -4665,13 +4682,13 @@ function bindPresenceSync() {
     });
     const applyProfile = snap => {
         globalProfiles[snap.key] = snap.val() || {};
-        renderPresenceFromCache();
+        schedulePresenceRender();
     };
     profilesRef.on('child_added', applyProfile);
     profilesRef.on('child_changed', applyProfile);
     profilesRef.on('child_removed', snap => {
         delete globalProfiles[snap.key];
-        renderPresenceFromCache();
+        schedulePresenceRender();
     });
 }
 
@@ -5565,6 +5582,10 @@ function bindChannelSync() {
             return 'text';
         }
         function getChannelMeta(channelName) {
+            if (typeof sharedChannelData !== 'undefined' &&
+                Object.prototype.hasOwnProperty.call(sharedChannelData || {}, channelName)) {
+                return Promise.resolve(sharedChannelData[channelName]);
+            }
             return db.ref('server_channels/' + channelName).once('value').then(snap => snap.val());
         }
         function detachForumList() {
@@ -5831,7 +5852,15 @@ function bindChannelSync() {
             }
             move(event);
         }
-        const svgUiObserver = new MutationObserver(() => applySvgIconsToInterface());
+        let svgUiRefreshQueued = false;
+        const svgUiObserver = new MutationObserver(() => {
+            if (svgUiRefreshQueued) return;
+            svgUiRefreshQueued = true;
+            requestAnimationFrame(() => {
+                svgUiRefreshQueued = false;
+                applySvgIconsToInterface();
+            });
+        });
         window.addEventListener('DOMContentLoaded',()=>{ applySvgIconsToInterface(); svgUiObserver.observe(document.body,{childList:true,subtree:true}); });
     
         /* Native poll system: /poll "Question" "Option 1" "Option 2" */
@@ -6474,7 +6503,16 @@ let sharedChannelData={},sharedFolderData={},sharedChannelsRef=null,sharedFolder
 function firebaseList(v){if(Array.isArray(v))return v.filter(Boolean);if(v&&typeof v==='object')return Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(Boolean);return[]}
 function renderSharedChannelLayout(){const host=document.getElementById('channels-container');if(!host||!sessionUser.username)return;host.innerHTML='';const rendered=new Set();const make=name=>{if(!sharedChannelData[name]||!canViewServerChannel(name))return null;const type=getServerChannelType(sharedChannelData[name]),el=document.createElement('div');el.className=`channel-item server-chan ${type==='forum'?'forum-chan':type==='leaderboard'?'leaderboard-chan':type==='events'?'events-chan':''} ${!isDmMode&&activeChannel===name?'active':''}`;el.id=`chan-node-${name}`;el.dataset.channelType=type;el.onclick=()=>changeChannel(name,false);let icon=type==='forum'?uiIcon('forum','channel-type-icon'):type==='leaderboard'?uiIcon('trophy','channel-type-icon'):type==='events'&&typeof eventsChannelIcon==='function'?eventsChannelIcon():'';el.innerHTML=icon+`<span>${escapeHtml(name)}</span>`;ensureUnreadBadgeElement(el,getUnreadKey(name,false));return el};Object.keys(sharedFolderData).sort((a,b)=>Number(sharedFolderData[a]?._order||0)-Number(sharedFolderData[b]?._order||0)||a.localeCompare(b)).forEach(folder=>{const d=sharedFolderData[folder]||{},raw=Object.keys(d).filter(k=>!['_created','_order','_channelOrder'].includes(k)&&d[k]),saved=firebaseList(d._channelOrder),order=[...saved.filter(k=>raw.includes(k)),...raw.filter(k=>!saved.includes(k)).sort()];if(!order.length&&!d._created)return;const details=document.createElement('details');details.open=true;const summary=document.createElement('summary');summary.textContent=folder;summary.style.cssText='font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;padding:8px 4px 4px;cursor:pointer';details.appendChild(summary);const group=document.createElement('div');group.style.cssText='padding-left:6px;display:flex;flex-direction:column;gap:2px';order.forEach(name=>{const el=make(name);if(el){rendered.add(name);group.appendChild(el)}});details.appendChild(group);host.appendChild(details)});const loose=Object.keys(sharedChannelData).filter(n=>!rendered.has(n)&&canViewServerChannel(n)).sort();if(loose.length&&Object.keys(sharedFolderData).length){const h=document.createElement('div');h.className='sidebar-section-heading';h.textContent='Uncategorized';host.appendChild(h)}loose.forEach(n=>{const el=make(n);if(el)host.appendChild(el)});startServerUnreadWatchers(sharedChannelData);updateAllUnreadBadges()}
 bindChannelSync=function(){if(sharedChannelsRef)sharedChannelsRef.off();if(sharedFoldersRef)sharedFoldersRef.off();sharedChannelsRef=db.ref('server_channels');sharedFoldersRef=db.ref('channel_folders');sharedChannelsRef.on('value',s=>{sharedChannelData=s.val()||{};renderSharedChannelLayout()});sharedFoldersRef.on('value',s=>{sharedFolderData=s.val()||{};renderSharedChannelLayout()})};
-const originalBindRolesForLivePermissions=bindRolesSync;bindRolesSync=function(){originalBindRolesForLivePermissions();db.ref('roles').on('value',()=>{updateChatInputPermissions();renderSharedChannelLayout()})};
+bindRolesSync=function(){
+    db.ref('roles').off('value');
+    db.ref('roles').on('value',snapshot=>{
+        serverRoles=snapshot.val()||{Member:{allowedChannels:'*',visibleChannels:'*',color:'#dbdee1'}};
+        renderAdminModal();
+        updateChatInputPermissions();
+        renderSharedChannelLayout();
+        schedulePresenceRender();
+    });
+};
 </script>
 <script id="avern-double-click-reply">/* Avern: double-click or double-tap messages to reply. */
 (function () {
