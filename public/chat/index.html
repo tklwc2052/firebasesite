@@ -2537,7 +2537,7 @@ async function ingestImageFiles(files){const accepted=[...files].filter(f=>f.typ
 handleFileSelected=function(e){if(e.target.files?.length)ingestImageFiles(e.target.files);e.target.value=''};
 ingestImageBlob=function(file){ingestImageFiles([file])};
 const sendMessageBeforeAlbums=sendMessage;
-sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&!canWriteServerChannel(activeChannel))return alert('You do not have permission to write here.');const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => awardMessageXp()).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
+sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&!canWriteServerChannel(activeChannel))return alert('You do not have permission to write here.');const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => Promise.all([awardMessageXp(), recordDmInboxActivity(packet)])).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
 function ensureImageViewer(){let o=document.getElementById('image-viewer-overlay');if(o)return o;o=document.createElement('div');o.id='image-viewer-overlay';o.className='image-viewer-overlay';o.hidden=true;o.innerHTML=`<div class="image-viewer-toolbar"><button class="viewer-tool" onclick="closeImageViewer()">${uiIcon('x')}<span>Close</span></button><button id="viewer-pan-tool" class="viewer-tool active" onclick="setViewerTool('pan')">${uiIcon('panels')}<span>Move</span></button><button id="viewer-draw-tool" class="viewer-tool" onclick="setViewerTool('draw')">✎<span>Draw</span></button><button id="viewer-arrow-tool" class="viewer-tool" onclick="setViewerTool('arrow')">↗<span>Arrow</span></button><button class="viewer-tool" onclick="openViewerTextDialog()">T<span>Text</span></button><input id="viewer-color" class="viewer-color" type="color" value="#ff3b3b"><button class="viewer-tool" onclick="viewerUndo()">↶<span>Undo</span></button><button class="viewer-tool" onclick="viewerRedo()">↷<span>Redo</span></button><button class="viewer-tool" onclick="resetViewerTransform()">1:1</button><div class="viewer-spacer"></div><button class="viewer-tool" onclick="downloadViewerImage()">↓<span>Download</span></button><button class="viewer-tool" onclick="copyViewerLink()">${uiIcon('message')}<span>Copy link</span></button><button class="viewer-tool showcase-star" onclick="addCurrentImageToShowcase()">★<span>Showcase</span></button><button class="viewer-tool" onclick="postViewerMarkup()">${uiIcon('upload')}<span>Post markup</span></button></div><div id="image-viewer-stage" class="image-viewer-stage"><div id="viewer-image-container" class="viewer-image-container"><img id="viewer-main-image" class="viewer-main-image"><canvas id="viewer-draw-canvas" class="viewer-draw-canvas"></canvas><div id="viewer-label-layer"></div></div></div><div class="image-viewer-footer"><button class="viewer-tool" onclick="viewerPrevious()">‹ Previous</button><span id="viewer-meta"></span><span id="viewer-counter" class="viewer-counter"></span><button class="viewer-tool" onclick="viewerNext()">Next ›</button></div>`;document.body.appendChild(o);bindViewerEvents();return o}
 function openImageViewer(images,index=0,messageKey=null,author=''){const o=ensureImageViewer();viewerState={images:Array.isArray(images)?images:[images],index:Number(index)||0,messageKey,author,scale:1,x:0,y:0,tool:'pan',drawing:false,startX:0,startY:0,history:[],redo:[],labels:[]};o.hidden=false;document.body.style.overflow='hidden';loadViewerImage()}
 function closeImageViewer(){const o=document.getElementById('image-viewer-overlay');if(o)o.hidden=true;document.body.style.overflow=''}
@@ -2748,6 +2748,14 @@ const firebaseConfig = {
         const PRESENCE_ONLINE_TIMEOUT_MS = 90 * 1000;
         const PRESENCE_RENDER_INTERVAL_MS = 15 * 1000;
         let presenceRenderInterval = null;
+        let presenceRenderTimer = null;
+        function schedulePresenceRender() {
+            if (presenceRenderTimer) return;
+            presenceRenderTimer = setTimeout(() => {
+                presenceRenderTimer = null;
+                renderPresenceFromCache();
+            }, 50);
+        }
         let dragDropListenersInitialized = false;
         let globalMentionListenersStarted = false;
         const mentionListenerRefs = new Set();
@@ -2792,7 +2800,7 @@ const firebaseConfig = {
 
         
         const fallbackImg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5865f2"/><stop offset="100%" stop-color="#23a55a"/></linearGradient></defs><rect width="128" height="128" rx="64" fill="url(#g)"/><circle cx="64" cy="47" r="24" fill="#fff"/><path d="M22 116c4-27 20-42 42-42s38 15 42 42" fill="#fff"/></svg>`);
- const IMGBB_API_KEY = "172b93388ff18143f312a12ef3b2f3ff"; // Get one from https://api.imgbb.com/
+ const IMGBB_API_KEY = "8deb8d4794d99482760ff3ca309518fe"; // Get one from https://api.imgbb.com/
 
 
         /* --- Collapsible DMs + Themes / Custom Background --- */
@@ -3144,6 +3152,24 @@ const firebaseConfig = {
                     ? Object.keys(rawRanks).sort((a, b) => Number(a) - Number(b)).map(key => rawRanks[key])
                     : [];
             return expandRanksWithParents([...assigned, sessionUser.rank || sessionUser.role || 'Member']);
+        }
+        function getProfileRanks(profile = {}) {
+            const rawRanks = profile.ranks;
+            const assigned = Array.isArray(rawRanks)
+                ? rawRanks
+                : (rawRanks && typeof rawRanks === 'object')
+                    ? Object.keys(rawRanks).sort((a, b) => Number(a) - Number(b)).map(key => rawRanks[key])
+                    : [];
+            return expandRanksWithParents([...assigned, profile.rank, profile.role, 'Member']
+                .map(value => String(value || '').trim()).filter(Boolean));
+        }
+        function getProfileDisplayRank(profile = {}, fallbackRank = 'Member') {
+            const ranks = getProfileRanks({ ...profile, rank: profile.rank || fallbackRank });
+            return ranks.find(rankName => serverRoles[rankName]) || ranks[0] || 'Member';
+        }
+        function getProfileRankColor(profile = {}, fallbackRank = 'Member', fallbackColor = 'white') {
+            const rankName = getProfileDisplayRank(profile, fallbackRank);
+            return serverRoles[rankName]?.color || fallbackColor;
         }
         function canWriteServerChannel(channelName = activeChannel) {
             if (String(sessionUser.username || '').toLowerCase() === 'kl_') return true;
@@ -3562,10 +3588,7 @@ const firebaseConfig = {
                 userColor = "#da373c";
             } else {
                 const userProfile = globalProfiles[profileUser.toLowerCase()] || {};
-                const assignedRole = userProfile.role || packet.rank;
-                if (assignedRole && serverRoles[assignedRole] && serverRoles[assignedRole].color) {
-                    userColor = serverRoles[assignedRole].color;
-                }
+                userColor = getProfileRankColor(userProfile, packet.rank || 'Member', userColor);
             }
 
             const stampedTime = new Date(packet.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -3671,7 +3694,7 @@ const firebaseConfig = {
             }
 
             const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = '<div class="loading-history" id="loading-history">Loading older messages...</div>';
+            chatBox.innerHTML = '<div class="loading-history" id="loading-history">Loading messages...</div>';
             prependForumOriginalPost();
             oldestMessageKey = null;
             newestMessageKey = null;
@@ -3692,7 +3715,7 @@ const firebaseConfig = {
                 if (chatBox) { chatBox.onscroll = null; chatBox.onwheel = null; chatBox.ontouchstart = null; chatBox.ontouchmove = null; } cancelForcedBottomScrolls();
             };
 
-            currentRef.orderByKey().limitToLast(40).once('value', (snapshot) => {
+            currentRef.orderByKey().limitToLast(20).once('value', (snapshot) => {
                 if (listenerDisposed || currentRef !== activeRef) return;
 
                 const messages = [];
@@ -3702,13 +3725,18 @@ const firebaseConfig = {
                     newestMessageKey = messages[messages.length - 1].key;
                 }
 
+                const initialRows = [];
+                const initialFragment = document.createDocumentFragment();
                 messages.forEach(({key, packet}) => {
                     if (isHiddenControlPacket(packet)) return;
                     const row = buildMessageRow(key, packet);
-                    chatBox.appendChild(row);
-                    applyGrouping(row);
+                    initialRows.push(row);
+                    initialFragment.appendChild(row);
                 });
-                shouldAutoScrollChat = true; scrollChatToBottom('auto', true);
+                chatBox.appendChild(initialFragment);
+                initialRows.forEach(applyGrouping);
+                shouldAutoScrollChat = true;
+                requestAnimationFrame(() => scrollChatToBottom('auto', true));
 
                 liveAddedCallback = (childSnap) => {
                     if (listenerDisposed || currentRef !== activeRef) return;
@@ -4374,14 +4402,7 @@ const firebaseConfig = {
             awardMessageXp();
             const senderLower = sessionUser.username.toLowerCase();
             const profileUpdate = Promise.resolve(); // No profile fan-out write for every message.
-            if (isDmMode) {
-                const otherLower = activeChannel.toLowerCase();
-                const preview = String(outboundPacket.msg || (outboundPacket.image ? '[Image Attachment]' : '[Attachment]')).slice(0, 120);
-                const indexUpdates = {};
-                indexUpdates[`dm_inbox/${senderLower}/${otherLower}`] = { lastMessageAt: outboundPacket.timestamp, lastSender: senderLower, preview };
-                indexUpdates[`dm_inbox/${otherLower}/${senderLower}`] = { lastMessageAt: outboundPacket.timestamp, lastSender: senderLower, preview };
-                return Promise.all([profileUpdate, db.ref().update(indexUpdates)]);
-            }
+            if (isDmMode) return Promise.all([profileUpdate, recordDmInboxActivity(outboundPacket)]);
             return profileUpdate;
         });
         lastMessageSentAt = Date.now();
@@ -4544,14 +4565,32 @@ function refreshDmRecencyUi(otherUser, timestamp) {
     }
     applyDmRecentOrder();
 }
+function recordDmInboxActivity(packet, otherUser = activeChannel) {
+    if (!isDmMode || !sessionUser.username || !otherUser) return Promise.resolve();
+    const senderLower = sessionUser.username.toLowerCase();
+    const otherLower = String(otherUser).toLowerCase();
+    const sentAt = Number(packet?.timestamp || Date.now());
+    const preview = String(packet?.msg || (packet?.image || packet?.images?.length ? '[Image Attachment]' : '[Attachment]')).slice(0, 120);
+    const updates = {};
+    updates[`dm_inbox/${senderLower}/${otherLower}`] = { lastMessageAt: sentAt, lastSender: senderLower, preview };
+    updates[`dm_inbox/${otherLower}/${senderLower}`] = { lastMessageAt: sentAt, lastSender: senderLower, preview };
+    return db.ref().update(updates);
+}
 function startDmRecencySync() {
     if (dmRecencyListenerStarted || !sessionUser.username) return;
     dmRecencyListenerStarted = true;
     const myName = sessionUser.username.toLowerCase();
     const inboxRef = db.ref(`dm_inbox/${myName}`);
-    inboxRef.on('child_added', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
-    inboxRef.on('child_changed', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
-    inboxRef.on('child_removed', snap => { delete dmRecentActivity[snap.key]; refreshDmRecencyUi(snap.key, 0); });
+    const applyInboxItem = snap => {
+        refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt);
+        schedulePresenceRender();
+    };
+    inboxRef.on('child_added', applyInboxItem);
+    inboxRef.on('child_changed', applyInboxItem);
+    inboxRef.on('child_removed', snap => {
+        delete dmRecentActivity[snap.key];
+        schedulePresenceRender();
+    });
 }
 
 function renderPresenceFromCache() {
@@ -4586,10 +4625,7 @@ function renderPresenceFromCache() {
             let userColor = "var(--text-muted)";
             if (isOnline) userColor = "white"; // Fallback color
             
-            const assignedRole = profile.role || profile.rank;
-            if (assignedRole && serverRoles[assignedRole] && serverRoles[assignedRole].color) {
-                userColor = serverRoles[assignedRole].color;
-            }
+            userColor = getProfileRankColor(profile, 'Member', userColor);
 
             // Set up inner markup for the member items
             item.innerHTML = `
@@ -4612,7 +4648,9 @@ function renderPresenceFromCache() {
 
             // 3. Render Direct Messages list cleanly down here
             // Ensure you don't list yourself in the DM channel tabs
-            if (rawLowerName !== sessionUser.username.toLowerCase()) {
+            if (rawLowerName !== sessionUser.username.toLowerCase() &&
+                (Object.prototype.hasOwnProperty.call(dmRecentActivity, rawLowerName) ||
+                 (isDmMode && activeChannel.toLowerCase() === rawLowerName))) {
                 const dmItem = document.createElement('div');
                 dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
                 dmItem.id = `dm-node-${rawLowerName}`;
@@ -4634,7 +4672,7 @@ function renderPresenceFromCache() {
         applyDmRecentOrder();
         updateAllUnreadBadges();
         const dmCountBadge = document.getElementById('dm-count');
-        if (dmCountBadge) dmCountBadge.innerText = Math.max(0, Object.keys(globalProfiles).length - 1);
+        if (dmCountBadge) dmCountBadge.innerText = Object.keys(dmRecentActivity).length;
         applyDmListCollapsedState();
     }
 function bindPresenceSync() {
@@ -4649,13 +4687,13 @@ function bindPresenceSync() {
     });
     const applyProfile = snap => {
         globalProfiles[snap.key] = snap.val() || {};
-        renderPresenceFromCache();
+        schedulePresenceRender();
     };
     profilesRef.on('child_added', applyProfile);
     profilesRef.on('child_changed', applyProfile);
     profilesRef.on('child_removed', snap => {
         delete globalProfiles[snap.key];
-        renderPresenceFromCache();
+        schedulePresenceRender();
     });
 }
 
@@ -5006,16 +5044,13 @@ function bindChannelSync() {
                 if(data && data.banner) bannerContainer.style.backgroundImage = `url('${data.banner}')`; else { bannerContainer.style.backgroundImage = 'none'; bannerContainer.style.backgroundColor = 'var(--primary-blurple)'; }
                 
                 const roleField = document.getElementById('pop-role');
-                if (data && data.role) { 
-                    roleField.innerText = data.role.toUpperCase(); 
-                    roleField.style.display = 'block'; 
-                    if (serverRoles[data.role] && serverRoles[data.role].color) {
-                        roleField.style.color = serverRoles[data.role].color;
-                    } else {
-                        roleField.style.color = '#faa61a';
-                    }
-                } else { 
-                    roleField.style.display = 'none'; 
+                const displayedRanks = data ? getProfileRanks(data) : [];
+                if (displayedRanks.length) {
+                    roleField.innerText = displayedRanks.join(' • ').toUpperCase();
+                    roleField.style.display = 'block';
+                    roleField.style.color = getProfileRankColor(data, 'Member', '#faa61a');
+                } else {
+                    roleField.style.display = 'none';
                 }
 
                 const dmActionBtn = document.getElementById('pop-dm-action-btn'); 
@@ -5510,15 +5545,15 @@ function bindChannelSync() {
                 attachMentionListener('channels/' + channelName, channelName, false);
             });
 
-            // Watch only DM paths that can belong to the current user. Never subscribe to the full /dms tree.
+            // One lightweight inbox listener replaces one DM listener per registered user.
+            // A newly received DM first adds the sender to this inbox, then we attach only that thread.
             const attachDmForUser = otherUser => {
                 const cleanOther = String(otherUser || '').toLowerCase();
                 if (!cleanOther || cleanOther === myNameLower) return;
                 const threadKey = [myNameLower, cleanOther].sort().join('_');
                 attachMentionListener('dms/' + threadKey, cleanOther, true);
             };
-            Object.keys(globalProfiles || {}).forEach(attachDmForUser);
-            db.ref('chat_profiles').on('child_added', snap => attachDmForUser(snap.key));
+            db.ref(`dm_inbox/${myNameLower}`).on('child_added', snap => attachDmForUser(snap.key));
         }
 
     
@@ -5552,6 +5587,10 @@ function bindChannelSync() {
             return 'text';
         }
         function getChannelMeta(channelName) {
+            if (typeof sharedChannelData !== 'undefined' &&
+                Object.prototype.hasOwnProperty.call(sharedChannelData || {}, channelName)) {
+                return Promise.resolve(sharedChannelData[channelName]);
+            }
             return db.ref('server_channels/' + channelName).once('value').then(snap => snap.val());
         }
         function detachForumList() {
@@ -5563,6 +5602,14 @@ function bindChannelSync() {
             activeForumPost = null;
             activeForumPostData = null;
             if (DMFlag) { isForumMode = false; return originalChangeChannel(targetId, true); }
+            const cachedMeta = (typeof sharedChannelData !== 'undefined' && sharedChannelData)
+                ? sharedChannelData[targetId]
+                : undefined;
+            if (cachedMeta !== undefined) {
+                if (getServerChannelType(cachedMeta) === 'forum') return openForumChannel(targetId);
+                isForumMode = false;
+                return originalChangeChannel(targetId, false);
+            }
             return getChannelMeta(targetId).then(meta => {
                 if (getServerChannelType(meta) === 'forum') return openForumChannel(targetId);
                 isForumMode = false;
@@ -5818,7 +5865,15 @@ function bindChannelSync() {
             }
             move(event);
         }
-        const svgUiObserver = new MutationObserver(() => applySvgIconsToInterface());
+        let svgUiRefreshQueued = false;
+        const svgUiObserver = new MutationObserver(() => {
+            if (svgUiRefreshQueued) return;
+            svgUiRefreshQueued = true;
+            requestAnimationFrame(() => {
+                svgUiRefreshQueued = false;
+                applySvgIconsToInterface();
+            });
+        });
         window.addEventListener('DOMContentLoaded',()=>{ applySvgIconsToInterface(); svgUiObserver.observe(document.body,{childList:true,subtree:true}); });
     
         /* Native poll system: /poll "Question" "Option 1" "Option 2" */
@@ -6461,7 +6516,16 @@ let sharedChannelData={},sharedFolderData={},sharedChannelsRef=null,sharedFolder
 function firebaseList(v){if(Array.isArray(v))return v.filter(Boolean);if(v&&typeof v==='object')return Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(Boolean);return[]}
 function renderSharedChannelLayout(){const host=document.getElementById('channels-container');if(!host||!sessionUser.username)return;host.innerHTML='';const rendered=new Set();const make=name=>{if(!sharedChannelData[name]||!canViewServerChannel(name))return null;const type=getServerChannelType(sharedChannelData[name]),el=document.createElement('div');el.className=`channel-item server-chan ${type==='forum'?'forum-chan':type==='leaderboard'?'leaderboard-chan':type==='events'?'events-chan':''} ${!isDmMode&&activeChannel===name?'active':''}`;el.id=`chan-node-${name}`;el.dataset.channelType=type;el.onclick=()=>changeChannel(name,false);let icon=type==='forum'?uiIcon('forum','channel-type-icon'):type==='leaderboard'?uiIcon('trophy','channel-type-icon'):type==='events'&&typeof eventsChannelIcon==='function'?eventsChannelIcon():'';el.innerHTML=icon+`<span>${escapeHtml(name)}</span>`;ensureUnreadBadgeElement(el,getUnreadKey(name,false));return el};Object.keys(sharedFolderData).sort((a,b)=>Number(sharedFolderData[a]?._order||0)-Number(sharedFolderData[b]?._order||0)||a.localeCompare(b)).forEach(folder=>{const d=sharedFolderData[folder]||{},raw=Object.keys(d).filter(k=>!['_created','_order','_channelOrder'].includes(k)&&d[k]),saved=firebaseList(d._channelOrder),order=[...saved.filter(k=>raw.includes(k)),...raw.filter(k=>!saved.includes(k)).sort()];if(!order.length&&!d._created)return;const details=document.createElement('details');details.open=true;const summary=document.createElement('summary');summary.textContent=folder;summary.style.cssText='font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;padding:8px 4px 4px;cursor:pointer';details.appendChild(summary);const group=document.createElement('div');group.style.cssText='padding-left:6px;display:flex;flex-direction:column;gap:2px';order.forEach(name=>{const el=make(name);if(el){rendered.add(name);group.appendChild(el)}});details.appendChild(group);host.appendChild(details)});const loose=Object.keys(sharedChannelData).filter(n=>!rendered.has(n)&&canViewServerChannel(n)).sort();if(loose.length&&Object.keys(sharedFolderData).length){const h=document.createElement('div');h.className='sidebar-section-heading';h.textContent='Uncategorized';host.appendChild(h)}loose.forEach(n=>{const el=make(n);if(el)host.appendChild(el)});startServerUnreadWatchers(sharedChannelData);updateAllUnreadBadges()}
 bindChannelSync=function(){if(sharedChannelsRef)sharedChannelsRef.off();if(sharedFoldersRef)sharedFoldersRef.off();sharedChannelsRef=db.ref('server_channels');sharedFoldersRef=db.ref('channel_folders');sharedChannelsRef.on('value',s=>{sharedChannelData=s.val()||{};renderSharedChannelLayout()});sharedFoldersRef.on('value',s=>{sharedFolderData=s.val()||{};renderSharedChannelLayout()})};
-const originalBindRolesForLivePermissions=bindRolesSync;bindRolesSync=function(){originalBindRolesForLivePermissions();db.ref('roles').on('value',()=>{updateChatInputPermissions();renderSharedChannelLayout()})};
+bindRolesSync=function(){
+    db.ref('roles').off('value');
+    db.ref('roles').on('value',snapshot=>{
+        serverRoles=snapshot.val()||{Member:{allowedChannels:'*',visibleChannels:'*',color:'#dbdee1'}};
+        renderAdminModal();
+        updateChatInputPermissions();
+        renderSharedChannelLayout();
+        schedulePresenceRender();
+    });
+};
 </script>
 <script id="avern-double-click-reply">/* Avern: double-click or double-tap messages to reply. */
 (function () {
@@ -6675,6 +6739,386 @@ const originalBindRolesForLivePermissions=bindRolesSync;bindRolesSync=function()
     } else {
         initializeOwnerDelete();
     }
+})();
+</script>
+
+<script id="avern-channel-speed-patch-20261021">
+/* Channel startup/switching performance patch.
+   - Calculates inherited multi-rank permissions once per role/profile state.
+   - Coalesces channel/folder renders into one animation frame.
+   - Uses cached channel metadata instead of another RTDB lookup on click.
+   - Defers background mention watchers until the initial interface is usable. */
+(function () {
+    let permissionCacheSignature = '';
+    let permissionCache = null;
+    let sharedLayoutFrame = 0;
+
+    function csvSet(value) {
+        return new Set(String(value || '')
+            .split(',')
+            .map(item => item.trim().toLowerCase())
+            .filter(Boolean));
+    }
+
+    function getFastPermissions() {
+        const signature = JSON.stringify({
+            username: String(sessionUser.username || '').toLowerCase(),
+            rank: sessionUser.rank || '',
+            ranks: sessionUser.ranks || [],
+            roles: serverRoles || {}
+        });
+        if (permissionCache && signature === permissionCacheSignature) return permissionCache;
+
+        const rankNames = getSessionRanks();
+        const visible = new Set();
+        const writable = new Set();
+        const commands = new Set();
+        let viewAll = false;
+        let writeAll = false;
+        let commandAll = false;
+        let hasKnownRole = false;
+
+        rankNames.forEach(rankName => {
+            const role = serverRoles[rankName];
+            if (!role) return;
+            hasKnownRole = true;
+            const roleVisible = String(role.visibleChannels ?? '*').trim();
+            const roleWritable = String(role.allowedChannels || '').trim();
+            const roleCommands = String(role.allowedCommands || '').trim();
+            if (!roleVisible || roleVisible === '*') viewAll = true;
+            else csvSet(roleVisible).forEach(value => visible.add(value));
+            if (roleWritable === '*') writeAll = true;
+            else csvSet(roleWritable).forEach(value => writable.add(value));
+            if (roleCommands === '*') commandAll = true;
+            else csvSet(roleCommands).forEach(value => commands.add(value));
+        });
+
+        permissionCacheSignature = signature;
+        permissionCache = { visible, writable, commands, viewAll, writeAll, commandAll, hasKnownRole };
+        return permissionCache;
+    }
+
+    canViewServerChannel = function (channelName) {
+        if (!sessionUser.username || String(sessionUser.username).toLowerCase() === 'kl_') return true;
+        const p = getFastPermissions();
+        if (!p.hasKnownRole) return true;
+        return p.viewAll || p.visible.has(String(channelName || '').trim().toLowerCase());
+    };
+
+    canWriteServerChannel = function (channelName = activeChannel) {
+        if (String(sessionUser.username || '').toLowerCase() === 'kl_') return true;
+        const p = getFastPermissions();
+        return p.writeAll || p.writable.has(String(channelName || '').trim().toLowerCase());
+    };
+
+    hasCommandPermission = function (command) {
+        if (String(sessionUser.username || '').toLowerCase() === 'kl_') return true;
+        const p = getFastPermissions();
+        return p.commandAll || p.commands.has(String(command || '').trim().toLowerCase());
+    };
+
+    const renderSharedChannelLayoutImmediately = renderSharedChannelLayout;
+    renderSharedChannelLayout = function () {
+        if (sharedLayoutFrame) cancelAnimationFrame(sharedLayoutFrame);
+        sharedLayoutFrame = requestAnimationFrame(() => {
+            sharedLayoutFrame = 0;
+            renderSharedChannelLayoutImmediately();
+        });
+    };
+
+    bindChannelSync = function () {
+        if (sharedChannelsRef) sharedChannelsRef.off();
+        if (sharedFoldersRef) sharedFoldersRef.off();
+        sharedChannelsRef = db.ref('server_channels');
+        sharedFoldersRef = db.ref('channel_folders');
+        const queueRender = () => renderSharedChannelLayout();
+        sharedChannelsRef.on('value', snapshot => {
+            sharedChannelData = snapshot.val() || {};
+            queueRender();
+        });
+        sharedFoldersRef.on('value', snapshot => {
+            sharedFolderData = snapshot.val() || {};
+            queueRender();
+        });
+    };
+
+    getChannelMeta = function (channelName) {
+        if (Object.prototype.hasOwnProperty.call(sharedChannelData || {}, channelName)) {
+            return Promise.resolve(sharedChannelData[channelName]);
+        }
+        return db.ref('server_channels/' + channelName).once('value').then(snapshot => {
+            const value = snapshot.val();
+            sharedChannelData[channelName] = value;
+            return value;
+        });
+    };
+
+    const startMentionWatchersImmediately = listenForGlobalMentions;
+    listenForGlobalMentions = function () {
+        if (globalMentionListenersStarted) return;
+        setTimeout(() => startMentionWatchersImmediately(), 1200);
+    };
+
+    window.addEventListener('load', () => {
+        if (presenceRenderInterval) {
+            clearInterval(presenceRenderInterval);
+            presenceRenderInterval = setInterval(renderPresenceFromCache, 60000);
+        }
+    });
+})();
+</script>
+
+<script id="avern-channel-cycle-fix-20261021">
+/* Channel switching fix that preserves text/forum channel routing. */
+(function () {
+    function cleanConversationListeners() {
+        if (activeChannelListenerCleanup) {
+            activeChannelListenerCleanup();
+            activeChannelListenerCleanup = null;
+        } else if (activeRef) {
+            activeRef.off();
+        }
+        if (activeTypingRef) {
+            activeTypingRef.off('value');
+            activeTypingRef = null;
+        }
+        if (activeChannelSettingsRef) {
+            activeChannelSettingsRef.off('value');
+            activeChannelSettingsRef = null;
+        }
+    }
+
+    function openTextOrDmChannel(targetId, DMFlag) {
+        if (!DMFlag && !canViewServerChannel(targetId)) {
+            alert('You do not have permission to view this channel.');
+            return;
+        }
+
+        cleanConversationListeners();
+        if (typeof detachForumList === 'function') detachForumList();
+        closeForumSplitUi();
+        cancelReplyData();
+        cancelForcedBottomScrolls();
+        isDmMode = !!DMFlag;
+        isForumMode = false;
+        activeForumPost = null;
+        activeForumPostData = null;
+        activeChannel = targetId;
+        shouldAutoScrollChat = true;
+        cachedSearchMessages = [];
+
+        const forumToolbar = document.getElementById('forum-toolbar');
+        if (forumToolbar) forumToolbar.style.display = 'none';
+        const inputContainer = document.querySelector('.chat-input-container');
+        if (inputContainer) inputContainer.style.display = '';
+        const chatBox = document.getElementById('chat-box');
+        if (chatBox) chatBox.className = 'chat-messages';
+
+        showSidebarView(isDmMode ? 'dms' : 'channels');
+        document.querySelectorAll('.channel-item.active').forEach(el => el.classList.remove('active'));
+
+        const prefix = document.getElementById('chat-header-prefix');
+        const channelName = document.getElementById('active-channel-name');
+        const chatInput = document.getElementById('chat-input');
+        if (prefix) prefix.innerText = isDmMode ? '@' : '#';
+        if (channelName) channelName.innerText = targetId;
+        if (chatInput) chatInput.placeholder = `Message ${isDmMode ? '@' : '#'}${targetId}`;
+
+        const selectedNode = isDmMode
+            ? document.getElementById(`dm-node-${String(targetId).toLowerCase()}`)
+            : document.getElementById(`chan-node-${targetId}`);
+        if (selectedNode) selectedNode.classList.add('active');
+
+        establishChannelListener();
+        establishTypingListener();
+        establishChannelSettingsListener();
+        clearUnreadForConversation(activeChannel, isDmMode);
+        updateAllUnreadBadges();
+        updateChatInputPermissions();
+    }
+
+    changeChannel = function (targetId, DMFlag) {
+        if (DMFlag) return openTextOrDmChannel(targetId, true);
+        if (!canViewServerChannel(targetId)) {
+            alert('You do not have permission to view this channel.');
+            return;
+        }
+
+        const cachedMeta = (sharedChannelData || {})[targetId];
+        if (cachedMeta !== undefined) {
+            if (getServerChannelType(cachedMeta) === 'forum') {
+                cleanConversationListeners();
+                return openForumChannel(targetId);
+            }
+            return openTextOrDmChannel(targetId, false);
+        }
+
+        return getChannelMeta(targetId).then(meta => {
+            if (getServerChannelType(meta) === 'forum') {
+                cleanConversationListeners();
+                return openForumChannel(targetId);
+            }
+            return openTextOrDmChannel(targetId, false);
+        }).catch(() => openTextOrDmChannel(targetId, false));
+    };
+})();
+</script>
+
+<script id="avern-full-performance-update-20261021">
+/* Fast revisits, bounded message cache, batched rendering, and strict active-listener ownership.
+   Channel type routing is intentionally untouched. */
+(function () {
+    const MAX_CHANNELS = 30;
+    const MAX_MESSAGES = 20;
+    const cache = window.__avernMessageHistoryCache = window.__avernMessageHistoryCache || new Map();
+
+    window.__avernStoreMessageCache = function (key, rows) {
+        if (cache.has(key)) cache.delete(key);
+        cache.set(key, rows.slice(-MAX_MESSAGES));
+        while (cache.size > MAX_CHANNELS) cache.delete(cache.keys().next().value);
+    };
+    window.__avernCacheUpsert = function (key, messageKey, packet) {
+        const rows = (cache.get(key) || []).filter(row => row.key !== messageKey);
+        rows.push({ key: messageKey, packet });
+        rows.sort((a, b) => String(a.key).localeCompare(String(b.key)));
+        window.__avernStoreMessageCache(key, rows);
+    };
+    window.__avernCacheRemove = function (key, messageKey) {
+        if (!cache.has(key)) return;
+        window.__avernStoreMessageCache(key, cache.get(key).filter(row => row.key !== messageKey));
+    };
+
+establishChannelListener = function() {
+            // If this gets called directly, clean up only the previous chat rendering listeners.
+            // Do not wipe the whole Firebase ref, because unread watchers live on the same paths.
+            if (activeChannelListenerCleanup) {
+                activeChannelListenerCleanup();
+                activeChannelListenerCleanup = null;
+            }
+
+            const chatBox = document.getElementById('chat-box');
+            const cacheKey = getChannelDatabasePath();
+            const cachedMessages = window.__avernMessageHistoryCache.get(cacheKey) || null;
+            chatBox.innerHTML = cachedMessages ? '' : '<div class="loading-history" id="loading-history">Loading messages...</div>';
+            prependForumOriginalPost();
+            if (cachedMessages) {
+                const cachedRows = [];
+                const cachedFragment = document.createDocumentFragment();
+                cachedMessages.forEach(({key, packet}) => {
+                    if (isHiddenControlPacket(packet)) return;
+                    const row = buildMessageRow(key, packet);
+                    cachedRows.push(row);
+                    cachedFragment.appendChild(row);
+                });
+                chatBox.appendChild(cachedFragment);
+                cachedRows.forEach(applyGrouping);
+                requestAnimationFrame(() => scrollChatToBottom('auto', true));
+            }
+            oldestMessageKey = cachedMessages?.[0]?.key || null;
+            newestMessageKey = null;
+            activeRef = db.ref(getChannelDatabasePath());
+
+            const currentRef = activeRef;
+            let listenerDisposed = false;
+            let liveAddedRef = null;
+            let liveAddedCallback = null;
+            let changedCallback = null;
+            let removedCallback = null;
+
+            activeChannelListenerCleanup = () => {
+                listenerDisposed = true;
+                if (liveAddedRef && liveAddedCallback) liveAddedRef.off('child_added', liveAddedCallback);
+                if (changedCallback) currentRef.off('child_changed', changedCallback);
+                if (removedCallback) currentRef.off('child_removed', removedCallback);
+                if (chatBox) { chatBox.onscroll = null; chatBox.onwheel = null; chatBox.ontouchstart = null; chatBox.ontouchmove = null; } cancelForcedBottomScrolls();
+            };
+
+            currentRef.orderByKey().limitToLast(20).once('value', (snapshot) => {
+                if (listenerDisposed || currentRef !== activeRef) return;
+
+                const messages = [];
+                snapshot.forEach(child => { messages.push({ key: child.key, packet: child.val() }); });
+                window.__avernStoreMessageCache(cacheKey, messages);
+                chatBox.innerHTML = '';
+                prependForumOriginalPost();
+                if (messages.length > 0) {
+                    oldestMessageKey = messages[0].key;
+                    newestMessageKey = messages[messages.length - 1].key;
+                }
+
+                const initialRows = [];
+                const initialFragment = document.createDocumentFragment();
+                messages.forEach(({key, packet}) => {
+                    if (isHiddenControlPacket(packet)) return;
+                    const row = buildMessageRow(key, packet);
+                    initialRows.push(row);
+                    initialFragment.appendChild(row);
+                });
+                chatBox.appendChild(initialFragment);
+                initialRows.forEach(applyGrouping);
+                shouldAutoScrollChat = true;
+                requestAnimationFrame(() => scrollChatToBottom('auto', true));
+
+                liveAddedCallback = (childSnap) => {
+                    if (listenerDisposed || currentRef !== activeRef) return;
+                    if (newestMessageKey && childSnap.key === newestMessageKey) return;
+                    const keepPinnedToBottom = shouldAutoScrollChat;
+                    const packet = childSnap.val();
+                    window.__avernCacheUpsert(cacheKey, childSnap.key, packet);
+                    if (isHiddenControlPacket(packet)) {
+                        return;
+                    }
+                    const row = buildMessageRow(childSnap.key, packet);
+                    chatBox.appendChild(row);
+                    applyGrouping(row);
+                    if (keepPinnedToBottom) scrollChatToBottom('auto', true);
+                };
+
+                if (newestMessageKey) {
+                    liveAddedRef = currentRef.orderByKey().startAt(newestMessageKey);
+                    liveAddedRef.on('child_added', liveAddedCallback);
+                } else {
+                    liveAddedRef = currentRef;
+                    liveAddedRef.on('child_added', liveAddedCallback);
+                }
+
+                changedCallback = (snapshot) => {
+                    if (listenerDisposed || currentRef !== activeRef) return;
+                    const targetNode = document.getElementById(`msg-node-${snapshot.key}`);
+                    const packet = snapshot.val();
+                    window.__avernCacheUpsert(cacheKey, snapshot.key, packet);
+                    if (targetNode) {
+                        const isMentioned = packet.msg && textMentionsCurrentUser(String(packet.msg));
+                        targetNode.className = 'msg-group';
+                        if (isMentioned) targetNode.classList.add('msg-mentioned');
+                        if (packet.pingEveryone === true || (packet.msg && String(packet.msg).toLowerCase().includes('@everyone'))) targetNode.classList.add('msg-everyone');
+
+                        targetNode.innerHTML = generateMessageMarkup(snapshot.key, packet);
+                        applyGrouping(targetNode);
+                        if (targetNode.nextElementSibling) applyGrouping(targetNode.nextElementSibling);
+                    }
+                };
+                currentRef.on('child_changed', changedCallback);
+
+                removedCallback = (snapshot) => {
+                    if (listenerDisposed || currentRef !== activeRef) return;
+                    const targetNode = document.getElementById(`msg-node-${snapshot.key}`);
+                    window.__avernCacheRemove(cacheKey, snapshot.key);
+                    if (targetNode) {
+                        const nextNode = targetNode.nextElementSibling;
+                        targetNode.remove();
+                        if (nextNode) applyGrouping(nextNode);
+                    }
+                };
+                currentRef.on('child_removed', removedCallback);
+            });
+
+            chatBox.onwheel = (event) => { if (event.deltaY < 0) { shouldAutoScrollChat = false; cancelForcedBottomScrolls(); } };
+            let lastTouchY = null;
+            chatBox.ontouchstart = (event) => { lastTouchY = event.touches?.[0]?.clientY ?? null; };
+            chatBox.ontouchmove = (event) => { const y = event.touches?.[0]?.clientY ?? null; if (y !== null && lastTouchY !== null && y > lastTouchY) { shouldAutoScrollChat = false; cancelForcedBottomScrolls(); } lastTouchY = y; };
+            chatBox.onscroll = () => { shouldAutoScrollChat = isChatNearBottom(chatBox); if (chatBox.scrollTop <= 1 && oldestMessageKey && !isLoadingOlder) loadOlderMessages(); };
+        };
 })();
 </script>
 </body>
