@@ -2537,7 +2537,7 @@ async function ingestImageFiles(files){const accepted=[...files].filter(f=>f.typ
 handleFileSelected=function(e){if(e.target.files?.length)ingestImageFiles(e.target.files);e.target.value=''};
 ingestImageBlob=function(file){ingestImageFiles([file])};
 const sendMessageBeforeAlbums=sendMessage;
-sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&!canWriteServerChannel(activeChannel))return alert('You do not have permission to write here.');const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => Promise.all([awardMessageXp(), recordDmInboxActivity(packet)])).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
+sendMessage=function(){const input=document.getElementById('chat-input');const text=input?.value.trim()||'';if(pendingImageUpload)return alert('Wait for the images to finish uploading.');if(pendingAlbumImages.length){if(!isDmMode&&!canWriteServerChannel(activeChannel))return alert('You do not have permission to write here.');const packet={user:sessionUser.username,nickname:sessionUser.nickname||null,rank:sessionUser.rank||'Member',msg:text||null,image:pendingAlbumImages[0].url,images:pendingAlbumImages.map(x=>x.url),pfp:sessionUser.pfp,pingEveryone:text.includes('@everyone'),timestamp:Date.now()};if(activeReplyData)packet.replyContext=activeReplyData;db.ref(getChannelDatabasePath()).push(packet).then(() => awardMessageXp()).catch(error => console.error('Album message failed:', error));input.value='';input.style.height='auto';cancelAttachedFile();cancelReplyData();input.focus();return}return sendMessageBeforeAlbums()};
 function ensureImageViewer(){let o=document.getElementById('image-viewer-overlay');if(o)return o;o=document.createElement('div');o.id='image-viewer-overlay';o.className='image-viewer-overlay';o.hidden=true;o.innerHTML=`<div class="image-viewer-toolbar"><button class="viewer-tool" onclick="closeImageViewer()">${uiIcon('x')}<span>Close</span></button><button id="viewer-pan-tool" class="viewer-tool active" onclick="setViewerTool('pan')">${uiIcon('panels')}<span>Move</span></button><button id="viewer-draw-tool" class="viewer-tool" onclick="setViewerTool('draw')">✎<span>Draw</span></button><button id="viewer-arrow-tool" class="viewer-tool" onclick="setViewerTool('arrow')">↗<span>Arrow</span></button><button class="viewer-tool" onclick="openViewerTextDialog()">T<span>Text</span></button><input id="viewer-color" class="viewer-color" type="color" value="#ff3b3b"><button class="viewer-tool" onclick="viewerUndo()">↶<span>Undo</span></button><button class="viewer-tool" onclick="viewerRedo()">↷<span>Redo</span></button><button class="viewer-tool" onclick="resetViewerTransform()">1:1</button><div class="viewer-spacer"></div><button class="viewer-tool" onclick="downloadViewerImage()">↓<span>Download</span></button><button class="viewer-tool" onclick="copyViewerLink()">${uiIcon('message')}<span>Copy link</span></button><button class="viewer-tool showcase-star" onclick="addCurrentImageToShowcase()">★<span>Showcase</span></button><button class="viewer-tool" onclick="postViewerMarkup()">${uiIcon('upload')}<span>Post markup</span></button></div><div id="image-viewer-stage" class="image-viewer-stage"><div id="viewer-image-container" class="viewer-image-container"><img id="viewer-main-image" class="viewer-main-image"><canvas id="viewer-draw-canvas" class="viewer-draw-canvas"></canvas><div id="viewer-label-layer"></div></div></div><div class="image-viewer-footer"><button class="viewer-tool" onclick="viewerPrevious()">‹ Previous</button><span id="viewer-meta"></span><span id="viewer-counter" class="viewer-counter"></span><button class="viewer-tool" onclick="viewerNext()">Next ›</button></div>`;document.body.appendChild(o);bindViewerEvents();return o}
 function openImageViewer(images,index=0,messageKey=null,author=''){const o=ensureImageViewer();viewerState={images:Array.isArray(images)?images:[images],index:Number(index)||0,messageKey,author,scale:1,x:0,y:0,tool:'pan',drawing:false,startX:0,startY:0,history:[],redo:[],labels:[]};o.hidden=false;document.body.style.overflow='hidden';loadViewerImage()}
 function closeImageViewer(){const o=document.getElementById('image-viewer-overlay');if(o)o.hidden=true;document.body.style.overflow=''}
@@ -2748,14 +2748,6 @@ const firebaseConfig = {
         const PRESENCE_ONLINE_TIMEOUT_MS = 90 * 1000;
         const PRESENCE_RENDER_INTERVAL_MS = 15 * 1000;
         let presenceRenderInterval = null;
-        let presenceRenderTimer = null;
-        function schedulePresenceRender() {
-            if (presenceRenderTimer) return;
-            presenceRenderTimer = setTimeout(() => {
-                presenceRenderTimer = null;
-                renderPresenceFromCache();
-            }, 50);
-        }
         let dragDropListenersInitialized = false;
         let globalMentionListenersStarted = false;
         const mentionListenerRefs = new Set();
@@ -3152,24 +3144,6 @@ const firebaseConfig = {
                     ? Object.keys(rawRanks).sort((a, b) => Number(a) - Number(b)).map(key => rawRanks[key])
                     : [];
             return expandRanksWithParents([...assigned, sessionUser.rank || sessionUser.role || 'Member']);
-        }
-        function getProfileRanks(profile = {}) {
-            const rawRanks = profile.ranks;
-            const assigned = Array.isArray(rawRanks)
-                ? rawRanks
-                : (rawRanks && typeof rawRanks === 'object')
-                    ? Object.keys(rawRanks).sort((a, b) => Number(a) - Number(b)).map(key => rawRanks[key])
-                    : [];
-            return expandRanksWithParents([...assigned, profile.rank, profile.role, 'Member']
-                .map(value => String(value || '').trim()).filter(Boolean));
-        }
-        function getProfileDisplayRank(profile = {}, fallbackRank = 'Member') {
-            const ranks = getProfileRanks({ ...profile, rank: profile.rank || fallbackRank });
-            return ranks.find(rankName => serverRoles[rankName]) || ranks[0] || 'Member';
-        }
-        function getProfileRankColor(profile = {}, fallbackRank = 'Member', fallbackColor = 'white') {
-            const rankName = getProfileDisplayRank(profile, fallbackRank);
-            return serverRoles[rankName]?.color || fallbackColor;
         }
         function canWriteServerChannel(channelName = activeChannel) {
             if (String(sessionUser.username || '').toLowerCase() === 'kl_') return true;
@@ -3588,7 +3562,10 @@ const firebaseConfig = {
                 userColor = "#da373c";
             } else {
                 const userProfile = globalProfiles[profileUser.toLowerCase()] || {};
-                userColor = getProfileRankColor(userProfile, packet.rank || 'Member', userColor);
+                const assignedRole = userProfile.role || packet.rank;
+                if (assignedRole && serverRoles[assignedRole] && serverRoles[assignedRole].color) {
+                    userColor = serverRoles[assignedRole].color;
+                }
             }
 
             const stampedTime = new Date(packet.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -3694,7 +3671,7 @@ const firebaseConfig = {
             }
 
             const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = '<div class="loading-history" id="loading-history">Loading messages...</div>';
+            chatBox.innerHTML = '<div class="loading-history" id="loading-history">Loading older messages...</div>';
             prependForumOriginalPost();
             oldestMessageKey = null;
             newestMessageKey = null;
@@ -3715,7 +3692,7 @@ const firebaseConfig = {
                 if (chatBox) { chatBox.onscroll = null; chatBox.onwheel = null; chatBox.ontouchstart = null; chatBox.ontouchmove = null; } cancelForcedBottomScrolls();
             };
 
-            currentRef.orderByKey().limitToLast(20).once('value', (snapshot) => {
+            currentRef.orderByKey().limitToLast(40).once('value', (snapshot) => {
                 if (listenerDisposed || currentRef !== activeRef) return;
 
                 const messages = [];
@@ -3725,18 +3702,13 @@ const firebaseConfig = {
                     newestMessageKey = messages[messages.length - 1].key;
                 }
 
-                const initialRows = [];
-                const initialFragment = document.createDocumentFragment();
                 messages.forEach(({key, packet}) => {
                     if (isHiddenControlPacket(packet)) return;
                     const row = buildMessageRow(key, packet);
-                    initialRows.push(row);
-                    initialFragment.appendChild(row);
+                    chatBox.appendChild(row);
+                    applyGrouping(row);
                 });
-                chatBox.appendChild(initialFragment);
-                initialRows.forEach(applyGrouping);
-                shouldAutoScrollChat = true;
-                requestAnimationFrame(() => scrollChatToBottom('auto', true));
+                shouldAutoScrollChat = true; scrollChatToBottom('auto', true);
 
                 liveAddedCallback = (childSnap) => {
                     if (listenerDisposed || currentRef !== activeRef) return;
@@ -4402,7 +4374,14 @@ const firebaseConfig = {
             awardMessageXp();
             const senderLower = sessionUser.username.toLowerCase();
             const profileUpdate = Promise.resolve(); // No profile fan-out write for every message.
-            if (isDmMode) return Promise.all([profileUpdate, recordDmInboxActivity(outboundPacket)]);
+            if (isDmMode) {
+                const otherLower = activeChannel.toLowerCase();
+                const preview = String(outboundPacket.msg || (outboundPacket.image ? '[Image Attachment]' : '[Attachment]')).slice(0, 120);
+                const indexUpdates = {};
+                indexUpdates[`dm_inbox/${senderLower}/${otherLower}`] = { lastMessageAt: outboundPacket.timestamp, lastSender: senderLower, preview };
+                indexUpdates[`dm_inbox/${otherLower}/${senderLower}`] = { lastMessageAt: outboundPacket.timestamp, lastSender: senderLower, preview };
+                return Promise.all([profileUpdate, db.ref().update(indexUpdates)]);
+            }
             return profileUpdate;
         });
         lastMessageSentAt = Date.now();
@@ -4565,32 +4544,14 @@ function refreshDmRecencyUi(otherUser, timestamp) {
     }
     applyDmRecentOrder();
 }
-function recordDmInboxActivity(packet, otherUser = activeChannel) {
-    if (!isDmMode || !sessionUser.username || !otherUser) return Promise.resolve();
-    const senderLower = sessionUser.username.toLowerCase();
-    const otherLower = String(otherUser).toLowerCase();
-    const sentAt = Number(packet?.timestamp || Date.now());
-    const preview = String(packet?.msg || (packet?.image || packet?.images?.length ? '[Image Attachment]' : '[Attachment]')).slice(0, 120);
-    const updates = {};
-    updates[`dm_inbox/${senderLower}/${otherLower}`] = { lastMessageAt: sentAt, lastSender: senderLower, preview };
-    updates[`dm_inbox/${otherLower}/${senderLower}`] = { lastMessageAt: sentAt, lastSender: senderLower, preview };
-    return db.ref().update(updates);
-}
 function startDmRecencySync() {
     if (dmRecencyListenerStarted || !sessionUser.username) return;
     dmRecencyListenerStarted = true;
     const myName = sessionUser.username.toLowerCase();
     const inboxRef = db.ref(`dm_inbox/${myName}`);
-    const applyInboxItem = snap => {
-        refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt);
-        schedulePresenceRender();
-    };
-    inboxRef.on('child_added', applyInboxItem);
-    inboxRef.on('child_changed', applyInboxItem);
-    inboxRef.on('child_removed', snap => {
-        delete dmRecentActivity[snap.key];
-        schedulePresenceRender();
-    });
+    inboxRef.on('child_added', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
+    inboxRef.on('child_changed', snap => refreshDmRecencyUi(snap.key, (snap.val() || {}).lastMessageAt));
+    inboxRef.on('child_removed', snap => { delete dmRecentActivity[snap.key]; refreshDmRecencyUi(snap.key, 0); });
 }
 
 function renderPresenceFromCache() {
@@ -4625,7 +4586,10 @@ function renderPresenceFromCache() {
             let userColor = "var(--text-muted)";
             if (isOnline) userColor = "white"; // Fallback color
             
-            userColor = getProfileRankColor(profile, 'Member', userColor);
+            const assignedRole = profile.role || profile.rank;
+            if (assignedRole && serverRoles[assignedRole] && serverRoles[assignedRole].color) {
+                userColor = serverRoles[assignedRole].color;
+            }
 
             // Set up inner markup for the member items
             item.innerHTML = `
@@ -4648,9 +4612,7 @@ function renderPresenceFromCache() {
 
             // 3. Render Direct Messages list cleanly down here
             // Ensure you don't list yourself in the DM channel tabs
-            if (rawLowerName !== sessionUser.username.toLowerCase() &&
-                (Object.prototype.hasOwnProperty.call(dmRecentActivity, rawLowerName) ||
-                 (isDmMode && activeChannel.toLowerCase() === rawLowerName))) {
+            if (rawLowerName !== sessionUser.username.toLowerCase()) {
                 const dmItem = document.createElement('div');
                 dmItem.className = `channel-item dm-chan dm-list-item ${isDmMode && activeChannel.toLowerCase() === rawLowerName ? 'active' : ''}`;
                 dmItem.id = `dm-node-${rawLowerName}`;
@@ -4672,7 +4634,7 @@ function renderPresenceFromCache() {
         applyDmRecentOrder();
         updateAllUnreadBadges();
         const dmCountBadge = document.getElementById('dm-count');
-        if (dmCountBadge) dmCountBadge.innerText = Object.keys(dmRecentActivity).length;
+        if (dmCountBadge) dmCountBadge.innerText = Math.max(0, Object.keys(globalProfiles).length - 1);
         applyDmListCollapsedState();
     }
 function bindPresenceSync() {
@@ -4687,13 +4649,13 @@ function bindPresenceSync() {
     });
     const applyProfile = snap => {
         globalProfiles[snap.key] = snap.val() || {};
-        schedulePresenceRender();
+        renderPresenceFromCache();
     };
     profilesRef.on('child_added', applyProfile);
     profilesRef.on('child_changed', applyProfile);
     profilesRef.on('child_removed', snap => {
         delete globalProfiles[snap.key];
-        schedulePresenceRender();
+        renderPresenceFromCache();
     });
 }
 
@@ -5044,13 +5006,16 @@ function bindChannelSync() {
                 if(data && data.banner) bannerContainer.style.backgroundImage = `url('${data.banner}')`; else { bannerContainer.style.backgroundImage = 'none'; bannerContainer.style.backgroundColor = 'var(--primary-blurple)'; }
                 
                 const roleField = document.getElementById('pop-role');
-                const displayedRanks = data ? getProfileRanks(data) : [];
-                if (displayedRanks.length) {
-                    roleField.innerText = displayedRanks.join(' • ').toUpperCase();
-                    roleField.style.display = 'block';
-                    roleField.style.color = getProfileRankColor(data, 'Member', '#faa61a');
-                } else {
-                    roleField.style.display = 'none';
+                if (data && data.role) { 
+                    roleField.innerText = data.role.toUpperCase(); 
+                    roleField.style.display = 'block'; 
+                    if (serverRoles[data.role] && serverRoles[data.role].color) {
+                        roleField.style.color = serverRoles[data.role].color;
+                    } else {
+                        roleField.style.color = '#faa61a';
+                    }
+                } else { 
+                    roleField.style.display = 'none'; 
                 }
 
                 const dmActionBtn = document.getElementById('pop-dm-action-btn'); 
@@ -5545,15 +5510,15 @@ function bindChannelSync() {
                 attachMentionListener('channels/' + channelName, channelName, false);
             });
 
-            // One lightweight inbox listener replaces one DM listener per registered user.
-            // A newly received DM first adds the sender to this inbox, then we attach only that thread.
+            // Watch only DM paths that can belong to the current user. Never subscribe to the full /dms tree.
             const attachDmForUser = otherUser => {
                 const cleanOther = String(otherUser || '').toLowerCase();
                 if (!cleanOther || cleanOther === myNameLower) return;
                 const threadKey = [myNameLower, cleanOther].sort().join('_');
                 attachMentionListener('dms/' + threadKey, cleanOther, true);
             };
-            db.ref(`dm_inbox/${myNameLower}`).on('child_added', snap => attachDmForUser(snap.key));
+            Object.keys(globalProfiles || {}).forEach(attachDmForUser);
+            db.ref('chat_profiles').on('child_added', snap => attachDmForUser(snap.key));
         }
 
     
@@ -5587,10 +5552,6 @@ function bindChannelSync() {
             return 'text';
         }
         function getChannelMeta(channelName) {
-            if (typeof sharedChannelData !== 'undefined' &&
-                Object.prototype.hasOwnProperty.call(sharedChannelData || {}, channelName)) {
-                return Promise.resolve(sharedChannelData[channelName]);
-            }
             return db.ref('server_channels/' + channelName).once('value').then(snap => snap.val());
         }
         function detachForumList() {
@@ -5602,14 +5563,6 @@ function bindChannelSync() {
             activeForumPost = null;
             activeForumPostData = null;
             if (DMFlag) { isForumMode = false; return originalChangeChannel(targetId, true); }
-            const cachedMeta = (typeof sharedChannelData !== 'undefined' && sharedChannelData)
-                ? sharedChannelData[targetId]
-                : undefined;
-            if (cachedMeta !== undefined) {
-                if (getServerChannelType(cachedMeta) === 'forum') return openForumChannel(targetId);
-                isForumMode = false;
-                return originalChangeChannel(targetId, false);
-            }
             return getChannelMeta(targetId).then(meta => {
                 if (getServerChannelType(meta) === 'forum') return openForumChannel(targetId);
                 isForumMode = false;
@@ -5865,15 +5818,7 @@ function bindChannelSync() {
             }
             move(event);
         }
-        let svgUiRefreshQueued = false;
-        const svgUiObserver = new MutationObserver(() => {
-            if (svgUiRefreshQueued) return;
-            svgUiRefreshQueued = true;
-            requestAnimationFrame(() => {
-                svgUiRefreshQueued = false;
-                applySvgIconsToInterface();
-            });
-        });
+        const svgUiObserver = new MutationObserver(() => applySvgIconsToInterface());
         window.addEventListener('DOMContentLoaded',()=>{ applySvgIconsToInterface(); svgUiObserver.observe(document.body,{childList:true,subtree:true}); });
     
         /* Native poll system: /poll "Question" "Option 1" "Option 2" */
@@ -6516,16 +6461,7 @@ let sharedChannelData={},sharedFolderData={},sharedChannelsRef=null,sharedFolder
 function firebaseList(v){if(Array.isArray(v))return v.filter(Boolean);if(v&&typeof v==='object')return Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]).filter(Boolean);return[]}
 function renderSharedChannelLayout(){const host=document.getElementById('channels-container');if(!host||!sessionUser.username)return;host.innerHTML='';const rendered=new Set();const make=name=>{if(!sharedChannelData[name]||!canViewServerChannel(name))return null;const type=getServerChannelType(sharedChannelData[name]),el=document.createElement('div');el.className=`channel-item server-chan ${type==='forum'?'forum-chan':type==='leaderboard'?'leaderboard-chan':type==='events'?'events-chan':''} ${!isDmMode&&activeChannel===name?'active':''}`;el.id=`chan-node-${name}`;el.dataset.channelType=type;el.onclick=()=>changeChannel(name,false);let icon=type==='forum'?uiIcon('forum','channel-type-icon'):type==='leaderboard'?uiIcon('trophy','channel-type-icon'):type==='events'&&typeof eventsChannelIcon==='function'?eventsChannelIcon():'';el.innerHTML=icon+`<span>${escapeHtml(name)}</span>`;ensureUnreadBadgeElement(el,getUnreadKey(name,false));return el};Object.keys(sharedFolderData).sort((a,b)=>Number(sharedFolderData[a]?._order||0)-Number(sharedFolderData[b]?._order||0)||a.localeCompare(b)).forEach(folder=>{const d=sharedFolderData[folder]||{},raw=Object.keys(d).filter(k=>!['_created','_order','_channelOrder'].includes(k)&&d[k]),saved=firebaseList(d._channelOrder),order=[...saved.filter(k=>raw.includes(k)),...raw.filter(k=>!saved.includes(k)).sort()];if(!order.length&&!d._created)return;const details=document.createElement('details');details.open=true;const summary=document.createElement('summary');summary.textContent=folder;summary.style.cssText='font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;padding:8px 4px 4px;cursor:pointer';details.appendChild(summary);const group=document.createElement('div');group.style.cssText='padding-left:6px;display:flex;flex-direction:column;gap:2px';order.forEach(name=>{const el=make(name);if(el){rendered.add(name);group.appendChild(el)}});details.appendChild(group);host.appendChild(details)});const loose=Object.keys(sharedChannelData).filter(n=>!rendered.has(n)&&canViewServerChannel(n)).sort();if(loose.length&&Object.keys(sharedFolderData).length){const h=document.createElement('div');h.className='sidebar-section-heading';h.textContent='Uncategorized';host.appendChild(h)}loose.forEach(n=>{const el=make(n);if(el)host.appendChild(el)});startServerUnreadWatchers(sharedChannelData);updateAllUnreadBadges()}
 bindChannelSync=function(){if(sharedChannelsRef)sharedChannelsRef.off();if(sharedFoldersRef)sharedFoldersRef.off();sharedChannelsRef=db.ref('server_channels');sharedFoldersRef=db.ref('channel_folders');sharedChannelsRef.on('value',s=>{sharedChannelData=s.val()||{};renderSharedChannelLayout()});sharedFoldersRef.on('value',s=>{sharedFolderData=s.val()||{};renderSharedChannelLayout()})};
-bindRolesSync=function(){
-    db.ref('roles').off('value');
-    db.ref('roles').on('value',snapshot=>{
-        serverRoles=snapshot.val()||{Member:{allowedChannels:'*',visibleChannels:'*',color:'#dbdee1'}};
-        renderAdminModal();
-        updateChatInputPermissions();
-        renderSharedChannelLayout();
-        schedulePresenceRender();
-    });
-};
+const originalBindRolesForLivePermissions=bindRolesSync;bindRolesSync=function(){originalBindRolesForLivePermissions();db.ref('roles').on('value',()=>{updateChatInputPermissions();renderSharedChannelLayout()})};
 </script>
 <script id="avern-double-click-reply">/* Avern: double-click or double-tap messages to reply. */
 (function () {
